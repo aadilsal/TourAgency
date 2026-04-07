@@ -14,13 +14,18 @@ import type { TourCardData } from "@/components/shared/TourCard";
 import { Clock, MapPin, Star, Tag } from "lucide-react";
 
 function lazyBlock(label: string, minH: string) {
-  return () => (
-    <div
-      className={`flex ${minH} items-center justify-center rounded-2xl border border-white/10 bg-white/5`}
-    >
-      <PageLoadingSpinner label={label} variant="dark" size="sm" />
-    </div>
-  );
+  function LoadingBlock() {
+    return (
+      <div
+        className={`flex ${minH} items-center justify-center rounded-2xl border border-white/10 bg-white/5`}
+      >
+        <PageLoadingSpinner label={label} variant="dark" size="sm" />
+      </div>
+    );
+  }
+
+  LoadingBlock.displayName = `LoadingBlock(${label})`;
+  return LoadingBlock;
 }
 
 const TourImageGallery = nextDynamic(
