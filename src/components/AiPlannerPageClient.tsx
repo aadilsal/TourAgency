@@ -26,17 +26,12 @@ import {
 } from "@/components/ui/FormField";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
-import { TourCardCompact } from "@/components/shared/TourCard";
 import type { TourCardData } from "@/components/shared/TourCard";
+import { formatPlannerReply, type PlannerPlan } from "@/lib/planner-reply";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
 
-type PlanPayload = {
-  recommendedSlugs: string[];
-  itinerary: Array<{ day: number; title: string; detail: string }>;
-  proposesCustomPlan: boolean;
-  customPlanDraft: string;
-};
+type PlanPayload = PlannerPlan;
 
 function buildUserPrompt(
   budget: string,
@@ -151,18 +146,19 @@ export function AiPlannerPageClient() {
         })),
         sessionToken: sessionToken ?? undefined,
       });
-      const assistantMsg: ChatMsg = {
-        role: "assistant",
-        content: res.reply,
-      };
-      setMessages([...nextMessages, assistantMsg]);
-      setReply(res.reply);
-      setPlan({
+      const nextPlan = {
         recommendedSlugs: res.recommendedSlugs ?? [],
         itinerary: res.itinerary ?? [],
         proposesCustomPlan: Boolean(res.proposesCustomPlan),
         customPlanDraft: res.customPlanDraft ?? "",
-      });
+      };
+      const assistantMsg: ChatMsg = {
+        role: "assistant",
+        content: formatPlannerReply(res.reply, nextPlan),
+      };
+      setMessages([...nextMessages, assistantMsg]);
+      setReply(formatPlannerReply(res.reply, nextPlan));
+      setPlan(nextPlan);
       if (!res.proposesCustomPlan) setCustomDone(false);
     } catch (e) {
       setErr(toUserFacingErrorMessage(e));
@@ -432,82 +428,16 @@ export function AiPlannerPageClient() {
               </Card>
             </motion.div>
 
-            {plan?.itinerary.length ? (
-              <div>
-                <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-slate-400">
-                  Itinerary
-                </h3>
-                <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {plan.itinerary.map((d, i) => (
-                    <motion.li
-                      key={`${d.day}-${d.title}`}
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.08 + i * 0.05 }}
-                    >
-                      <Card className="h-full border-white/30 p-5 shadow-card hover:shadow-card-hover">
-                        <p className="text-xs font-bold uppercase text-brand-accent">
-                          Day {d.day}
-                        </p>
-                        <p className="mt-2 font-semibold text-brand-ink">
-                          {d.title}
-                        </p>
-                        <p className="mt-2 text-sm leading-relaxed text-brand-muted">
-                          {d.detail}
-                        </p>
-                      </Card>
-                    </motion.li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {plan?.recommendedSlugs.length ? (
-              <div>
-                <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-slate-400">
-                  Recommended tours
-                </h3>
-                {recommendedTours.length > 0 ? (
-                  <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {recommendedTours.map((t, i) => (
-                      <motion.li
-                        key={t.slug}
-                        initial={{ opacity: 0, y: 12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.1 + i * 0.06 }}
-                      >
-                        <TourCardCompact tour={t} />
-                      </motion.li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {plan.recommendedSlugs.map((slug) => (
-                      <Link
-                        key={slug}
-                        href={`/tours/${slug}`}
-                        className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-sky-200 hover:bg-white/15"
-                      >
-                        {slug.replace(/-/g, " ")} →
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ) : null}
-
             {plan?.proposesCustomPlan && plan.customPlanDraft ? (
               <Card className="border-amber-200/60 bg-amber-50/95 p-6">
                 <p className="text-xs font-bold uppercase text-amber-900">
                   Custom route — team quote
                 </p>
                 <p className="mt-2 text-sm text-amber-950/85">
-                  This mix isn&apos;t fully covered by one catalog tour. Send the
-                  draft to our team for pricing and approval.
+                  This mix isn&apos;t fully covered by one catalog tour. The full
+                  draft is included in the reply above. Send it to our team for
+                  pricing and approval.
                 </p>
-                <pre className="mt-3 max-h-48 overflow-auto whitespace-pre-wrap rounded-xl bg-white/90 p-3 text-xs text-brand-ink">
-                  {plan.customPlanDraft}
-                </pre>
                 {customDone ? (
                   <p className="mt-4 text-sm font-semibold text-emerald-700">
                     Request sent — we&apos;ll contact you soon.

@@ -2,7 +2,6 @@
 
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -11,15 +10,11 @@ import { cn } from "@/lib/cn";
 import { PLANNER_WELCOME_MESSAGE } from "@/lib/planner-welcome";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { formatPlannerReply, type PlannerPlan } from "@/lib/planner-reply";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-type PlanPayload = {
-  recommendedSlugs: string[];
-  itinerary: Array<{ day: number; title: string; detail: string }>;
-  proposesCustomPlan: boolean;
-  customPlanDraft: string;
-};
+type PlanPayload = PlannerPlan;
 
 const WELCOME: Msg = {
   role: "assistant",
@@ -169,13 +164,13 @@ export function AiPlannerChat({
         messages: thread.map((m) => ({ role: m.role, content: m.content })),
         sessionToken: sessionToken ?? undefined,
       });
+      const nextPlan = planFromResponse(res);
       const assistantMsg: Msg = {
         role: "assistant",
-        content: res.reply,
+        content: formatPlannerReply(res.reply, nextPlan),
       };
       const after = [...thread, assistantMsg];
       setMessages(after);
-      const nextPlan = planFromResponse(res);
       setPlan(nextPlan);
       if (!res.proposesCustomPlan) {
         setCustomDone(false);
@@ -221,12 +216,6 @@ export function AiPlannerChat({
       setCustomSending(false);
     }
   }
-
-  const showPlan =
-    plan &&
-    (plan.recommendedSlugs.length > 0 ||
-      plan.itinerary.length > 0 ||
-      plan.proposesCustomPlan);
 
   const waitingRemote =
     Boolean(guestSessionId) && sessionQuery === undefined;
@@ -286,155 +275,110 @@ export function AiPlannerChat({
         <div ref={bottomRef} />
       </div>
 
-      {showPlan ? (
+      {plan?.proposesCustomPlan && plan.customPlanDraft ? (
         <Card className="mt-4 space-y-4 p-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-brand-primary">
-            Latest plan
-          </p>
-          {plan!.recommendedSlugs.length > 0 ? (
-            <div>
-              <p className="text-xs font-semibold text-brand-muted">
-                Matching tours
-              </p>
-              <ul className="mt-2 flex flex-wrap gap-2">
-                {plan!.recommendedSlugs.map((slug) => (
-                  <li key={slug}>
-                    <Link
-                      href={`/tours/${slug}`}
-                      className="rounded-lg bg-brand-accent/15 px-3 py-1.5 text-xs font-semibold text-brand-primary hover:bg-brand-accent/25"
-                    >
-                      {slug.replace(/-/g, " ")}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {plan!.itinerary.length > 0 ? (
-            <div>
-              <p className="text-xs font-semibold text-brand-muted">
-                Suggested itinerary
-              </p>
-              <ol className="mt-2 space-y-2 border-l-2 border-brand-accent/40 pl-4">
-                {plan!.itinerary.map((d) => (
-                  <li key={d.day + d.title}>
-                    <p className="text-xs font-bold text-brand-accent">
-                      Day {d.day}
-                    </p>
-                    <p className="font-semibold text-brand-ink">{d.title}</p>
-                    <p className="text-sm text-brand-muted">{d.detail}</p>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          ) : null}
-          {plan!.proposesCustomPlan && plan!.customPlanDraft ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3">
-              <p className="text-xs font-bold uppercase text-amber-900">
-                Custom route draft
-              </p>
-              <p className="mt-2 text-xs text-amber-950/80">
-                This mix isn&apos;t fully covered by a single catalog tour. Below
-                is a draft for our team to price and approve.
-              </p>
-              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-white/80 p-2 text-xs text-brand-ink">
-                {plan!.customPlanDraft}
-              </pre>
-              {customDone ? (
-                <p className="mt-3 text-sm font-semibold text-emerald-700">
-                  Request sent. We&apos;ll review and contact you soon.
-                </p>
-              ) : (
-                <div className="mt-4 space-y-3">
-                  <div>
-                    <FieldLabel htmlFor="cp-name" required>
-                      Your name
-                    </FieldLabel>
-                    <TextInput
-                      id="cp-name"
-                      value={cName}
-                      onChange={(e) => setCName(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <FieldLabel htmlFor="cp-phone" required>
-                      Phone (WhatsApp preferred)
-                    </FieldLabel>
-                    <TextInput
-                      id="cp-phone"
-                      type="tel"
-                      value={cPhone}
-                      onChange={(e) => setCPhone(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <FieldLabel htmlFor="cp-email">Email</FieldLabel>
-                    <TextInput
-                      id="cp-email"
-                      type="email"
-                      value={cEmail}
-                      onChange={(e) => setCEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <FieldLabel htmlFor="cp-start">Trip start</FieldLabel>
-                      <TextInput
-                        id="cp-start"
-                        type="date"
-                        value={cPreferredStart}
-                        onChange={(e) => setCPreferredStart(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <FieldLabel htmlFor="cp-end">Trip end</FieldLabel>
-                      <TextInput
-                        id="cp-end"
-                        type="date"
-                        value={cPreferredEnd}
-                        onChange={(e) => setCPreferredEnd(e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <FieldLabel htmlFor="cp-adults">Adults</FieldLabel>
-                      <TextInput
-                        id="cp-adults"
-                        type="number"
-                        min={1}
-                        value={cAdults}
-                        onChange={(e) =>
-                          setCAdults(Number.parseInt(e.target.value, 10) || 0)
-                        }
-                      />
-                    </div>
-                    <div>
-                      <FieldLabel htmlFor="cp-ch">Children</FieldLabel>
-                      <TextInput
-                        id="cp-ch"
-                        type="number"
-                        min={0}
-                        value={cChildren}
-                        onChange={(e) =>
-                          setCChildren(Number.parseInt(e.target.value, 10) || 0)
-                        }
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    className="w-full py-2.5"
-                    disabled={customSending}
-                    onClick={() => void onSubmitCustom()}
-                  >
-                    {customSending ? "Sending…" : "Send to team for approval"}
-                  </Button>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-brand-primary">
+              Custom quote
+            </p>
+            <p className="mt-1 text-xs text-brand-muted">
+              The full draft is already in the reply above. Add your details and
+              send it to the team if you want us to price it.
+            </p>
+          </div>
+          {customDone ? (
+            <p className="text-sm font-semibold text-emerald-700">
+              Request sent. We&apos;ll review and contact you soon.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              <div>
+                <FieldLabel htmlFor="cp-name" required>
+                  Your name
+                </FieldLabel>
+                <TextInput
+                  id="cp-name"
+                  value={cName}
+                  onChange={(e) => setCName(e.target.value)}
+                />
+              </div>
+              <div>
+                <FieldLabel htmlFor="cp-phone" required>
+                  Phone (WhatsApp preferred)
+                </FieldLabel>
+                <TextInput
+                  id="cp-phone"
+                  type="tel"
+                  value={cPhone}
+                  onChange={(e) => setCPhone(e.target.value)}
+                />
+              </div>
+              <div>
+                <FieldLabel htmlFor="cp-email">Email</FieldLabel>
+                <TextInput
+                  id="cp-email"
+                  type="email"
+                  value={cEmail}
+                  onChange={(e) => setCEmail(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <FieldLabel htmlFor="cp-start">Trip start</FieldLabel>
+                  <TextInput
+                    id="cp-start"
+                    type="date"
+                    value={cPreferredStart}
+                    onChange={(e) => setCPreferredStart(e.target.value)}
+                  />
                 </div>
-              )}
+                <div>
+                  <FieldLabel htmlFor="cp-end">Trip end</FieldLabel>
+                  <TextInput
+                    id="cp-end"
+                    type="date"
+                    value={cPreferredEnd}
+                    onChange={(e) => setCPreferredEnd(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <FieldLabel htmlFor="cp-adults">Adults</FieldLabel>
+                  <TextInput
+                    id="cp-adults"
+                    type="number"
+                    min={1}
+                    value={cAdults}
+                    onChange={(e) =>
+                      setCAdults(Number.parseInt(e.target.value, 10) || 0)
+                    }
+                  />
+                </div>
+                <div>
+                  <FieldLabel htmlFor="cp-ch">Children</FieldLabel>
+                  <TextInput
+                    id="cp-ch"
+                    type="number"
+                    min={0}
+                    value={cChildren}
+                    onChange={(e) =>
+                      setCChildren(Number.parseInt(e.target.value, 10) || 0)
+                    }
+                  />
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="primary"
+                className="w-full py-2.5"
+                disabled={customSending}
+                onClick={() => void onSubmitCustom()}
+              >
+                {customSending ? "Sending…" : "Send to team for approval"}
+              </Button>
             </div>
-          ) : null}
+          )}
         </Card>
       ) : null}
 
