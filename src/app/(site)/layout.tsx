@@ -48,7 +48,6 @@ export default function SiteChromeLayout({
   return (
     <div className="relative z-[1] min-h-screen">
       <Suspense fallback={<SiteHeader whatsappUrl={null} />}>
-        {/* @ts-expect-error Async Server Component */}
         <SiteHeaderData />
       </Suspense>
       {children}
@@ -62,11 +61,9 @@ export default function SiteChromeLayout({
           />
         }
       >
-        {/* @ts-expect-error Async Server Component */}
         <SiteFooterData />
       </Suspense>
       <Suspense fallback={null}>
-        {/* @ts-expect-error Async Server Component */}
         <WhatsAppFloatData />
       </Suspense>
     </div>
