@@ -73,7 +73,6 @@ export default async function HomePage() {
     <main className="min-h-screen">
       <HomeLandingAboveFold />
       <Suspense fallback={null}>
-        {/* @ts-expect-error Async Server Component */}
         <HomePageDeferred />
       </Suspense>
     </main>
