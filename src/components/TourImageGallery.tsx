@@ -3,6 +3,7 @@
 import useEmblaCarousel from "embla-carousel-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/cn";
 
 type Props = {
@@ -11,12 +12,14 @@ type Props = {
 };
 
 export function TourImageGallery({ images, title }: Props) {
+  const reduce = useReducedMotion();
   const [emblaRef, emblaApi] = useEmblaCarousel({
     loop: images.length > 1,
     align: "start",
     dragFree: false,
   });
   const [selected, setSelected] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
   const imagesKey = useMemo(() => images.join("\0"), [images]);
 
   const onSelect = useCallback(() => {
@@ -39,6 +42,19 @@ export function TourImageGallery({ images, title }: Props) {
       emblaApi.off("select", onSelect);
     };
   }, [emblaApi, onSelect]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    if (reduce) return;
+    if (isPaused) return;
+    if (images.length <= 1) return;
+
+    const id = window.setInterval(() => {
+      emblaApi.scrollNext();
+    }, 2000);
+
+    return () => window.clearInterval(id);
+  }, [emblaApi, images.length, isPaused, reduce]);
 
   const scrollTo = useCallback(
     (i: number) => {
@@ -84,6 +100,12 @@ export function TourImageGallery({ images, title }: Props) {
         role="region"
         aria-roledescription="carousel"
         aria-label={`${title} images`}
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        onFocusCapture={() => setIsPaused(true)}
+        onBlurCapture={() => setIsPaused(false)}
+        onPointerDown={() => setIsPaused(true)}
+        onPointerUp={() => setIsPaused(false)}
       >
         <div
           className="embla cursor-grab overflow-hidden active:cursor-grabbing"

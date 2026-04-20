@@ -18,6 +18,7 @@ export function ScrollyJourneyReelMobile({ className }: { className?: string }) 
   const stageWrapRef = useRef<HTMLDivElement | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
@@ -44,6 +45,21 @@ export function ScrollyJourneyReelMobile({ className }: { className?: string }) 
       emblaApi.off("select", onSelect);
     };
   }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    if (reduce) return;
+    if (isPaused) return;
+    if (chapters.length <= 1) return;
+
+    const id = window.setInterval(() => {
+      if (emblaApi.canScrollNext()) emblaApi.scrollNext();
+      else emblaApi.scrollTo(0);
+      setHasInteracted(true);
+    }, 2000);
+
+    return () => window.clearInterval(id);
+  }, [chapters.length, emblaApi, isPaused, reduce]);
 
   useEffect(() => {
     if (reduce) return;
@@ -161,7 +177,16 @@ export function ScrollyJourneyReelMobile({ className }: { className?: string }) 
           </div>
 
           <div className="mt-4">
-            <div ref={emblaRef} className="overflow-hidden">
+            <div
+              ref={emblaRef}
+              className="overflow-hidden"
+              onMouseEnter={() => setIsPaused(true)}
+              onMouseLeave={() => setIsPaused(false)}
+              onFocusCapture={() => setIsPaused(true)}
+              onBlurCapture={() => setIsPaused(false)}
+              onPointerDown={() => setIsPaused(true)}
+              onPointerUp={() => setIsPaused(false)}
+            >
               <div className="flex touch-pan-y">
                 {chapters.map((c) => {
                   const bullets = c.bullets.slice(0, 2);

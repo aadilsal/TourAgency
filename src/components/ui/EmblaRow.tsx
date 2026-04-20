@@ -2,6 +2,7 @@
 
 import useEmblaCarousel from "embla-carousel-react";
 import { useCallback, useEffect, useState, Children } from "react";
+import { useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/cn";
 
 type Props = {
@@ -11,6 +12,7 @@ type Props = {
   className?: string;
   gapClassName?: string;
   showArrows?: boolean;
+  autoplayMs?: number;
 };
 
 export function EmblaRow({
@@ -19,7 +21,9 @@ export function EmblaRow({
   className,
   gapClassName = "pl-4 md:pl-5",
   showArrows = true,
+  autoplayMs = 2000,
 }: Props) {
+  const reduce = useReducedMotion();
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     loop: false,
@@ -29,6 +33,7 @@ export function EmblaRow({
   });
   const [prevDisabled, setPrevDisabled] = useState(true);
   const [nextDisabled, setNextDisabled] = useState(true);
+  const [isPaused, setIsPaused] = useState(false);
 
   const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi]);
   const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi]);
@@ -50,11 +55,33 @@ export function EmblaRow({
 
   const slides = Children.toArray(children);
 
+  useEffect(() => {
+    if (!emblaApi) return;
+    if (reduce) return;
+    if (autoplayMs <= 0) return;
+    if (slides.length <= 1) return;
+    if (isPaused) return;
+
+    const id = window.setInterval(() => {
+      if (!emblaApi) return;
+      if (emblaApi.canScrollNext()) emblaApi.scrollNext();
+      else emblaApi.scrollTo(0);
+    }, autoplayMs);
+
+    return () => window.clearInterval(id);
+  }, [autoplayMs, emblaApi, isPaused, reduce, slides.length]);
+
   return (
     <div className={cn("relative", className)}>
       <div
         className="embla cursor-grab select-none overflow-hidden active:cursor-grabbing"
         ref={emblaRef}
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+        onFocusCapture={() => setIsPaused(true)}
+        onBlurCapture={() => setIsPaused(false)}
+        onPointerDown={() => setIsPaused(true)}
+        onPointerUp={() => setIsPaused(false)}
       >
         <div className="embla__container -ml-4 md:-ml-5">
           {slides.map((child, i) => (
