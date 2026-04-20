@@ -1,5 +1,5 @@
-import { RouteSegmentLoader } from "@/components/ui/PageLoadingSpinner";
+import { AdminLoadingSkeleton } from "@/components/skeletons/AdminLoadingSkeleton";
 
 export default function AdminLoading() {
-  return <RouteSegmentLoader label="Loading admin…" variant="light" />;
+  return <AdminLoadingSkeleton />;
 }

@@ -17,6 +17,7 @@ import type * as authActions from "../authActions.js";
 import type * as blog from "../blog.js";
 import type * as bookings from "../bookings.js";
 import type * as customItineraries from "../customItineraries.js";
+import type * as dashboard from "../dashboard.js";
 import type * as destinations from "../destinations.js";
 import type * as email from "../email.js";
 import type * as leads from "../leads.js";
@@ -48,6 +49,7 @@ declare const fullApi: ApiFromModules<{
   blog: typeof blog;
   bookings: typeof bookings;
   customItineraries: typeof customItineraries;
+  dashboard: typeof dashboard;
   destinations: typeof destinations;
   email: typeof email;
   leads: typeof leads;

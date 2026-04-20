@@ -31,9 +31,9 @@ export function AdminUsersTable() {
 
   return (
     <div>
-      <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-xl border border-border bg-panel shadow-sm backdrop-blur-xl">
         <table className="min-w-[560px] w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <thead className="border-b border-border bg-black/5 text-xs font-semibold uppercase tracking-wide text-muted dark:bg-white/5">
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Email</th>
@@ -45,19 +45,19 @@ export function AdminUsersTable() {
             {list.map((u) => (
               <tr
                 key={u._id}
-                className="border-b border-slate-100 last:border-0"
+                className="border-b border-border last:border-0"
               >
-                <td className="px-4 py-3 font-medium text-brand-ink">
+                <td className="px-4 py-3 font-medium text-foreground">
                   {u.name}
                 </td>
-                <td className="px-4 py-3 text-slate-600">{u.email}</td>
+                <td className="px-4 py-3 text-muted">{u.email}</td>
                 <td className="px-4 py-3">
                   <AdminRoleBadge role={u.role} />
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button
                     type="button"
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-brand-primary hover:bg-slate-50"
+                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-brand-cta hover:bg-panel-elevated"
                     onClick={() => setDetail(u)}
                   >
                     <Eye className="h-3.5 w-3.5" aria-hidden />
@@ -69,7 +69,7 @@ export function AdminUsersTable() {
           </tbody>
         </table>
         {list.length === 0 ? (
-          <p className="p-6 text-sm text-slate-500">No users yet.</p>
+          <p className="p-6 text-sm text-muted">No users yet.</p>
         ) : null}
       </div>
 
@@ -83,7 +83,7 @@ export function AdminUsersTable() {
         {detail ? (
           <dl className="space-y-3 text-sm">
             <div>
-              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
                 Role
               </dt>
               <dd className="mt-1">
@@ -91,18 +91,18 @@ export function AdminUsersTable() {
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
                 Phone
               </dt>
-              <dd className="mt-1 text-slate-800">
+              <dd className="mt-1 text-foreground">
                 {detail.phone?.trim() ? detail.phone : "—"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
                 Email verified
               </dt>
-              <dd className="mt-1 text-slate-800">
+              <dd className="mt-1 text-foreground">
                 {detail.emailVerified === true
                   ? "Yes"
                   : detail.emailVerified === false
@@ -111,10 +111,10 @@ export function AdminUsersTable() {
               </dd>
             </div>
             <div>
-              <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
                 Joined
               </dt>
-              <dd className="mt-1 text-slate-800">
+              <dd className="mt-1 text-foreground">
                 {new Date(detail.createdAt).toLocaleString(undefined, {
                   dateStyle: "medium",
                   timeStyle: "short",

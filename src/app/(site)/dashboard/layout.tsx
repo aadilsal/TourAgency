@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
 import { DashboardLayoutClient } from "@/components/DashboardLayoutClient";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Dashboard",
+  robots: { index: false, follow: false },
+};
 
 export default async function DashboardLayout({
   children,

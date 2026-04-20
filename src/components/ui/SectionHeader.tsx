@@ -18,11 +18,12 @@ export function SectionHeader({
   className,
   variant = "default",
 }: Props) {
-  const dark = variant === "onDark";
+  const onDark = variant === "onDark";
   return (
     <div
       className={cn(
         align === "center" && "mx-auto max-w-2xl text-center",
+        onDark && "text-foreground",
         className,
       )}
     >
@@ -30,7 +31,7 @@ export function SectionHeader({
         <p
           className={cn(
             "text-xs font-semibold uppercase tracking-widest",
-            dark ? "text-brand-accent" : "text-brand-accent",
+            "text-brand-sun",
           )}
         >
           {eyebrow}
@@ -39,7 +40,7 @@ export function SectionHeader({
       <h2
         className={cn(
           "mt-2 font-display text-3xl font-semibold tracking-tight md:text-4xl",
-          dark ? "text-white" : "text-brand-ink",
+          "text-foreground",
         )}
       >
         {title}
@@ -48,7 +49,7 @@ export function SectionHeader({
         <p
           className={cn(
             "mt-3 text-base leading-relaxed",
-            dark ? "text-slate-300" : "text-brand-muted",
+            "text-muted",
           )}
         >
           {description}

@@ -4,6 +4,7 @@ import { api } from "@convex/_generated/api";
 import type { Metadata } from "next";
 import nextDynamic from "next/dynamic";
 import { TourJsonLd } from "@/components/TourJsonLd";
+import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { getSiteUrl } from "@/lib/site";
 import { getWhatsAppClickUrl } from "@/lib/whatsapp-server";
 import type { Id } from "@convex/_generated/dataModel";
@@ -147,6 +148,13 @@ export default async function TourDetailPage({ params }: Props) {
   return (
     <main className="min-h-screen pb-28 lg:pb-20">
       <TourJsonLd tour={tour} />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", path: "/" },
+          { name: "Tours", path: "/tours" },
+          { name: tour.title, path: `/tours/${tour.slug}` },
+        ]}
+      />
       <PageContainer className="py-8 md:py-12">
         {/* Header — full width */}
         <header className="mb-8 md:mb-10">
@@ -200,16 +208,16 @@ export default async function TourDetailPage({ params }: Props) {
           </aside>
 
           <article className="min-w-0 lg:order-1 lg:col-span-7">
-            <section className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-card md:p-8">
-              <h2 className="text-lg font-bold text-brand-ink">About this tour</h2>
-              <p className="mt-4 whitespace-pre-wrap leading-relaxed text-brand-muted">
+            <section className="rounded-2xl border border-border bg-panel p-6 shadow-sm md:p-8">
+              <h2 className="text-lg font-bold text-foreground">About this tour</h2>
+              <p className="mt-4 whitespace-pre-wrap leading-relaxed text-muted">
                 {tour.description}
               </p>
             </section>
 
             <section className="mt-10 md:mt-12">
-              <h2 className="text-2xl font-bold text-brand-ink">Itinerary</h2>
-              <p className="mt-2 max-w-2xl text-sm text-brand-muted">
+              <h2 className="text-2xl font-bold text-foreground">Itinerary</h2>
+              <p className="mt-2 max-w-2xl text-sm text-muted">
                 Day-by-day flow — timings may shift slightly with weather and road
                 conditions.
               </p>
@@ -220,14 +228,14 @@ export default async function TourDetailPage({ params }: Props) {
                       className="absolute -left-[calc(0.75rem+2px)] top-1.5 flex h-3.5 w-3.5 -translate-x-1/2 items-center justify-center rounded-full border-2 border-white bg-brand-cta shadow-sm ring-2 ring-brand-accent/25 md:-left-[calc(1rem+2px)]"
                       aria-hidden
                     />
-                    <Card className="rounded-2xl border-slate-200/90 p-5 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.35)] md:p-6">
-                      <p className="text-xs font-bold uppercase tracking-wider text-brand-accent">
+                    <Card className="rounded-2xl p-5 md:p-6">
+                      <p className="text-xs font-bold uppercase tracking-wider text-brand-sun">
                         Day {d.day}
                       </p>
-                      <p className="mt-1.5 text-lg font-semibold text-brand-ink">
+                      <p className="mt-1.5 text-lg font-semibold text-foreground">
                         {d.title}
                       </p>
-                      <p className="mt-2 text-sm leading-relaxed text-brand-muted">
+                      <p className="mt-2 text-sm leading-relaxed text-muted">
                         {d.description}
                       </p>
                     </Card>

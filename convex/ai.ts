@@ -223,9 +223,17 @@ export const submitCustomPlanRequest = action({
   args: {
     name: v.string(),
     phone: v.string(),
-    email: v.optional(v.string()),
+    email: v.string(),
     summary: v.string(),
     proposal: v.string(),
+    thread: v.optional(
+      v.array(
+        v.object({
+          role: v.union(v.literal("user"), v.literal("assistant")),
+          content: v.string(),
+        }),
+      ),
+    ),
     sessionToken: v.optional(v.string()),
     preferredStart: v.optional(v.string()),
     preferredEnd: v.optional(v.string()),
@@ -237,13 +245,14 @@ export const submitCustomPlanRequest = action({
       ? await ctx.runQuery(api.auth.validateSession, { token: args.sessionToken })
       : null;
     const userId = session?.userId;
-    await ctx.runMutation(internal.customItineraries.createRequest, {
+    const requestId = await ctx.runMutation(internal.customItineraries.createRequest, {
       userId,
       name: args.name.trim(),
       phone: args.phone.trim(),
-      email: args.email?.trim() || undefined,
+      email: args.email.trim().toLowerCase(),
       summary: args.summary.slice(0, 2000),
       proposal: args.proposal.slice(0, 12000),
+      thread: args.thread?.slice(0, 80),
       preferredStart: args.preferredStart?.trim() || undefined,
       preferredEnd: args.preferredEnd?.trim() || undefined,
       adults: args.adults,
@@ -253,6 +262,9 @@ export const submitCustomPlanRequest = action({
       name: args.name.trim(),
       phone: args.phone.trim(),
       message: `Custom itinerary: ${args.summary.slice(0, 500)}`,
+    });
+    await ctx.runAction(internal.email.sendCustomItineraryRequestNotification, {
+      requestId,
     });
     return { ok: true as const };
   },

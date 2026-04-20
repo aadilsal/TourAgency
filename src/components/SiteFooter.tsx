@@ -26,31 +26,31 @@ export function SiteFooter({
 }: Props) {
   const phoneDisplay = contactPhone ?? "";
   return (
-    <footer className="relative mt-auto border-t border-white/10 bg-gradient-to-b from-brand-primary to-[#061f33] text-white">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+    <footer className="relative mt-auto border-t border-border bg-panel text-foreground">
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/5 to-transparent dark:from-black/20" />
       <PageContainer className="relative py-16 md:py-20">
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
           <div>
             <Link
               href="/"
-              className="font-display text-xl font-semibold tracking-tight text-white"
+              className="font-display text-xl font-semibold tracking-tight text-foreground"
             >
               JunketTours
             </Link>
-            <p className="mt-4 text-sm leading-relaxed text-white/75">
+            <p className="mt-4 text-sm leading-relaxed text-muted">
               Premium northern Pakistan travel — AI planning, verified tours,
               and concierge-style support from Hunza to Skardu.
             </p>
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-brand-accent">
+            <p className="text-xs font-bold uppercase tracking-wider text-brand-sun">
               Explore
             </p>
             <ul className="mt-4 space-y-2 text-sm">
               <li>
                 <Link
                   href="/tours"
-                  className="inline-flex items-center gap-2 text-white/80 hover:text-white"
+                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
                 >
                   <Compass className="h-4 w-4 shrink-0 opacity-80" />
                   Tours
@@ -59,7 +59,7 @@ export function SiteFooter({
               <li>
                 <Link
                   href="/destinations"
-                  className="inline-flex items-center gap-2 text-white/80 hover:text-white"
+                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
                 >
                   <MapPin className="h-4 w-4 shrink-0 opacity-80" />
                   Destinations
@@ -68,7 +68,7 @@ export function SiteFooter({
               <li>
                 <Link
                   href="/blog"
-                  className="inline-flex items-center gap-2 text-white/80 hover:text-white"
+                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
                 >
                   <BookOpen className="h-4 w-4 shrink-0 opacity-80" />
                   Travel guides
@@ -77,7 +77,7 @@ export function SiteFooter({
               <li>
                 <Link
                   href="/ai-planner"
-                  className="inline-flex items-center gap-2 text-white/80 hover:text-white"
+                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
                 >
                   <Sparkles className="h-4 w-4 shrink-0 opacity-80" />
                   AI Planner
@@ -86,7 +86,7 @@ export function SiteFooter({
               <li>
                 <Link
                   href="/contact"
-                  className="inline-flex items-center gap-2 text-white/80 hover:text-white"
+                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
                 >
                   <PhoneCall className="h-4 w-4 shrink-0 opacity-80" />
                   Contact us
@@ -95,7 +95,7 @@ export function SiteFooter({
             </ul>
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-brand-accent">
+            <p className="text-xs font-bold uppercase tracking-wider text-brand-sun">
               Contact
             </p>
             <ul className="mt-4 space-y-2 text-sm">
@@ -103,7 +103,7 @@ export function SiteFooter({
                 <li>
                   <a
                     href={`tel:${phoneDisplay.replace(/\s/g, "")}`}
-                    className="inline-flex items-center gap-2 text-white/80 hover:text-white"
+                    className="inline-flex items-center gap-2 text-muted hover:text-foreground"
                   >
                     <Phone className="h-4 w-4 shrink-0" />
                     {phoneDisplay}
@@ -116,7 +116,7 @@ export function SiteFooter({
                     href={whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center rounded-lg p-2 text-[#25D366] transition hover:bg-white/10"
+                    className="inline-flex items-center justify-center rounded-lg p-2 text-[#25D366] transition hover:bg-black/5 dark:hover:bg-white/10"
                     aria-label="Chat on WhatsApp — +92 320 9973486"
                   >
                     <WhatsAppBrandIcon className="h-7 w-7 shrink-0" />
@@ -126,16 +126,16 @@ export function SiteFooter({
             </ul>
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-brand-accent">
+            <p className="text-xs font-bold uppercase tracking-wider text-brand-sun">
               Social
             </p>
             <ul className="mt-4 flex flex-wrap gap-4 text-sm">
               <li>
                 <a
-                  href="https://instagram.com"
+                  href="https://www.instagram.com/junkettoursofficial/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-white/80 hover:text-white"
+                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
                 >
                   <ExternalLink className="h-4 w-4" />
                   Instagram
@@ -143,30 +143,41 @@ export function SiteFooter({
               </li>
               <li>
                 <a
-                  href="https://facebook.com"
+                  href="https://www.facebook.com/JunketToursOfficial"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-white/80 hover:text-white"
+                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
                 >
                   <ExternalLink className="h-4 w-4" />
                   Facebook
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://www.tiktok.com/@junkettours"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  TikTok
                 </a>
               </li>
             </ul>
           </div>
         </div>
         {(mapsEmbedUrl || officeAddress) && (
-          <div className="mt-14 border-t border-white/10 pt-10">
-            <p className="text-xs font-bold uppercase tracking-wider text-brand-accent">
+          <div className="mt-14 border-t border-border pt-10">
+            <p className="text-xs font-bold uppercase tracking-wider text-brand-sun">
               Visit us
             </p>
             {officeAddress ? (
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/80">
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted">
                 {officeAddress}
               </p>
             ) : null}
             {mapsEmbedUrl ? (
-              <div className="mt-4 overflow-hidden rounded-xl border border-white/15 bg-black/20 shadow-lg">
+              <div className="mt-4 overflow-hidden rounded-xl border border-border bg-black/5 shadow-sm dark:bg-black/20">
                 <iframe
                   title="Office location"
                   src={mapsEmbedUrl}
@@ -179,7 +190,7 @@ export function SiteFooter({
             ) : null}
           </div>
         )}
-        <p className="mt-14 border-t border-white/10 pt-8 text-center text-xs text-white/50">
+        <p className="mt-14 border-t border-border pt-8 text-center text-xs text-muted">
           © {new Date().getFullYear()} JunketTours. Northern Pakistan tours.
         </p>
       </PageContainer>

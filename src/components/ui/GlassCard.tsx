@@ -16,9 +16,8 @@ export function GlassCard({
   return (
     <div
       className={cn(
-        "rounded-2xl text-brand-ink",
+        "rounded-2xl text-foreground",
         strong ? "glass-panel-strong" : "glass-panel",
-        "bg-white/85 dark:bg-white/90",
         hover &&
           "transition-transform duration-300 hover:-translate-y-0.5 hover:shadow-card-hover",
         className,

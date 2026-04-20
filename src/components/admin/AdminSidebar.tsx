@@ -13,6 +13,7 @@ import {
   Newspaper,
   LineChart,
   Shield,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -29,6 +30,7 @@ const links: NavLink[] = [
   { href: "/admin/destinations", label: "Destinations", icon: Map },
   { href: "/admin/contact", label: "Contact", icon: MessageSquare },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
+  { href: "/admin/ai-planner", label: "AI Planner", icon: Sparkles },
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/blog", label: "Blog", icon: Newspaper },
   { href: "/admin/analytics", label: "Analytics", icon: LineChart },
@@ -50,8 +52,8 @@ export function AdminSidebar({
 
   return (
     <aside className="hidden w-60 shrink-0 md:block">
-      <div className="sticky top-24 rounded-2xl border border-slate-200/90 bg-white p-4 shadow-card ring-1 ring-slate-900/[0.04]">
-        <p className="px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-brand-muted">
+      <div className="sticky top-24 rounded-2xl border border-border bg-panel p-4 shadow-sm backdrop-blur-xl">
+        <p className="px-2 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
           Menu
         </p>
         <nav className="mt-3 flex flex-col gap-1">
@@ -67,14 +69,14 @@ export function AdminSidebar({
                 className={cn(
                   "flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
                   active
-                    ? "bg-brand-primary text-white shadow-sm"
-                    : "text-brand-muted hover:bg-brand-surface hover:text-brand-ink",
+                    ? "bg-brand-sun/18 text-foreground ring-1 ring-brand-sun/25"
+                    : "text-muted hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10",
                 )}
               >
                 <Icon
                   className={cn(
                     "h-4 w-4 shrink-0",
-                    active ? "text-white/90" : "opacity-70",
+                    active ? "text-brand-sun" : "opacity-70",
                   )}
                   aria-hidden
                 />

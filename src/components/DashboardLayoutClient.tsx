@@ -29,16 +29,16 @@ export function DashboardLayoutClient({
       <PageContainer>
         <div className="flex flex-col gap-10 lg:flex-row lg:gap-14">
           <aside className="w-full shrink-0 lg:w-56">
-            <Card className="overflow-hidden p-0 ring-1 ring-white/15 lg:sticky lg:top-28">
-              <div className="border-b border-slate-100 bg-gradient-to-br from-brand-primary/10 to-transparent p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">
+            <Card className="overflow-hidden p-0 ring-1 ring-border lg:sticky lg:top-28">
+              <div className="border-b border-border bg-gradient-to-br from-brand-sun/10 via-brand-cta/5 to-transparent p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">
                   Account
                 </p>
-                <p className="mt-1 truncate text-sm font-semibold text-brand-ink">
+                <p className="mt-1 truncate text-sm font-semibold text-foreground">
                   {name || email}
                 </p>
-                <p className="truncate text-xs text-brand-muted">{email}</p>
-                <p className="mt-1 text-xs capitalize text-brand-muted">
+                <p className="truncate text-xs text-muted">{email}</p>
+                <p className="mt-1 text-xs capitalize text-muted">
                   {role.replace("_", " ")}
                 </p>
               </div>
@@ -48,8 +48,8 @@ export function DashboardLayoutClient({
                   className={cn(
                     "flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors",
                     onBookings
-                      ? "bg-brand-primary text-white shadow-md"
-                      : "text-brand-muted hover:bg-slate-100",
+                      ? "bg-brand-sun/18 text-foreground ring-1 ring-brand-sun/25"
+                      : "text-muted hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10",
                   )}
                 >
                   <LayoutDashboard className="h-4 w-4 opacity-80" />
@@ -60,8 +60,8 @@ export function DashboardLayoutClient({
                   className={cn(
                     "flex items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors",
                     onProfile
-                      ? "bg-brand-primary text-white shadow-md"
-                      : "text-brand-muted hover:bg-slate-100",
+                      ? "bg-brand-sun/18 text-foreground ring-1 ring-brand-sun/25"
+                      : "text-muted hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10",
                   )}
                 >
                   <UserCircle className="h-4 w-4 opacity-80" />
@@ -69,10 +69,10 @@ export function DashboardLayoutClient({
                 </Link>
               </nav>
               {showAdminLink ? (
-                <div className="border-t border-slate-100 p-3">
+                <div className="border-t border-border p-3">
                   <Link
                     href="/admin"
-                    className="block rounded-xl px-3 py-2 text-center text-sm font-semibold text-brand-accent hover:bg-slate-50"
+                    className="block rounded-xl px-3 py-2 text-center text-sm font-semibold text-brand-cta hover:bg-black/5 dark:hover:bg-white/10"
                   >
                     Admin panel →
                   </Link>

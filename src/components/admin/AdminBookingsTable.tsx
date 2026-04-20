@@ -149,7 +149,7 @@ export function AdminBookingsTable() {
                       "inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ring-1",
                       r.kind === "guest"
                         ? "bg-violet-50 text-violet-900 ring-violet-200"
-                        : "bg-sky-50 text-sky-900 ring-sky-200",
+                        : "bg-brand-sun/15 text-brand-sun ring-brand-sun/25",
                     )}
                   >
                     {r.kind === "guest" ? "Guest" : "Member"}

@@ -70,7 +70,7 @@ export function AdminAnalyticsClient() {
                 Inquiries captured (AI, booking, manual)
               </p>
             </div>
-            <span className="rounded-xl bg-sky-500/10 p-2.5 text-sky-700">
+            <span className="rounded-xl bg-brand-sun/15 p-2.5 text-brand-sun">
               <Users className="h-6 w-6" aria-hidden />
             </span>
           </div>

@@ -2,12 +2,14 @@ import { getConvexServer } from "@/lib/convex-server";
 import { api } from "@convex/_generated/api";
 import { getWhatsAppClickUrl } from "@/lib/whatsapp-server";
 import { blogCoverImage } from "@/lib/blog-covers";
-import { HomeLanding } from "@/components/landing/HomeLanding";
+import { HomeLandingAboveFold } from "@/components/landing/HomeLandingAboveFold";
+import { HomeLandingBelowFold } from "@/components/landing/HomeLandingBelowFold";
 import type { FeaturedTour } from "@/components/landing/FeaturedToursCarousel";
+import { Suspense } from "react";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
+async function HomePageDeferred() {
   let tours: FeaturedTour[] = [];
   let blogPosts: Array<{
     slug: string;
@@ -63,9 +65,17 @@ export default async function HomePage() {
     blogPosts = [];
   }
 
+  return <HomeLandingBelowFold tours={tours} blogPosts={blogPosts} whatsappUrl={whatsappUrl} />;
+}
+
+export default async function HomePage() {
   return (
     <main className="min-h-screen">
-      <HomeLanding tours={tours} blogPosts={blogPosts} whatsappUrl={whatsappUrl} />
+      <HomeLandingAboveFold />
+      <Suspense fallback={null}>
+        {/* @ts-expect-error Async Server Component */}
+        <HomePageDeferred />
+      </Suspense>
     </main>
   );
 }

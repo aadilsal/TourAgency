@@ -3,18 +3,37 @@
 @tailwind utilities;
 
 :root {
-  --background: #0c1929;
-  --foreground: #f1f5f9;
-  --surface: rgba(255, 255, 255, 0.06);
-  --surface-elevated: rgba(255, 255, 255, 0.1);
-  --border-glass: rgba(255, 255, 255, 0.14);
-  --border-glass-strong: rgba(63, 167, 214, 0.35);
-  --shadow-glass: 0 8px 32px -8px rgba(7, 42, 69, 0.45),
+  /* DARK theme (single theme for now) */
+  --bg: #0c1929;
+  --fg: #f1f5f9;
+  --muted: rgba(241, 245, 249, 0.72);
+
+  --panel: rgba(255, 255, 255, 0.06);
+  --panel-elevated: rgba(255, 255, 255, 0.10);
+  --border: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(246, 176, 30, 0.22);
+
+  --shadow-panel: 0 8px 32px -8px rgba(7, 42, 69, 0.45),
     0 2px 16px -4px rgba(0, 0, 0, 0.25);
-  --glow-accent: 0 0 60px -12px rgba(63, 167, 214, 0.45);
-  --mesh-1: rgba(11, 60, 93, 0.85);
-  --mesh-2: rgba(15, 23, 42, 0.92);
-  --mesh-3: rgba(63, 167, 214, 0.12);
+  --shadow-panel-strong: var(--shadow-panel);
+
+  /* Mesh accents (logo-led, reduce blue) */
+  --mesh-1: rgba(246, 176, 30, 0.16); /* gold */
+  --mesh-2: rgba(255, 122, 0, 0.10); /* orange */
+  --mesh-3: rgba(46, 125, 50, 0.10); /* green */
+  --mesh-4: rgba(11, 18, 32, 0.88); /* charcoal */
+  --bg-grad-top: rgba(10, 22, 40, 0.92);
+  --bg-grad-bottom: rgba(7, 11, 18, 0.98);
+
+  /* Back-compat: existing tokens referenced in Tailwind/utilities */
+  --background: var(--bg);
+  --foreground: var(--fg);
+  --surface: var(--panel);
+  --surface-elevated: var(--panel-elevated);
+  --border-glass: var(--border);
+  --border-glass-strong: var(--border-strong);
+  --shadow-glass: var(--shadow-panel);
+  --glow-accent: 0 0 60px -12px rgba(246, 176, 30, 0.20);
 }
 
 @layer base {
@@ -31,10 +50,11 @@
     color: var(--foreground);
     background-color: var(--background);
     background-image:
-      radial-gradient(ellipse 120% 80% at 50% -20%, var(--mesh-3), transparent),
-      radial-gradient(ellipse 60% 50% at 100% 50%, rgba(11, 60, 93, 0.35), transparent),
-      radial-gradient(ellipse 50% 40% at 0% 80%, rgba(255, 122, 0, 0.06), transparent),
-      linear-gradient(165deg, var(--mesh-1) 0%, var(--mesh-2) 45%, #0a1628 100%);
+      radial-gradient(ellipse 110% 80% at 50% -20%, var(--mesh-1), transparent),
+      radial-gradient(ellipse 70% 55% at 100% 10%, var(--mesh-2), transparent),
+      radial-gradient(ellipse 70% 55% at 0% 75%, var(--mesh-3), transparent),
+      radial-gradient(ellipse 85% 70% at 50% 120%, var(--mesh-4), transparent),
+      linear-gradient(180deg, var(--bg-grad-top), var(--bg-grad-bottom));
     background-attachment: fixed;
     min-height: 100vh;
   }
@@ -54,7 +74,7 @@
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--border-glass);
-    box-shadow: var(--shadow-glass);
+    box-shadow: var(--shadow-panel);
   }
 
   .glass-panel-strong {
@@ -62,7 +82,7 @@
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid var(--border-glass-strong);
-    box-shadow: var(--shadow-glass), var(--glow-accent);
+    box-shadow: var(--shadow-panel-strong), var(--glow-accent);
   }
 
   .glass-border {

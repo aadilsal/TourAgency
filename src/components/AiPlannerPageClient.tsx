@@ -3,19 +3,18 @@
 import { useAction, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Sparkles,
   Loader2,
   MapPin,
   Calendar,
   Wallet,
-  Compass,
   Download,
   MessageCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import {
   FieldLabel,
@@ -26,7 +25,6 @@ import {
 } from "@/components/ui/FormField";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
-import type { TourCardData } from "@/components/shared/TourCard";
 import { formatPlannerReply, type PlannerPlan } from "@/lib/planner-reply";
 
 type ChatMsg = { role: "user" | "assistant"; content: string };
@@ -84,11 +82,25 @@ function formatPlanForFile(
   return out;
 }
 
+function formatPlanForTeamRequest(
+  reply: string,
+  plan: PlanPayload,
+  formSummary: string,
+) {
+  // Keep a compact but useful payload for ops.
+  let out = formatPlanForFile(reply, plan, formSummary);
+  if (out.length > 12000) out = out.slice(0, 11950) + "\n…(trimmed)\n";
+  return out;
+}
+
 export function AiPlannerPageClient() {
   const sessionToken = useConvexSessionToken();
   const plannerChat = useAction(api.ai.plannerChat);
   const submitCustom = useAction(api.ai.submitCustomPlanRequest);
-  const catalog = useQuery(api.tours.getTours, {});
+  const user = useQuery(
+    api.auth.getCurrentUser,
+    sessionToken ? { sessionToken } : "skip",
+  );
 
   const [budget, setBudget] = useState("");
   const [duration, setDuration] = useState("");
@@ -111,21 +123,18 @@ export function AiPlannerPageClient() {
   const [cChildren, setCChildren] = useState(0);
   const [customSending, setCustomSending] = useState(false);
   const [customDone, setCustomDone] = useState(false);
+  const didPrefill = useRef(false);
 
-  const activeTours = useMemo(() => {
-    if (!catalog) return [];
-    return catalog.filter((t) => t.isActive) as (TourCardData & {
-      _id: string;
-      slug: string;
-    })[];
-  }, [catalog]);
-
-  const recommendedTours = useMemo(() => {
-    if (!plan?.recommendedSlugs.length) return [];
-    return plan.recommendedSlugs
-      .map((slug) => activeTours.find((t) => t.slug === slug))
-      .filter(Boolean) as (TourCardData & { slug: string })[];
-  }, [plan, activeTours]);
+  useEffect(() => {
+    if (didPrefill.current) return;
+    if (sessionToken === undefined) return;
+    if (sessionToken === null) return;
+    if (!user) return;
+    setCName((v) => (v.trim() ? v : user.name));
+    setCPhone((v) => (v.trim() ? v : user.phone ?? ""));
+    setCEmail((v) => (v.trim() ? v : user.email));
+    didPrefill.current = true;
+  }, [sessionToken, user]);
 
   const formSummary = useMemo(
     () => buildUserPrompt(budget, duration, departureCity, preferences),
@@ -187,8 +196,9 @@ export function AiPlannerPageClient() {
     const blob = new Blob(
       [formatPlanForFile(reply ?? "", plan, formSummary)],
       {
-      type: "text/plain;charset=utf-8",
-    });
+        type: "text/plain;charset=utf-8",
+      },
+    );
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -199,9 +209,9 @@ export function AiPlannerPageClient() {
   }
 
   async function onSubmitCustom() {
-    if (!plan?.customPlanDraft.trim()) return;
-    if (!cName.trim() || !cPhone.trim()) {
-      setErr("Please add your name and phone so our team can follow up.");
+    if (!plan) return;
+    if (!cName.trim() || !cPhone.trim() || !cEmail.trim()) {
+      setErr("Please add your name, phone, and email so we can follow up.");
       return;
     }
     setCustomSending(true);
@@ -215,9 +225,13 @@ export function AiPlannerPageClient() {
       await submitCustom({
         name: cName.trim(),
         phone: cPhone.trim(),
-        email: cEmail.trim() || undefined,
+        email: cEmail.trim(),
         summary,
-        proposal: plan.customPlanDraft.slice(0, 12000),
+        proposal: formatPlanForTeamRequest(reply ?? "", plan, formSummary),
+        thread: messages.slice(-80).map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
         sessionToken: sessionToken ?? undefined,
         preferredStart: cPreferredStart.trim() || undefined,
         preferredEnd: cPreferredEnd.trim() || undefined,
@@ -235,11 +249,6 @@ export function AiPlannerPageClient() {
   const hasAssistantMessage = messages.some((m) => m.role === "assistant");
   const showFullPageLoader = loading && !hasAssistantMessage;
   const showOutput = hasAssistantMessage;
-
-  const bookHref =
-    recommendedTours[0]?.slug != null
-      ? `/tours/${recommendedTours[0].slug}#book`
-      : "/tours";
 
   return (
     <div className="space-y-12 lg:space-y-16">
@@ -395,10 +404,6 @@ export function AiPlannerPageClient() {
                 Your plan
               </h2>
               <div className="flex flex-wrap gap-2">
-                <ButtonLink href={bookHref} variant="primary" className="gap-2 py-3">
-                  <Compass className="h-4 w-4" />
-                  Book now
-                </ButtonLink>
                 <Button
                   type="button"
                   variant="secondary"
@@ -428,109 +433,111 @@ export function AiPlannerPageClient() {
               </Card>
             </motion.div>
 
-            {plan?.proposesCustomPlan && plan.customPlanDraft ? (
-              <Card className="border-amber-200/60 bg-amber-50/95 p-6">
-                <p className="text-xs font-bold uppercase text-amber-900">
-                  Custom route — team quote
+            <Card className="border-amber-200/60 bg-amber-50/95 p-6">
+              <p className="text-xs font-bold uppercase text-amber-900">
+                Request a booking consultation
+              </p>
+              <p className="mt-2 text-sm text-amber-950/85">
+                Share your details and we&apos;ll review this plan, confirm
+                availability, and contact you with next steps.
+              </p>
+              {customDone ? (
+                <p className="mt-4 text-sm font-semibold text-emerald-700">
+                  Request sent — we&apos;ll contact you soon.
                 </p>
-                <p className="mt-2 text-sm text-amber-950/85">
-                  This mix isn&apos;t fully covered by one catalog tour. The full
-                  draft is included in the reply above. Send it to our team for
-                  pricing and approval.
-                </p>
-                {customDone ? (
-                  <p className="mt-4 text-sm font-semibold text-emerald-700">
-                    Request sent — we&apos;ll contact you soon.
-                  </p>
-                ) : (
-                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div className="sm:col-span-2">
-                      <FieldLabel htmlFor="lead-name" required>
-                        Name
-                      </FieldLabel>
-                      <TextInput
-                        id="lead-name"
-                        value={cName}
-                        onChange={(e) => setCName(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <FieldLabel htmlFor="lead-phone" required>
-                        Phone
-                      </FieldLabel>
-                      <TextInput
-                        id="lead-phone"
-                        type="tel"
-                        value={cPhone}
-                        onChange={(e) => setCPhone(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <FieldLabel htmlFor="lead-email">Email</FieldLabel>
-                      <TextInput
-                        id="lead-email"
-                        type="email"
-                        value={cEmail}
-                        onChange={(e) => setCEmail(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <FieldLabel htmlFor="lead-s">Trip start</FieldLabel>
-                      <TextInput
-                        id="lead-s"
-                        type="date"
-                        value={cPreferredStart}
-                        onChange={(e) => setCPreferredStart(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <FieldLabel htmlFor="lead-e">Trip end</FieldLabel>
-                      <TextInput
-                        id="lead-e"
-                        type="date"
-                        value={cPreferredEnd}
-                        onChange={(e) => setCPreferredEnd(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <FieldLabel htmlFor="lead-a">Adults</FieldLabel>
-                      <TextInput
-                        id="lead-a"
-                        type="number"
-                        min={1}
-                        value={cAdults}
-                        onChange={(e) =>
-                          setCAdults(Number.parseInt(e.target.value, 10) || 0)
-                        }
-                      />
-                    </div>
-                    <div>
-                      <FieldLabel htmlFor="lead-c">Children</FieldLabel>
-                      <TextInput
-                        id="lead-c"
-                        type="number"
-                        min={0}
-                        value={cChildren}
-                        onChange={(e) =>
-                          setCChildren(Number.parseInt(e.target.value, 10) || 0)
-                        }
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <Button
-                        type="button"
-                        variant="primary"
-                        className="w-full py-3"
-                        disabled={customSending}
-                        onClick={() => void onSubmitCustom()}
-                      >
-                        {customSending ? "Sending…" : "Request team quote"}
-                      </Button>
-                    </div>
+              ) : (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <FieldLabel htmlFor="lead-name" required>
+                      Name
+                    </FieldLabel>
+                    <TextInput
+                      id="lead-name"
+                      placeholder={sessionToken ? undefined : "e.g. Aadil"}
+                      value={cName}
+                      onChange={(e) => setCName(e.target.value)}
+                    />
                   </div>
-                )}
-              </Card>
-            ) : null}
+                  <div>
+                    <FieldLabel htmlFor="lead-phone" required>
+                      Phone (WhatsApp preferred)
+                    </FieldLabel>
+                    <TextInput
+                      id="lead-phone"
+                      type="tel"
+                      placeholder={sessionToken ? undefined : "e.g. +92 300 1234567"}
+                      value={cPhone}
+                      onChange={(e) => setCPhone(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="lead-email" required>
+                      Email
+                    </FieldLabel>
+                    <TextInput
+                      id="lead-email"
+                      type="email"
+                      placeholder={sessionToken ? undefined : "e.g. name@email.com"}
+                      value={cEmail}
+                      onChange={(e) => setCEmail(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="lead-s">Trip start</FieldLabel>
+                    <TextInput
+                      id="lead-s"
+                      type="date"
+                      value={cPreferredStart}
+                      onChange={(e) => setCPreferredStart(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="lead-e">Trip end</FieldLabel>
+                    <TextInput
+                      id="lead-e"
+                      type="date"
+                      value={cPreferredEnd}
+                      onChange={(e) => setCPreferredEnd(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="lead-a">Adults</FieldLabel>
+                    <TextInput
+                      id="lead-a"
+                      type="number"
+                      min={1}
+                      value={cAdults}
+                      onChange={(e) =>
+                        setCAdults(Number.parseInt(e.target.value, 10) || 0)
+                      }
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel htmlFor="lead-c">Children</FieldLabel>
+                    <TextInput
+                      id="lead-c"
+                      type="number"
+                      min={0}
+                      value={cChildren}
+                      onChange={(e) =>
+                        setCChildren(Number.parseInt(e.target.value, 10) || 0)
+                      }
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      className="w-full py-3"
+                      disabled={customSending}
+                      onClick={() => void onSubmitCustom()}
+                    >
+                      {customSending ? "Sending…" : "Send to our team"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </Card>
 
             {/* Refine + lead capture hint */}
             <Card className="p-6">

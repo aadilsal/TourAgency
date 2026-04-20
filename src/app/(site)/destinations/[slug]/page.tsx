@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadDestinationDetailPageData } from "@/lib/destinations-server";
 import { RelatedToursCarousel } from "@/components/destinations/RelatedToursCarousel";
+import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -28,6 +29,13 @@ export default async function DestinationPage({ params }: Props) {
 
   return (
     <main className="min-h-screen">
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", path: "/" },
+          { name: "Destinations", path: "/destinations" },
+          { name: d.name, path: `/destinations/${params.slug}` },
+        ]}
+      />
       <div className="relative h-[min(55vh,520px)] w-full overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -53,6 +61,15 @@ export default async function DestinationPage({ params }: Props) {
             <ButtonLink href="/tours" variant="primary" className="py-3">
               Browse tours
             </ButtonLink>
+            {params.slug === "hunza" ? (
+              <ButtonLink
+                href="/hunza-tour-operator"
+                variant="secondary"
+                className="border-white/40 bg-white/15 py-3 text-white hover:bg-white/25"
+              >
+                Hunza tour operator
+              </ButtonLink>
+            ) : null}
             <ButtonLink
               href="/ai-planner"
               variant="secondary"

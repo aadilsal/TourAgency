@@ -12,12 +12,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: base, lastModified: new Date() },
     { url: `${base}/tours`, lastModified: new Date() },
     { url: `${base}/blog`, lastModified: new Date() },
-    { url: `${base}/login`, lastModified: new Date() },
-    { url: `${base}/register`, lastModified: new Date() },
   ];
   for (const p of landingPages) {
     entries.push({ url: `${base}/${p.slug}`, lastModified: new Date() });
   }
+  entries.push({ url: `${base}/best-travel-agency-in-pakistan`, lastModified: new Date() });
+  entries.push({ url: `${base}/best-tour-operators-in-pakistan`, lastModified: new Date() });
+  entries.push({ url: `${base}/hunza-tour-operator`, lastModified: new Date() });
   try {
     const client = getConvexServer();
     const tours = await client.query(api.tours.getTours, {});

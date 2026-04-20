@@ -215,6 +215,18 @@ export default defineSchema({
     email: v.optional(v.string()),
     summary: v.string(),
     proposal: v.string(),
+    /** Full AI planner chat thread (latest window). */
+    thread: v.optional(
+      v.array(
+        v.object({
+          role: v.union(v.literal("user"), v.literal("assistant")),
+          content: v.string(),
+        }),
+      ),
+    ),
+    /** Ops workspace: admin-drafted itinerary/quote text. */
+    adminDraft: v.optional(v.string()),
+    adminDraftUpdatedAt: v.optional(v.number()),
     preferredStart: v.optional(v.string()),
     preferredEnd: v.optional(v.string()),
     adults: v.optional(v.number()),
