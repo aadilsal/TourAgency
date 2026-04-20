@@ -67,7 +67,13 @@ export function RouteStage2D({
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${c.image})` }}
             />
-            <div className="absolute inset-0" style={{ backgroundImage: toBg(c) }} />
+            <div
+              className="absolute inset-0"
+              style={{
+                backgroundImage: toBg(c),
+                opacity: 0.6,
+              }}
+            />
           </div>
         ))}
       </div>
