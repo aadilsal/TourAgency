@@ -1,5 +1,5 @@
-import { RouteSegmentLoader } from "@/components/ui/PageLoadingSpinner";
+import { SiteLoadingSkeleton } from "@/components/skeletons/SiteLoadingSkeleton";
 
 export default function SiteLoading() {
-  return <RouteSegmentLoader label="Loading…" variant="dark" />;
+  return <SiteLoadingSkeleton />;
 }

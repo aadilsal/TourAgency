@@ -12,12 +12,11 @@ export function AdminRoleBadge({ role }: { role: string }) {
     <span
       className={cn(
         "inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ring-1",
-        role === "super_admin" &&
-          "bg-violet-100 text-violet-900 ring-violet-200",
-        role === "admin" && "bg-sky-100 text-sky-900 ring-sky-200",
-        role === "customer" && "bg-slate-100 text-slate-700 ring-slate-200",
+        role === "super_admin" && "bg-brand-sun/15 text-brand-sun ring-brand-sun/25",
+        role === "admin" && "bg-brand-cta/15 text-brand-cta ring-brand-cta/25",
+        role === "customer" && "bg-white/10 text-slate-200 ring-white/15",
         !["super_admin", "admin", "customer"].includes(role) &&
-          "bg-amber-50 text-amber-900 ring-amber-200",
+          "bg-brand-forest/12 text-brand-forest ring-brand-forest/25",
       )}
     >
       {label}

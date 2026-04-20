@@ -29,7 +29,7 @@ export function TourCard({ tour, badge, className }: Props) {
         className,
       )}
     >
-      <div className="relative h-56 bg-slate-200">
+      <div className="relative h-56 bg-black/20">
         {tour.images[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -41,7 +41,7 @@ export function TourCard({ tour, badge, className }: Props) {
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="flex h-full items-center justify-center bg-gradient-to-br from-brand-primary/25 to-brand-accent/20 text-sm text-brand-muted">
+          <div className="flex h-full items-center justify-center bg-gradient-to-br from-brand-primary/25 to-brand-cta/15 text-sm text-white/70">
             Photo soon
           </div>
         )}
@@ -52,13 +52,13 @@ export function TourCard({ tour, badge, className }: Props) {
         ) : null}
       </div>
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="line-clamp-2 text-lg font-semibold text-brand-ink">
+        <h3 className="line-clamp-2 text-lg font-semibold text-foreground">
           {tour.title}
         </h3>
-        <p className="mt-2 text-sm font-semibold text-brand-accent">
+        <p className="mt-2 text-sm font-semibold text-brand-sun">
           PKR {tour.price.toLocaleString()} · {tour.durationDays} days
         </p>
-        <p className="mt-1 line-clamp-2 text-sm text-brand-muted">{tour.location}</p>
+        <p className="mt-1 line-clamp-2 text-sm text-muted">{tour.location}</p>
         <div className="mt-auto flex gap-2 pt-5">
           <ButtonLink
             href={`/tours/${tour.slug}`}
@@ -85,9 +85,9 @@ export function TourCardCompact({ tour }: { tour: TourCardData }) {
   return (
     <Link
       href={`/tours/${tour.slug}`}
-      className="block h-full overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-card transition-shadow duration-300 hover:shadow-card-hover"
+      className="block h-full overflow-hidden rounded-2xl border border-border bg-panel shadow-sm transition-shadow duration-300 hover:border-border-strong"
     >
-      <div className="relative aspect-[16/10] w-full bg-slate-200">
+      <div className="relative aspect-[16/10] w-full bg-black/20">
         {tour.images[0] ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -99,14 +99,14 @@ export function TourCardCompact({ tour }: { tour: TourCardData }) {
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="flex h-full items-center justify-center bg-gradient-to-br from-brand-primary/15 to-brand-accent/20 text-xs text-brand-muted">
+          <div className="flex h-full items-center justify-center bg-gradient-to-br from-brand-primary/15 to-brand-cta/15 text-xs text-white/70">
             Photo soon
           </div>
         )}
       </div>
       <div className="p-4 text-left">
-        <p className="font-semibold text-brand-ink">{tour.title}</p>
-        <p className="mt-1 text-sm font-medium text-brand-accent">
+        <p className="font-semibold text-foreground">{tour.title}</p>
+        <p className="mt-1 text-sm font-medium text-brand-sun">
           PKR {tour.price.toLocaleString()} · {tour.durationDays}d
         </p>
       </div>

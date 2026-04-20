@@ -1,5 +1,5 @@
-import { RouteSegmentLoader } from "@/components/ui/PageLoadingSpinner";
+import { DashboardLoadingSkeleton } from "@/components/skeletons/DashboardLoadingSkeleton";
 
 export default function DashboardLoading() {
-  return <RouteSegmentLoader label="Loading dashboard…" variant="dark" />;
+  return <DashboardLoadingSkeleton />;
 }

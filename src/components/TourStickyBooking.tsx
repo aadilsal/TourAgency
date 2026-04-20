@@ -142,25 +142,25 @@ export function TourStickyBooking({
 
   return (
     <>
-      <Card className="overflow-hidden rounded-2xl border border-slate-200/90 p-6 shadow-[0_20px_50px_-28px_rgba(15,23,42,0.35)] ring-1 ring-slate-900/[0.04] lg:sticky lg:top-[100px]">
+      <Card className="overflow-hidden p-6 ring-1 ring-border lg:sticky lg:top-[100px]">
         <div id="book" className="scroll-mt-28">
-          <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted">
             From
           </p>
-          <p className="mt-1 text-3xl font-bold tracking-tight text-brand-ink">
+          <p className="mt-1 text-3xl font-bold tracking-tight text-foreground">
             PKR {price.toLocaleString()}
-            <span className="text-base font-semibold text-brand-muted">
+            <span className="text-base font-semibold text-muted">
               {" "}
               / person
             </span>
           </p>
-          <p className="mt-1 text-sm text-brand-muted">
+          <p className="mt-1 text-sm text-muted">
             {durationDays} days · {location}
           </p>
 
           {loggedIn ? (
             <div className="mt-6 space-y-4">
-              <p className="text-sm text-brand-muted">
+              <p className="text-sm text-muted">
                 You&apos;re signed in — use the form below. Your request is tied
                 to your account and appears on your dashboard.
               </p>
@@ -178,7 +178,7 @@ export function TourStickyBooking({
                   </a>
                 </div>
               ) : null}
-              <p className="text-center text-xs leading-relaxed text-brand-muted">
+              <p className="text-center text-xs leading-relaxed text-muted">
                 No payment online — we confirm by phone.
               </p>
             </div>
@@ -207,8 +207,8 @@ export function TourStickyBooking({
 
             <div>
               <FieldLabel required>Travelers</FieldLabel>
-              <div className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-slate-200/90 bg-white px-3 py-2 shadow-sm">
-                <span className="flex items-center gap-2 text-sm text-brand-muted">
+              <div className="mt-1 flex items-center justify-between gap-3 rounded-xl border border-border bg-panel-elevated px-3 py-2 shadow-sm">
+                <span className="flex items-center gap-2 text-sm text-muted">
                   <Users className="h-4 w-4 shrink-0" aria-hidden />
                   People
                 </span>
@@ -216,7 +216,7 @@ export function TourStickyBooking({
                   <button
                     type="button"
                     aria-label="Decrease travelers"
-                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-brand-primary transition hover:bg-brand-surface disabled:opacity-40"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-panel text-foreground transition hover:bg-panel-elevated disabled:opacity-40"
                     disabled={peopleCount <= 1 || loading}
                     onClick={() => {
                       setPeopleCount((n) => Math.max(1, n - 1));
@@ -225,13 +225,13 @@ export function TourStickyBooking({
                   >
                     <Minus className="h-4 w-4" />
                   </button>
-                  <span className="min-w-[2rem] text-center text-base font-semibold text-brand-ink">
+                  <span className="min-w-[2rem] text-center text-base font-semibold text-foreground">
                     {peopleCount}
                   </span>
                   <button
                     type="button"
                     aria-label="Increase travelers"
-                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-brand-primary transition hover:bg-brand-surface disabled:opacity-40"
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-panel text-foreground transition hover:bg-panel-elevated disabled:opacity-40"
                     disabled={loading}
                     onClick={() => {
                       setPeopleCount((n) => n + 1);
@@ -242,9 +242,9 @@ export function TourStickyBooking({
                   </button>
                 </div>
               </div>
-              <p className="mt-2 text-sm font-semibold text-brand-ink">
+              <p className="mt-2 text-sm font-semibold text-foreground">
                 Estimated total:{" "}
-                <span className="text-brand-accent">
+                <span className="text-brand-cta">
                   PKR {totalPrice.toLocaleString()}
                 </span>
               </p>
@@ -298,7 +298,7 @@ export function TourStickyBooking({
                 onChange={(e) => setEmail(e.target.value)}
                 icon={<Mail />}
               />
-              <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-muted">
                 Optional — we&apos;ll send a confirmation if provided.
               </p>
             </div>
@@ -339,7 +339,7 @@ export function TourStickyBooking({
               </div>
             ) : null}
 
-            <p className="text-center text-xs leading-relaxed text-brand-muted">
+            <p className="text-center text-xs leading-relaxed text-muted">
               No payment online — we confirm by phone. Guest checkout; no account
               required.
             </p>
@@ -357,7 +357,7 @@ export function TourStickyBooking({
       />
 
       <div
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200/90 bg-white/95 p-4 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur-md lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-panel p-4 shadow-sm backdrop-blur-md lg:hidden"
         style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
       >
         <Button

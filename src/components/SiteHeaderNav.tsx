@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -149,7 +150,7 @@ function AccountDropdown({
               className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10"
               onClick={() => setOpen(false)}
             >
-              <LayoutDashboard className="h-4 w-4 text-sky-300" aria-hidden />
+              <LayoutDashboard className="h-4 w-4 text-brand-sun" aria-hidden />
               Dashboard
             </Link>
             {isAdmin ? (
@@ -159,7 +160,7 @@ function AccountDropdown({
                 className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-white/10"
                 onClick={() => setOpen(false)}
               >
-                <Shield className="h-4 w-4 text-sky-300/80" aria-hidden />
+                <Shield className="h-4 w-4 text-brand-sun/80" aria-hidden />
                 Admin
               </Link>
             ) : null}
@@ -236,14 +237,31 @@ export function SiteHeaderNav({
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-white/15 bg-slate-950/88 shadow-lg shadow-black/25 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-border bg-panel shadow-sm backdrop-blur-xl relative">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-cta/60 to-transparent dark:via-brand-cta/70"
+        aria-hidden
+      />
       <PageContainer className="!px-4 py-3 md:!px-8 lg:!px-12">
         <div className="flex items-center justify-between gap-3">
           <Link
             href="/"
-            className="shrink-0 font-display text-xl font-semibold tracking-tight text-white drop-shadow-sm transition hover:text-sky-200"
+            className="group flex items-center gap-2.5 shrink-0"
+            aria-label="JunketTours"
+            title="JunketTours"
           >
-            JunketTours
+            <span className="relative h-10 w-10 overflow-hidden rounded-full bg-black/5 ring-1 ring-border transition hover:bg-black/10 dark:bg-white/10 dark:ring-white/15 dark:hover:bg-white/15">
+              <Image
+                src="/images-removebg-preview.png"
+                alt=""
+                fill
+                className="object-contain p-1.5"
+                priority
+              />
+            </span>
+            <span className="font-display text-lg font-semibold tracking-tight text-foreground drop-shadow-sm transition group-hover:text-brand-sun sm:text-xl">
+              JunketTours
+            </span>
           </Link>
 
           <nav
@@ -254,9 +272,12 @@ export function SiteHeaderNav({
               <Link
                 key={href}
                 href={href}
-                className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-slate-100 transition-colors hover:bg-white/10 hover:text-white"
+                className="group flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-black/5 dark:hover:bg-white/10"
               >
-                <Icon className="h-4 w-4 text-sky-300/90" aria-hidden />
+                <Icon
+                  className="h-4 w-4 text-brand-sun/90 transition-colors group-hover:text-brand-forest"
+                  aria-hidden
+                />
                 {label}
               </Link>
             ))}
@@ -265,7 +286,7 @@ export function SiteHeaderNav({
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
             <Link
               href="/ai-planner"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-cta px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-orange-500/30 transition hover:brightness-110 sm:text-sm"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-cta px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:brightness-110 sm:text-sm"
             >
               <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
               AI Planner
@@ -286,7 +307,7 @@ export function SiteHeaderNav({
             ) : (
               <Link
                 href="/login"
-                className="text-sm font-semibold text-white transition hover:text-sky-200"
+                className="text-sm font-semibold text-foreground transition hover:text-brand-sun"
               >
                 Log in
               </Link>
@@ -294,7 +315,7 @@ export function SiteHeaderNav({
 
             <button
               type="button"
-              className="rounded-xl p-2 text-white transition hover:bg-white/10 md:hidden"
+              className="rounded-xl p-2 text-foreground transition hover:bg-black/5 dark:hover:bg-white/10 md:hidden"
               aria-expanded={open}
               aria-label={open ? "Close menu" : "Open menu"}
               onClick={() => setOpen((o) => !o)}
@@ -323,10 +344,10 @@ export function SiteHeaderNav({
                   <Link
                     key={href}
                     href={href}
-                    className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-100 hover:bg-white/10"
+                    className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-100 hover:bg-white/10"
                     onClick={() => setOpen(false)}
                   >
-                    <Icon className="h-4 w-4 text-sky-300" />
+                    <Icon className="h-4 w-4 text-brand-sun transition-colors group-hover:text-brand-forest" />
                     {label}
                   </Link>
                 ))}
@@ -362,10 +383,10 @@ export function SiteHeaderNav({
                 ) : (
                   <Link
                     href="/login"
-                    className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
+                    className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
                     onClick={() => setOpen(false)}
                   >
-                    <LogIn className="h-4 w-4 text-sky-300" />
+                    <LogIn className="h-4 w-4 text-brand-sun transition-colors group-hover:text-brand-forest" />
                     Log in
                   </Link>
                 )}

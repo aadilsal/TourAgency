@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { BlogPostBody } from "@/components/blog/BlogPostBody";
 import { BlogPostCard } from "@/components/blog/BlogPostCard";
 import { BlogArticleJsonLd } from "@/components/blog/BlogJsonLd";
+import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { blogCoverImage } from "@/lib/blog-covers";
 
 export const dynamic = "force-dynamic";
@@ -111,6 +112,13 @@ export default async function BlogPostPage({ params }: Props) {
         slug={post.slug}
         datePublished={publishedIso}
       />
+      <BreadcrumbJsonLd
+        items={[
+          { name: "Home", path: "/" },
+          { name: "Travel Guides", path: "/blog" },
+          { name: post.title, path: `/blog/${post.slug}` },
+        ]}
+      />
 
       <div className="relative h-[min(42vh,380px)] w-full overflow-hidden md:h-[min(48vh,440px)]">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -145,17 +153,17 @@ export default async function BlogPostPage({ params }: Props) {
 
       <PageContainer className="mt-10 md:mt-14">
         <article className="mx-auto max-w-prose">
-          <Card className="border-slate-200/90 p-6 shadow-card md:p-10">
+          <Card className="p-6 shadow-sm md:p-10">
             <BlogPostBody content={post.content} />
           </Card>
         </article>
 
         {related.length > 0 ? (
           <section className="mx-auto mt-16 max-w-content border-t border-white/10 pt-14 md:mt-20 md:pt-16">
-            <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">
+            <h2 className="font-display text-2xl font-semibold text-foreground md:text-3xl">
               Related guides
             </h2>
-            <p className="mt-2 text-sm text-brand-muted">
+            <p className="mt-2 text-sm text-muted">
               More articles to plan your trip.
             </p>
             <ul className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">

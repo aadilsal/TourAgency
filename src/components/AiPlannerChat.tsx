@@ -49,6 +49,10 @@ export function AiPlannerChat({
   const submitCustom = useAction(api.ai.submitCustomPlanRequest);
   const ensureSession = useMutation(api.plannerChatSessions.ensureSession);
   const syncMessages = useMutation(api.plannerChatSessions.syncMessages);
+  const user = useQuery(
+    api.auth.getCurrentUser,
+    sessionToken ? { sessionToken } : "skip",
+  );
 
   const sessionQuery = useQuery(
     api.plannerChatSessions.getByGuestId,
@@ -71,6 +75,18 @@ export function AiPlannerChat({
   const [cChildren, setCChildren] = useState(0);
   const [customSending, setCustomSending] = useState(false);
   const [customDone, setCustomDone] = useState(false);
+  const didPrefill = useRef(false);
+
+  useEffect(() => {
+    if (didPrefill.current) return;
+    if (sessionToken === undefined) return;
+    if (sessionToken === null) return;
+    if (!user) return;
+    setCName((v) => (v.trim() ? v : user.name));
+    setCPhone((v) => (v.trim() ? v : user.phone ?? ""));
+    setCEmail((v) => (v.trim() ? v : user.email));
+    didPrefill.current = true;
+  }, [sessionToken, user]);
 
   useEffect(() => {
     appliedRemoteAt.current = null;
@@ -185,8 +201,8 @@ export function AiPlannerChat({
 
   async function onSubmitCustom() {
     if (!plan?.customPlanDraft.trim()) return;
-    if (!cName.trim() || !cPhone.trim()) {
-      setErr("Please add your name and phone so our team can follow up.");
+    if (!cName.trim() || !cPhone.trim() || !cEmail.trim()) {
+      setErr("Please add your name, phone, and email so our team can follow up.");
       return;
     }
     setCustomSending(true);
@@ -200,9 +216,13 @@ export function AiPlannerChat({
       await submitCustom({
         name: cName.trim(),
         phone: cPhone.trim(),
-        email: cEmail.trim() || undefined,
+        email: cEmail.trim(),
         summary,
         proposal: plan.customPlanDraft.slice(0, 12000),
+        thread: messages.slice(-80).map((m) => ({
+          role: m.role,
+          content: m.content,
+        })),
         sessionToken: sessionToken ?? undefined,
         preferredStart: cPreferredStart.trim() || undefined,
         preferredEnd: cPreferredEnd.trim() || undefined,
@@ -298,6 +318,7 @@ export function AiPlannerChat({
                 </FieldLabel>
                 <TextInput
                   id="cp-name"
+                  placeholder={sessionToken ? undefined : "e.g. Aadil"}
                   value={cName}
                   onChange={(e) => setCName(e.target.value)}
                 />
@@ -309,15 +330,19 @@ export function AiPlannerChat({
                 <TextInput
                   id="cp-phone"
                   type="tel"
+                  placeholder={sessionToken ? undefined : "e.g. +92 300 1234567"}
                   value={cPhone}
                   onChange={(e) => setCPhone(e.target.value)}
                 />
               </div>
               <div>
-                <FieldLabel htmlFor="cp-email">Email</FieldLabel>
+                <FieldLabel htmlFor="cp-email" required>
+                  Email
+                </FieldLabel>
                 <TextInput
                   id="cp-email"
                   type="email"
+                  placeholder={sessionToken ? undefined : "e.g. name@email.com"}
                   value={cEmail}
                   onChange={(e) => setCEmail(e.target.value)}
                 />

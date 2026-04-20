@@ -20,7 +20,7 @@ export function PasswordStrengthMeter({
       : a.score === 2
         ? "bg-amber-500"
         : a.score === 3
-          ? "bg-sky-500"
+          ? "bg-brand-sun"
           : "bg-emerald-600";
 
   return (
@@ -32,7 +32,7 @@ export function PasswordStrengthMeter({
             "font-semibold",
             a.score <= 1 && "text-red-600",
             a.score === 2 && "text-amber-600",
-            a.score === 3 && "text-sky-700",
+            a.score === 3 && "text-brand-sun",
             a.score >= 4 && "text-emerald-700",
           )}
         >

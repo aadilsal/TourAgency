@@ -17,6 +17,7 @@ export function AdminCustomItinerariesPanel() {
       : { status: filter };
   const rows = useQuery(api.customItineraries.listForAdmin, listArgs);
   const setStatus = useMutation(api.customItineraries.setRequestStatus);
+  const setAdminNote = useMutation(api.customItineraries.setAdminNote);
 
   async function review(
     id: Id<"customItineraryRequests">,
@@ -31,6 +32,15 @@ export function AdminCustomItinerariesPanel() {
       requestId: id,
       status,
       adminNote: note?.trim() || undefined,
+    });
+  }
+
+  async function editNote(id: Id<"customItineraryRequests">, current?: string) {
+    const note = window.prompt("Update admin note (optional)", current ?? "");
+    if (note === null) return;
+    await setAdminNote({
+      requestId: id,
+      adminNote: note.trim() || undefined,
     });
   }
 
@@ -126,7 +136,18 @@ export function AdminCustomItinerariesPanel() {
                         Reject
                       </Button>
                     </div>
-                  ) : null}
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="py-2 text-sm"
+                        onClick={() => void editNote(r._id, r.adminNote)}
+                      >
+                        Edit note
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 <div className="mt-4">
                   <p className="text-xs font-bold uppercase text-brand-muted">

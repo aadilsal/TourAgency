@@ -19,6 +19,8 @@ import { ButtonLink } from "@/components/ui/Button";
 import { MotionSection } from "@/components/ui/MotionSection";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { blogCoverImage } from "@/lib/blog-covers";
+import { SceneCut } from "@/components/ui/SceneCut";
+import { ScrollyJourneyReel } from "@/components/scrolly/ScrollyJourneyReel";
 
 type BlogPostInput = {
   slug: string;
@@ -93,7 +95,7 @@ export function HomeLanding({ tours, blogPosts, whatsappUrl }: Props) {
   return (
     <>
       <HeroAiPlanner />
-
+      <SceneCut variant="subtle" />
       <MotionSection>
         <section className="border-y border-white/10 py-8 md:py-10">
           <PageContainer>
@@ -117,9 +119,26 @@ export function HomeLanding({ tours, blogPosts, whatsappUrl }: Props) {
         </section>
       </MotionSection>
 
+      <SceneCut />
+      <MotionSection className="py-16 md:py-24">
+        <PageContainer>
+          <SectionHeader
+            variant="onDark"
+            eyebrow="Story"
+            title="A journey that unfolds as you scroll"
+            description="Mountains, culture, desert & coast — pick your style (budget to luxury, private or group)."
+          />
+        </PageContainer>
+        <div className="mt-10">
+          <ScrollyJourneyReel />
+        </div>
+      </MotionSection>
+
+      <SceneCut />
       <TourTypesCarousel />
       <FeaturedToursCarousel tours={tours} />
 
+      <SceneCut />
       <MotionSection className="py-16 md:py-24">
         <PageContainer>
           <SectionHeader
@@ -148,12 +167,12 @@ export function HomeLanding({ tours, blogPosts, whatsappUrl }: Props) {
               },
             ].map((s) => (
               <li key={s.step}>
-                <Card className="h-full p-8 text-center">
-                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-primary text-sm font-bold text-white">
+                <Card className="h-full border-white/15 bg-white/10 p-8 text-center shadow-lg shadow-black/20">
+                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-sun text-sm font-bold text-brand-primary-dark ring-1 ring-brand-sun/40">
                     {s.step}
                   </span>
-                  <h3 className="mt-5 text-lg font-bold text-brand-ink">{s.title}</h3>
-                  <p className="mt-3 text-sm leading-relaxed text-brand-muted">{s.body}</p>
+                  <h3 className="mt-5 text-lg font-bold text-white">{s.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-white/75">{s.body}</p>
                 </Card>
               </li>
             ))}
@@ -161,6 +180,7 @@ export function HomeLanding({ tours, blogPosts, whatsappUrl }: Props) {
         </PageContainer>
       </MotionSection>
 
+      <SceneCut />
       <MotionSection className="py-16 md:py-24">
         <PageContainer>
           <SectionHeader
@@ -195,11 +215,11 @@ export function HomeLanding({ tours, blogPosts, whatsappUrl }: Props) {
               const Icon = item.icon;
               return (
               <Card key={item.title} className="p-6 text-center sm:text-left" hover>
-                <div className="flex justify-center text-brand-accent sm:justify-start">
+                <div className="flex justify-center text-brand-sun sm:justify-start">
                   <Icon className="h-8 w-8" strokeWidth={1.5} />
                 </div>
-                <h3 className="mt-4 font-bold text-brand-ink">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-brand-muted">{item.text}</p>
+                <h3 className="mt-4 font-bold text-foreground">{item.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{item.text}</p>
               </Card>
             );
             })}
@@ -207,6 +227,7 @@ export function HomeLanding({ tours, blogPosts, whatsappUrl }: Props) {
         </PageContainer>
       </MotionSection>
 
+      <SceneCut />
       <MotionSection className="py-16 md:py-24">
         <PageContainer>
           <SectionHeader
@@ -218,9 +239,9 @@ export function HomeLanding({ tours, blogPosts, whatsappUrl }: Props) {
             {DESTINATIONS.map((d) => (
               <Link key={d.slug} href={`/destinations/${d.slug}`} className="block h-full">
                 <Card className="flex h-full flex-col p-6 transition-shadow hover:shadow-card-hover" hover>
-                  <h3 className="text-lg font-bold text-brand-ink">{d.name}</h3>
-                  <p className="mt-2 flex-1 text-sm text-brand-muted">{d.blurb}</p>
-                  <span className="mt-4 text-sm font-semibold text-brand-accent">
+                  <h3 className="text-lg font-bold text-foreground">{d.name}</h3>
+                  <p className="mt-2 flex-1 text-sm text-muted">{d.blurb}</p>
+                  <span className="mt-4 text-sm font-semibold text-brand-sun">
                     Explore →
                   </span>
                 </Card>
@@ -230,17 +251,20 @@ export function HomeLanding({ tours, blogPosts, whatsappUrl }: Props) {
         </PageContainer>
       </MotionSection>
 
+      <SceneCut />
       <TestimonialsCarousel />
 
+      <SceneCut />
       <PlanByBudgetCarousel />
 
+      <SceneCut />
       <MotionSection className="py-20 md:py-28">
         <PageContainer className="max-w-3xl text-center">
           <div className="glass-panel-strong rounded-3xl px-8 py-12 md:px-14 md:py-14">
-            <h2 className="font-display text-3xl font-semibold tracking-tight text-brand-ink md:text-4xl">
+            <h2 className="font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
               Ready to plan your trip?
             </h2>
-            <p className="mt-4 text-lg text-brand-muted">
+            <p className="mt-4 text-lg text-muted">
               Start with AI or browse tours — we are one message away.
             </p>
             <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
@@ -274,6 +298,7 @@ export function HomeLanding({ tours, blogPosts, whatsappUrl }: Props) {
         </PageContainer>
       </MotionSection>
 
+      <SceneCut variant="subtle" />
       <TravelGuidesCarousel items={guideItems} />
     </>
   );

@@ -208,6 +208,7 @@ export type UnifiedBooking =
       tourTitle: string;
       peopleCount: number;
       status: "pending" | "confirmed" | "cancelled";
+      totalPrice: number;
       createdAt: number;
       preferredStart?: string;
       preferredEnd?: string;
@@ -243,6 +244,8 @@ export const getAllBookings = query({
     const guestRows: UnifiedBooking[] = await Promise.all(
       guests.map(async (g) => {
         const tour = await ctx.db.get(g.tourId);
+        const tourPrice =
+          tour && Number.isFinite(tour.price) ? (tour.price as number) : 0;
         return {
           kind: "guest" as const,
           id: g._id,
@@ -252,6 +255,7 @@ export const getAllBookings = query({
           tourTitle: tour?.title ?? "Unknown",
           peopleCount: g.peopleCount,
           status: g.status,
+          totalPrice: tourPrice * g.peopleCount,
           createdAt: g.createdAt,
           preferredStart: g.preferredStart,
           preferredEnd: g.preferredEnd,
