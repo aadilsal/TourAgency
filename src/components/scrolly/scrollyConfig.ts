@@ -18,6 +18,11 @@ export type ScrollyChapterConfig = {
     y: number;
     label: string;
   };
+  mobileViewport?: {
+    zoom: number;
+    cx?: number;
+    cy?: number;
+  };
 };
 
 export const SCROLLY_CHAPTERS: ScrollyChapterConfig[] = [
@@ -39,6 +44,7 @@ export const SCROLLY_CHAPTERS: ScrollyChapterConfig[] = [
       accent: "rgba(56, 189, 248, 0.95)",
     },
     mapPoint: { x: 410, y: 665, label: "Karachi" },
+    mobileViewport: { zoom: 1.75, cy: 0.52 },
   },
   {
     id: "lahore",
@@ -58,6 +64,7 @@ export const SCROLLY_CHAPTERS: ScrollyChapterConfig[] = [
       accent: "rgba(251, 146, 60, 0.95)",
     },
     mapPoint: { x: 585, y: 410, label: "Lahore" },
+    mobileViewport: { zoom: 2.1, cy: 0.48 },
   },
   {
     id: "islamabad",
@@ -77,6 +84,7 @@ export const SCROLLY_CHAPTERS: ScrollyChapterConfig[] = [
       accent: "rgba(52, 211, 153, 0.95)",
     },
     mapPoint: { x: 510, y: 360, label: "Islamabad" },
+    mobileViewport: { zoom: 2.15, cy: 0.47 },
   },
   {
     id: "gilgit",
@@ -96,6 +104,7 @@ export const SCROLLY_CHAPTERS: ScrollyChapterConfig[] = [
       accent: "rgba(129, 140, 248, 0.95)",
     },
     mapPoint: { x: 440, y: 190, label: "Gilgit" },
+    mobileViewport: { zoom: 2.25, cy: 0.46 },
   },
   {
     id: "hunza",
@@ -115,6 +124,7 @@ export const SCROLLY_CHAPTERS: ScrollyChapterConfig[] = [
       accent: "rgba(244, 114, 182, 0.95)",
     },
     mapPoint: { x: 470, y: 145, label: "Hunza" },
+    mobileViewport: { zoom: 2.35, cy: 0.46 },
   },
   {
     id: "khunjerab",
@@ -134,6 +144,7 @@ export const SCROLLY_CHAPTERS: ScrollyChapterConfig[] = [
       accent: "rgba(234, 88, 12, 0.95)",
     },
     mapPoint: { x: 510, y: 100, label: "Khunjerab" },
+    mobileViewport: { zoom: 2.55, cy: 0.46 },
   },
 ];
 

@@ -14,7 +14,12 @@ export function ScrollyChapter({
     <section
       data-scrolly-chapter
       data-chapter-id={chapter.id}
-      className={cn("min-h-[90vh] py-14 md:py-20", className)}
+      className={cn(
+        // Slightly shorter chapters on mobile so the sticky stage + copy
+        // doesn't feel like "dead scroll" between beats.
+        "min-h-[82vh] py-12 sm:min-h-[88vh] sm:py-14 md:min-h-[90vh] md:py-20",
+        className,
+      )}
     >
       <div data-chapter-inner className="max-w-xl">
         <p

@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 import type { ScrollyChapterConfig } from "./scrollyConfig";
 import { PakistanMapSvg, PAKISTAN_MAP_VIEWBOX } from "./PakistanMapSvg";
 import { SCROLLY_ROUTE_POINTS } from "./scrollyConfig";
+import React from "react";
 
 function toBg(chapter: ScrollyChapterConfig) {
   const { from, via, to } = chapter.palette;
@@ -40,12 +41,25 @@ function catmullRomPath(points: Pt[]) {
 export function RouteStage2D({
   chapters,
   className,
+  interactiveMarkers,
+  onMarkerTap,
+  activeChapterId,
+  progress,
+  enablePanZoom,
+  showPerks = true,
 }: {
   chapters: ScrollyChapterConfig[];
   className?: string;
+  interactiveMarkers?: boolean;
+  onMarkerTap?: (chapterId: string) => void;
+  activeChapterId?: string;
+  progress?: number;
+  enablePanZoom?: boolean;
+  showPerks?: boolean;
 }) {
   // Stage renders all scenes layered; GSAP will crossfade and animate progress.
-  const active = chapters[0];
+  const active = chapters.find((c) => c.id === activeChapterId) ?? chapters[0];
+  const p = Math.min(1, Math.max(0, progress ?? 0));
 
   return (
     <div
@@ -79,7 +93,7 @@ export function RouteStage2D({
       </div>
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
 
-      <div className="absolute left-6 top-6 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 backdrop-blur-md">
+      <div className="absolute left-4 top-4 sm:left-6 sm:top-6 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 backdrop-blur-md">
         <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/65">
           Journey reel
         </p>
@@ -88,7 +102,12 @@ export function RouteStage2D({
         </p>
       </div>
 
-      <div className="pointer-events-none absolute inset-0 z-10">
+      <div
+        className={cn(
+          "absolute inset-0 z-10",
+          interactiveMarkers ? "pointer-events-auto" : "pointer-events-none",
+        )}
+      >
         <PakistanMapSvg className="absolute inset-0" opacity={0.85} />
 
         <svg
@@ -102,8 +121,34 @@ export function RouteStage2D({
               ? SCROLLY_ROUTE_POINTS
               : chapters.map((c) => c.mapPoint);
             const routeD = catmullRomPath(pts);
+            const activePt = active.mapPoint;
+
+            // Pan/zoom on mobile: translate to center, scale, translate back to active city point.
+            // Using viewBox numbers directly keeps it stable across resize.
+            const viewW = 866.66669;
+            const viewH = 819.94934;
+            const cx = (active.mobileViewport?.cx ?? 0.5) * viewW;
+            const cy = (active.mobileViewport?.cy ?? 0.48) * viewH;
+            const zoom = enablePanZoom ? (active.mobileViewport?.zoom ?? 1.85) : 1;
+            const viewportTransform = enablePanZoom
+              ? `translate(${cx} ${cy}) scale(${zoom}) translate(${-activePt.x} ${-activePt.y})`
+              : undefined;
+
+            const clickTo = (chapterId: string) => {
+              if (!interactiveMarkers || !onMarkerTap) return;
+              onMarkerTap(chapterId);
+            };
+
+            const keyTo = (e: React.KeyboardEvent<SVGGElement>, chapterId: string) => {
+              if (!interactiveMarkers || !onMarkerTap) return;
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onMarkerTap(chapterId);
+              }
+            };
+
             return (
-              <>
+              <g data-map-viewport transform={viewportTransform}>
                 <path
                   d={routeD}
                   fill="none"
@@ -122,47 +167,78 @@ export function RouteStage2D({
                   strokeLinejoin="round"
                   strokeDasharray="1"
                   strokeDashoffset="1"
+                  style={
+                    progress !== undefined
+                      ? ({
+                          strokeDashoffset: `${1 - p}`,
+                        } as React.CSSProperties)
+                      : undefined
+                  }
                 />
-              </>
-            );
-          })()}
 
-          {chapters.map((c) => {
-            const p = c.mapPoint;
-            return (
-              <g key={c.id} data-city-marker={c.id}>
-                <circle cx={p.x} cy={p.y} r="6.5" fill="rgba(255,255,255,0.88)" />
-                <circle cx={p.x} cy={p.y} r="12" fill="rgba(255,255,255,0.12)" />
-                <text
-                  x={p.x + 14}
-                  y={p.y + 5}
-                  fill="rgba(255,255,255,0.74)"
-                  fontSize="18"
-                  fontWeight="750"
-                >
-                  {p.label}
-                </text>
+                {chapters.map((c) => {
+                  const mp = c.mapPoint;
+                  const isActive = c.id === activeChapterId;
+                  const showLabel = !enablePanZoom || !interactiveMarkers || isActive;
+                  return (
+                    <g
+                      key={c.id}
+                      data-city-marker={c.id}
+                      role={interactiveMarkers ? "button" : undefined}
+                      tabIndex={interactiveMarkers ? 0 : undefined}
+                      onClick={() => clickTo(c.id)}
+                      onKeyDown={(e) => keyTo(e, c.id)}
+                      className={interactiveMarkers ? "cursor-pointer focus:outline-none" : undefined}
+                      aria-label={interactiveMarkers ? `Go to ${mp.label}` : undefined}
+                    >
+                      {interactiveMarkers ? (
+                        <circle
+                          cx={mp.x}
+                          cy={mp.y}
+                          r="24"
+                          fill="transparent"
+                          style={{ pointerEvents: "all" }}
+                        />
+                      ) : null}
+                      <circle cx={mp.x} cy={mp.y} r="6.5" fill="rgba(255,255,255,0.88)" />
+                      <circle cx={mp.x} cy={mp.y} r="12" fill="rgba(255,255,255,0.12)" />
+                      {showLabel ? (
+                        <text
+                          x={mp.x + 14}
+                          y={mp.y + 5}
+                          fill={isActive ? "rgba(255,255,255,0.82)" : "rgba(255,255,255,0.64)"}
+                          fontWeight="750"
+                          style={{ fontSize: "clamp(12px, 2.6vw, 18px)" }}
+                        >
+                          {mp.label}
+                        </text>
+                      ) : null}
+                    </g>
+                  );
+                })}
               </g>
             );
-          })}
+          })()}
         </svg>
       </div>
 
-      <div className="absolute bottom-6 left-6 right-6 grid gap-3 md:grid-cols-3">
-        {[
-          { k: "Private 4x4", v: "Comfort from pickup to drop-off" },
-          { k: "Premium stays", v: "Handpicked hotels, better locations" },
-          { k: "Personal guide", v: "Zero-hassle, end-to-end support" },
-        ].map((c) => (
-          <div
-            key={c.k}
-            className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 backdrop-blur-md"
-          >
-            <p className="text-xs font-bold text-white/85">{c.k}</p>
-            <p className="mt-1 text-xs text-white/65">{c.v}</p>
-          </div>
-        ))}
-      </div>
+      {showPerks ? (
+        <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 grid gap-3 md:grid-cols-3">
+          {[
+            { k: "Private 4x4", v: "Comfort from pickup to drop-off" },
+            { k: "Premium stays", v: "Handpicked hotels, better locations" },
+            { k: "Personal guide", v: "Zero-hassle, end-to-end support" },
+          ].map((c) => (
+            <div
+              key={c.k}
+              className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 backdrop-blur-md"
+            >
+              <p className="text-xs font-bold text-white/85">{c.k}</p>
+              <p className="mt-1 text-xs text-white/65">{c.v}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

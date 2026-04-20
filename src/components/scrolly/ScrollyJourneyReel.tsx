@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "framer-motion";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -9,17 +9,29 @@ import { SCROLLY_CHAPTERS } from "./scrollyConfig";
 import { ScrollyChapter } from "./ScrollyChapter";
 import { RouteStage2D } from "./RouteStage2D";
 import { FairyMeadowsStage3D } from "./FairyMeadowsStage3D";
+import { ScrollyJourneyReelMobile } from "./ScrollyJourneyReelMobile";
 
 export function ScrollyJourneyReel({ className }: { className?: string }) {
   const reduce = useReducedMotion();
   const chapters = useMemo(() => SCROLLY_CHAPTERS, []);
+  const [isDesktop, setIsDesktop] = useState(false);
   const rootRef = useRef<HTMLElement | null>(null);
   const stageWrapRef = useRef<HTMLDivElement | null>(null);
   const stagePinRef = useRef<HTMLDivElement | null>(null);
   const stage2DRef = useRef<HTMLDivElement | null>(null);
   const stage3DRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    const mq = window.matchMedia?.("(min-width: 1024px)");
+    if (!mq) return;
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
   useLayoutEffect(() => {
+    if (!isDesktop) return;
     if (reduce) return;
     if (!rootRef.current || !stageWrapRef.current) return;
 
@@ -49,6 +61,7 @@ export function ScrollyJourneyReel({ className }: { className?: string }) {
       gsap.set(root.querySelectorAll("[data-chapter-inner]"), { opacity: 0.55 });
 
       const isLg = window.matchMedia?.("(min-width: 1024px)")?.matches ?? false;
+      const isMd = window.matchMedia?.("(min-width: 768px)")?.matches ?? false;
 
       const tl = gsap.timeline({
         defaults: { ease: "none" },
@@ -141,8 +154,10 @@ export function ScrollyJourneyReel({ className }: { className?: string }) {
         if (inner) {
           ScrollTrigger.create({
             trigger: el,
-            start: "top 65%",
-            end: "bottom 35%",
+            // Mobile has less vertical room due to the sticky stage,
+            // so bias the "active" range slightly lower.
+            start: isMd ? "top 65%" : "top 72%",
+            end: isMd ? "bottom 35%" : "bottom 28%",
             onEnter: () => {
               gsap.to(inner, { opacity: 1, duration: 0.25, ease: "power2.out" });
               if (eyebrow) gsap.fromTo(eyebrow, { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: "power3.out" });
@@ -165,7 +180,11 @@ export function ScrollyJourneyReel({ className }: { className?: string }) {
     }, rootRef);
 
     return () => ctx.revert();
-  }, [reduce, chapters]);
+  }, [isDesktop, reduce, chapters]);
+
+  if (!isDesktop) {
+    return <ScrollyJourneyReelMobile className={className} />;
+  }
 
   return (
     <section
