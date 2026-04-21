@@ -49,10 +49,14 @@ function AdminMobileLinks({
     { href: "/admin/destinations", label: "Destinations" },
     { href: "/admin/contact", label: "Contact" },
     { href: "/admin/bookings", label: "Bookings" },
-    { href: "/admin/ai-planner", label: "AI Planner" },
+    { href: "/admin/itineraries", label: "All Itineraries" },
+    { href: "/admin/itineraries/new", label: "Create Itinerary" },
+    { href: "/admin/invoices", label: "All Invoices" },
+    { href: "/admin/invoices/new", label: "Create Invoice" },
     { href: "/admin/users", label: "Users" },
     { href: "/admin/blog", label: "Blog" },
     { href: "/admin/analytics", label: "Analytics" },
+    { href: "/admin/settings", label: "Settings" },
     ...(showManageAdmins
       ? [{ href: "/admin/manage-admins", label: "Admins 🔐" as const }]
       : []),

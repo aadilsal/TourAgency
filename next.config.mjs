@@ -13,6 +13,15 @@ const nextConfig = {
     // Smaller dev/client graphs; avoids occasional webpack module factory issues with lucide barrel.
     optimizePackageImports: ["lucide-react"],
   },
+  webpack(config, { dev }) {
+    // Windows can intermittently lose filesystem cache packs/chunks (AV/file-locking),
+    // which shows up as “Cannot find module './xxxx.js'” from `.next/server/webpack-runtime.js`.
+    // Use in-memory cache in dev to avoid this class of corruption.
+    if (dev) {
+      config.cache = { type: "memory" };
+    }
+    return config;
+  },
   images: {
     remotePatterns: [
       {

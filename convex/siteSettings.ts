@@ -1,8 +1,16 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
-import { requireAdmin } from "./lib/authHelpers.js";
+import { requireUserFromSession } from "./lib/authHelpers.js";
 
 const GLOBAL_SETTINGS_KEY = "global";
+
+function assertAdminFromSession(
+  user: { role: string },
+): asserts user is { role: "admin" | "super_admin" } {
+  if (user.role !== "admin" && user.role !== "super_admin") {
+    throw new Error("Unauthorized");
+  }
+}
 
 function envDefaults() {
   return {
@@ -12,6 +20,14 @@ function envDefaults() {
       process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
       process.env.ADMIN_NOTIFICATION_EMAIL?.trim() ||
       "hello@junkettours.example",
+    website:
+      process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
+      process.env.NEXT_PUBLIC_APP_URL?.trim() ||
+      "",
+    governmentLicenseNo:
+      process.env.NEXT_PUBLIC_GOVERNMENT_LICENSE_NO?.trim() ||
+      process.env.NEXT_PUBLIC_GOV_LICENSE_NO?.trim() ||
+      "",
     mapsEmbedUrl: process.env.NEXT_PUBLIC_GOOGLE_MAPS_EMBED_URL?.trim() || "",
   };
 }
@@ -31,9 +47,10 @@ export const getPublicSiteSettings = query({
 });
 
 export const getAdminSiteSettings = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    const user = await requireUserFromSession(ctx, sessionToken);
+    assertAdminFromSession(user);
     const doc = await ctx.db
       .query("siteSettings")
       .withIndex("by_key", (q) => q.eq("key", GLOBAL_SETTINGS_KEY))
@@ -47,13 +64,17 @@ export const getAdminSiteSettings = query({
 
 export const upsertAdminSiteSettings = mutation({
   args: {
+    sessionToken: v.string(),
     officeAddress: v.optional(v.string()),
     whatsappPhone: v.optional(v.string()),
     contactEmail: v.optional(v.string()),
+    website: v.optional(v.string()),
+    governmentLicenseNo: v.optional(v.string()),
     mapsEmbedUrl: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, ...args }) => {
+    const user = await requireUserFromSession(ctx, sessionToken);
+    assertAdminFromSession(user);
     const now = Date.now();
     const existing = await ctx.db
       .query("siteSettings")
@@ -64,9 +85,14 @@ export const upsertAdminSiteSettings = mutation({
       officeAddress: args.officeAddress?.trim() || undefined,
       whatsappPhone: args.whatsappPhone?.trim() || undefined,
       contactEmail: args.contactEmail?.trim() || undefined,
+      website: args.website?.trim() || undefined,
+      governmentLicenseNo:
+        user.role === "super_admin"
+          ? (args.governmentLicenseNo?.trim() || undefined)
+          : undefined,
       mapsEmbedUrl: args.mapsEmbedUrl?.trim() || undefined,
       updatedAt: now,
-      updatedBy: admin._id,
+      updatedBy: user._id,
     };
 
     if (existing) {

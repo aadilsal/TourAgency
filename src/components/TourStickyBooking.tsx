@@ -27,14 +27,7 @@ import {
 } from "@/components/ui/FormField";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
-
-function todayYmdLocal(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
+import { todayYmdLocal } from "@/lib/todayYmdLocal";
 
 type FieldErrors = {
   name?: string;

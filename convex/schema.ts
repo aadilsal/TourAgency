@@ -118,6 +118,17 @@ export default defineSchema({
     .index("by_folder", ["folderKey"])
     .index("by_storage", ["storageId"]),
 
+  /** Indexes Convex `_storage` ids under a logical folder per itinerary (wizard image picker). */
+  itineraryImageAssets: defineTable({
+    itineraryId: v.id("itineraries"),
+    folderKey: v.string(),
+    storageId: v.id("_storage"),
+    createdAt: v.number(),
+  })
+    .index("by_itinerary", ["itineraryId"])
+    .index("by_folder", ["folderKey"])
+    .index("by_storage", ["storageId"]),
+
   /** Regions for /destinations — seeded + auto-created when tours use new locations. */
   destinations: defineTable({
     slug: v.string(),
@@ -149,6 +160,8 @@ export default defineSchema({
     officeAddress: v.optional(v.string()),
     whatsappPhone: v.optional(v.string()),
     contactEmail: v.optional(v.string()),
+    website: v.optional(v.string()),
+    governmentLicenseNo: v.optional(v.string()),
     mapsEmbedUrl: v.optional(v.string()),
     updatedAt: v.number(),
     updatedBy: v.optional(v.id("users")),
@@ -241,6 +254,190 @@ export default defineSchema({
     reviewedBy: v.optional(v.id("users")),
     createdAt: v.number(),
   })
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  itineraries: defineTable({
+    /** Cover headline, e.g. "Your Dream Skardu Awaits —" */
+    headline: v.optional(v.string()),
+    /** Cover variant label, e.g. "Customised by Air" */
+    variantLabel: v.optional(v.string()),
+    /** Cover subtitle line (optional marketing line) */
+    coverSubtitle: v.optional(v.string()),
+    /** Compliance/registration line shown under subtitle */
+    complianceLine: v.optional(v.string()),
+    /** License number shown in footer/header */
+    licenceNumber: v.optional(v.string()),
+    /** Pickup/dropoff line shown on cover */
+    pickupDropoff: v.optional(v.string()),
+
+    title: v.string(),
+    clientName: v.string(),
+    startDate: v.string(),
+    endDate: v.string(),
+    days: v.number(),
+    theme: v.union(
+      v.literal("luxury"),
+      v.literal("minimal"),
+      v.literal("adventure"),
+    ),
+    status: v.union(v.literal("draft"), v.literal("final")),
+
+    coverImageStorageId: v.optional(v.id("_storage")),
+
+    companyDescription: v.optional(v.string()),
+    logoStorageId: v.optional(v.id("_storage")),
+    affiliationsStorageIds: v.optional(v.array(v.id("_storage"))),
+    contactPhone: v.optional(v.string()),
+    contactEmail: v.optional(v.string()),
+    contactWebsite: v.optional(v.string()),
+
+    destinations: v.optional(v.array(v.string())),
+    transportType: v.optional(v.string()),
+    accommodationType: v.optional(v.string()),
+    mealsIncluded: v.optional(v.string()),
+
+    dayPlans: v.optional(
+      v.array(
+        v.object({
+          dayNumber: v.number(),
+          title: v.string(),
+          imageStorageId: v.optional(v.id("_storage")),
+          /** Quick PDF-style highlights list (used in proposal template). */
+          highlights: v.optional(v.array(v.string())),
+          /** Overnight city/location (used in proposal template). */
+          overnight: v.optional(v.string()),
+          morning: v.array(
+            v.object({
+              title: v.string(),
+              description: v.string(),
+              icon: v.union(
+                v.literal("flight"),
+                v.literal("hotel"),
+                v.literal("food"),
+                v.literal("sightseeing"),
+              ),
+            }),
+          ),
+          afternoon: v.array(
+            v.object({
+              title: v.string(),
+              description: v.string(),
+              icon: v.union(
+                v.literal("flight"),
+                v.literal("hotel"),
+                v.literal("food"),
+                v.literal("sightseeing"),
+              ),
+            }),
+          ),
+          evening: v.array(
+            v.object({
+              title: v.string(),
+              description: v.string(),
+              icon: v.union(
+                v.literal("flight"),
+                v.literal("hotel"),
+                v.literal("food"),
+                v.literal("sightseeing"),
+              ),
+            }),
+          ),
+        }),
+      ),
+    ),
+
+    accommodationDetails: v.optional(v.string()),
+    included: v.optional(v.array(v.string())),
+    notIncluded: v.optional(v.array(v.string())),
+    importantNotes: v.optional(v.string()),
+
+    /** Proposal packages displayed in "Choose Your Package" section. */
+    packages: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          pricePkr: v.optional(v.number()),
+          vehicle: v.optional(v.string()),
+          note: v.optional(v.string()),
+          stays: v.optional(
+            v.array(
+              v.object({
+                location: v.string(),
+                hotel: v.string(),
+                nights: v.number(),
+              }),
+            ),
+          ),
+        }),
+      ),
+    ),
+    /** Payment terms shown as percentage blocks. */
+    paymentTerms: v.optional(
+      v.array(
+        v.object({
+          percent: v.number(),
+          title: v.string(),
+          description: v.optional(v.string()),
+        }),
+      ),
+    ),
+    bankDetails: v.optional(
+      v.object({
+        bankName: v.optional(v.string()),
+        accountTitle: v.optional(v.string()),
+        accountNumber: v.optional(v.string()),
+        iban: v.optional(v.string()),
+        instruction: v.optional(v.string()),
+      }),
+    ),
+    termsBlocks: v.optional(
+      v.array(
+        v.object({
+          title: v.string(),
+          body: v.string(),
+        }),
+      ),
+    ),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"]),
+
+  invoices: defineTable({
+    clientName: v.string(),
+    itineraryId: v.optional(v.id("itineraries")),
+    invoiceDate: v.string(),
+    currency: v.union(v.literal("PKR"), v.literal("USD")),
+    status: v.union(v.literal("draft"), v.literal("paid")),
+
+    items: v.array(
+      v.object({
+        name: v.string(),
+        description: v.optional(v.string()),
+        quantity: v.number(),
+        price: v.number(),
+      }),
+    ),
+    discount: v.number(),
+    tax: v.number(),
+
+    paymentMethod: v.union(
+      v.literal("bank"),
+      v.literal("easypaisa"),
+      v.literal("jazzcash"),
+    ),
+    paymentDetails: v.string(),
+
+    terms: v.optional(v.string()),
+    cancellationPolicy: v.optional(v.string()),
+
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_itinerary", ["itineraryId"])
     .index("by_status", ["status"])
     .index("by_created", ["createdAt"]),
 });
