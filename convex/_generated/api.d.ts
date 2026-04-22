@@ -20,6 +20,8 @@ import type * as customItineraries from "../customItineraries.js";
 import type * as dashboard from "../dashboard.js";
 import type * as destinations from "../destinations.js";
 import type * as email from "../email.js";
+import type * as invoices from "../invoices.js";
+import type * as itineraries from "../itineraries.js";
 import type * as leads from "../leads.js";
 import type * as lib_authHelpers from "../lib/authHelpers.js";
 import type * as lib_resolveTourImages from "../lib/resolveTourImages.js";
@@ -52,6 +54,8 @@ declare const fullApi: ApiFromModules<{
   dashboard: typeof dashboard;
   destinations: typeof destinations;
   email: typeof email;
+  invoices: typeof invoices;
+  itineraries: typeof itineraries;
   leads: typeof leads;
   "lib/authHelpers": typeof lib_authHelpers;
   "lib/resolveTourImages": typeof lib_resolveTourImages;

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
@@ -19,55 +18,13 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <AdminTopBar email={s.email} role={s.role} />
+      <AdminTopBar email={s.email} role={s.role} showManageAdmins={showManageAdmins} />
       <PageContainer className="flex gap-8 py-8 md:gap-10 md:py-10">
         <AdminSidebar showManageAdmins={showManageAdmins} />
         <div className="min-w-0 flex-1">
-          <div className="md:hidden">
-            <nav
-              className="mb-8 flex flex-wrap gap-2 border-b border-border pb-4"
-              aria-label="Admin sections"
-            >
-              <AdminMobileLinks showManageAdmins={showManageAdmins} />
-            </nav>
-          </div>
           {children}
         </div>
       </PageContainer>
     </div>
-  );
-}
-
-function AdminMobileLinks({
-  showManageAdmins,
-}: {
-  showManageAdmins: boolean;
-}) {
-  const items = [
-    { href: "/admin", label: "Dashboard" },
-    { href: "/admin/tours", label: "Tours" },
-    { href: "/admin/destinations", label: "Destinations" },
-    { href: "/admin/contact", label: "Contact" },
-    { href: "/admin/bookings", label: "Bookings" },
-    { href: "/admin/ai-planner", label: "AI Planner" },
-    { href: "/admin/users", label: "Users" },
-    { href: "/admin/blog", label: "Blog" },
-    { href: "/admin/analytics", label: "Analytics" },
-    ...(showManageAdmins
-      ? [{ href: "/admin/manage-admins", label: "Admins 🔐" as const }]
-      : []),
-  ];
-  return (
-    <>
-      {items.map((l) => (
-        <Link
-          key={l.href}
-          href={l.href}
-          className="rounded-lg border border-border bg-panel px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm transition hover:border-border-strong hover:bg-panel-elevated"
-        >
-          {l.label}
-        </Link>
-      ))}
-    </>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { useState, useTransition } from "react";
 import { Mail, Lock } from "lucide-react";
 import { AuthSplitShell } from "@/components/AuthSplitShell";
@@ -10,7 +11,7 @@ import { FieldLabel, TextInput, FieldError } from "@/components/ui/FormField";
 import { NavigationBlockingOverlay } from "@/components/ui/PageLoadingSpinner";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
   const sp = useSearchParams();
   const next = sp.get("next") ?? "/dashboard";
@@ -111,5 +112,13 @@ export default function LoginPage() {
         <NavigationBlockingOverlay label="Redirecting…" variant="dark" />
       ) : null}
     </AuthSplitShell>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
   );
 }

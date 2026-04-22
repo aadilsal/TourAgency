@@ -223,6 +223,7 @@ export function AdminDestinationsPanel() {
         title={editingId ? "Edit destination" : "Add destination"}
         description="Manage destination details and matching terms used by destination pages."
         panelClassName="max-w-2xl"
+        fullscreenOnMobile
       >
         <form onSubmit={onSubmit} className="space-y-3">
           {msg && modalOpen ? (

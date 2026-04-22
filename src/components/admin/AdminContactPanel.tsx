@@ -5,9 +5,15 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/Button";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 
 export function AdminContactPanel() {
-  const settings = useQuery(api.siteSettings.getAdminSiteSettings, {});
+  const sessionToken = useConvexSessionToken();
+  const canQuery = typeof sessionToken === "string";
+  const settings = useQuery(
+    api.siteSettings.getAdminSiteSettings,
+    canQuery ? { sessionToken } : "skip",
+  );
   const leads = useQuery(api.leads.getLeads, {});
   const upsert = useMutation(api.siteSettings.upsertAdminSiteSettings);
 
@@ -28,10 +34,12 @@ export function AdminContactPanel() {
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!canQuery) return;
     setMsg(null);
     setSaving(true);
     try {
       await upsert({
+        sessionToken,
         officeAddress,
         whatsappPhone,
         contactEmail,
@@ -43,6 +51,14 @@ export function AdminContactPanel() {
     } finally {
       setSaving(false);
     }
+  }
+
+  if (!canQuery) {
+    return (
+      <p className="text-sm text-muted">
+        {sessionToken === undefined ? "Loading…" : "You need an admin session."}
+      </p>
+    );
   }
 
   if (settings === undefined || leads === undefined) {

@@ -11,6 +11,7 @@ import { PLANNER_WELCOME_MESSAGE } from "@/lib/planner-welcome";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { formatPlannerReply, type PlannerPlan } from "@/lib/planner-reply";
+import { todayYmdLocal } from "@/lib/todayYmdLocal";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -45,6 +46,7 @@ export function AiPlannerChat({
   variant?: "default" | "widget";
 }) {
   const sessionToken = useConvexSessionToken();
+  const minDate = todayYmdLocal();
   const plannerChat = useAction(api.ai.plannerChat);
   const submitCustom = useAction(api.ai.submitCustomPlanRequest);
   const ensureSession = useMutation(api.plannerChatSessions.ensureSession);
@@ -353,6 +355,7 @@ export function AiPlannerChat({
                   <TextInput
                     id="cp-start"
                     type="date"
+                    min={minDate}
                     value={cPreferredStart}
                     onChange={(e) => setCPreferredStart(e.target.value)}
                   />
@@ -362,6 +365,7 @@ export function AiPlannerChat({
                   <TextInput
                     id="cp-end"
                     type="date"
+                    min={minDate}
                     value={cPreferredEnd}
                     onChange={(e) => setCPreferredEnd(e.target.value)}
                   />

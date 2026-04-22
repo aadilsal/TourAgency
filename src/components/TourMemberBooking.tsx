@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { todayYmdLocal } from "@/lib/todayYmdLocal";
 import {
   FieldLabel,
   FieldHint,
@@ -23,6 +24,7 @@ export function TourMemberBooking({
 }) {
   const router = useRouter();
   const sessionToken = useConvexSessionToken();
+  const minDate = todayYmdLocal();
   const createBooking = useMutation(api.bookings.createBooking);
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
@@ -115,6 +117,7 @@ export function TourMemberBooking({
             <TextInput
               id="mb-start"
               type="date"
+              min={minDate}
               value={preferredStart}
               onChange={(e) => setPreferredStart(e.target.value)}
             />
@@ -124,6 +127,7 @@ export function TourMemberBooking({
             <TextInput
               id="mb-end"
               type="date"
+              min={minDate}
               value={preferredEnd}
               onChange={(e) => setPreferredEnd(e.target.value)}
             />

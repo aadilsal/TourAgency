@@ -13,6 +13,7 @@ export function Modal({
   children,
   className,
   panelClassName,
+  fullscreenOnMobile,
 }: {
   open: boolean;
   onClose: () => void;
@@ -21,6 +22,7 @@ export function Modal({
   children: React.ReactNode;
   className?: string;
   panelClassName?: string;
+  fullscreenOnMobile?: boolean;
 }) {
   const reduce = useReducedMotion();
   const titleId = useId();
@@ -60,7 +62,12 @@ export function Modal({
             transition={{ duration: 0.2 }}
             onClick={onClose}
           />
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-4">
+          <div
+            className={cn(
+              "pointer-events-none absolute inset-0 flex items-center justify-center p-4",
+              fullscreenOnMobile && "p-0 sm:p-4",
+            )}
+          >
             <motion.div
               role="dialog"
               aria-modal="true"
@@ -68,6 +75,12 @@ export function Modal({
               aria-describedby={description ? descId : undefined}
               className={cn(
                 "pointer-events-auto max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/20 bg-white/95 p-6 shadow-glass backdrop-blur-glass-lg",
+                fullscreenOnMobile &&
+                  "max-h-[92vh] p-4 sm:max-h-[90vh] sm:p-6",
+                fullscreenOnMobile &&
+                  "sm:rounded-2xl sm:border-white/20 sm:bg-white/95",
+                fullscreenOnMobile &&
+                  "rounded-none border-0 bg-white sm:rounded-2xl sm:border",
                 panelClassName,
               )}
               initial={reduce ? false : { opacity: 0, scale: 0.96, y: 8 }}

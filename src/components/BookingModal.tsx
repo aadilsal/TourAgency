@@ -16,6 +16,7 @@ import {
   TextAreaField,
 } from "@/components/ui/FormField";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { todayYmdLocal } from "@/lib/todayYmdLocal";
 
 const STEPS = ["Contact", "Trip", "Confirm"] as const;
 
@@ -34,6 +35,7 @@ export function BookingModal({
 }) {
   const router = useRouter();
   const createGuest = useMutation(api.bookings.createGuestBooking);
+  const minDate = todayYmdLocal();
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -249,6 +251,7 @@ export function BookingModal({
                       id="bm-start"
                       type="date"
                       icon={<CalendarRange />}
+                      min={minDate}
                       value={preferredStart}
                       onChange={(e) => setPreferredStart(e.target.value)}
                     />
@@ -258,6 +261,7 @@ export function BookingModal({
                     <TextInput
                       id="bm-end"
                       type="date"
+                      min={minDate}
                       value={preferredEnd}
                       onChange={(e) => setPreferredEnd(e.target.value)}
                     />
