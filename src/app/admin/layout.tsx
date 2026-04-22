@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";

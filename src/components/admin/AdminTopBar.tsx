@@ -32,7 +32,7 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
     return [
       { href: "/admin", label: "Dashboard" },
     ];
-  }, [showManageAdmins]);
+  }, []);
 
   const sections = useMemo(() => {
     return [

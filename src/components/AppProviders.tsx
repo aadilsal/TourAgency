@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { ConvexClientProvider } from "@/components/ConvexClientProvider";
 import { PlannerWidgetProvider } from "@/components/planner/PlannerWidgetContext";
@@ -17,7 +18,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <ConvexClientProvider>
         <PlannerWidgetProvider>
           {children}
-          <RouteTransitionOverlay />
+          <Suspense fallback={null}>
+            <RouteTransitionOverlay />
+          </Suspense>
           {!isAdmin ? (
             <>
               <PlannerHomeAutoOpen />

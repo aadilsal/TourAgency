@@ -26,11 +26,6 @@ type NavLink = {
   icon: LucideIcon;
 };
 
-type NavGroup =
-  | { kind: "link"; link: NavLink }
-  | { kind: "divider"; label?: string }
-  | { kind: "heading"; label: string };
-
 const adminOnly: NavLink = {
   href: "/admin/manage-admins",
   label: "Manage admins 🔐",
@@ -134,7 +129,7 @@ export function AdminSidebar({
               </summary>
               <div className="mt-1 flex flex-col gap-1">
                 {sec.links.map((l) => {
-                  const active = isActive(l.href, l.exact);
+                  const active = isActive(l.href);
                   const Icon = l.icon;
                   return (
                     <Link
