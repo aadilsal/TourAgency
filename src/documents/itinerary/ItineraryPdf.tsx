@@ -35,8 +35,12 @@ export type ItineraryPdfModel = {
   dayPlans?: Array<{
     dayNumber: number;
     title: string;
+    imageUrl?: string | null;
     highlights?: string[];
     overnight?: string;
+    morning?: Array<{ title: string; description: string }>;
+    afternoon?: Array<{ title: string; description: string }>;
+    evening?: Array<{ title: string; description: string }>;
   }>;
   included?: string[];
   notIncluded?: string[];
@@ -64,7 +68,7 @@ export type ItineraryPdfModel = {
 const styles = StyleSheet.create({
   page: {
     paddingTop: 72,
-    paddingBottom: 58,
+    paddingBottom: 72,
     paddingHorizontal: 40,
     fontSize: 11,
     color: "#0f172a",
@@ -87,20 +91,21 @@ const styles = StyleSheet.create({
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   headerLogo: { width: 28, height: 28, objectFit: "contain" },
   headerName: { fontSize: 11, fontWeight: 700 },
+  headerRight: { flexDirection: "row", alignItems: "center" },
+  headerLicence: { fontSize: 9, color: "#475569" },
   footer: {
     position: "absolute",
     left: 40,
     right: 40,
     bottom: 22,
-    borderTop: "1px solid #e2e8f0",
-    paddingTop: 8,
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    backgroundColor: "#0f172a",
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
   },
-  pageNum: { fontSize: 9, color: "#64748b" },
-  footerLeft: { flexDirection: "row", gap: 10, alignItems: "center" },
-  footerRight: { flexDirection: "row", gap: 10, alignItems: "center" },
+  footerText: { fontSize: 9, color: "#ffffff" },
   coverImage: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   coverOverlay: {
     position: "absolute",
@@ -137,6 +142,27 @@ const styles = StyleSheet.create({
   dayBody: { flex: 1 },
   dayTitle: { fontSize: 12, fontWeight: 700 },
   highlightsText: { marginTop: 4, lineHeight: 1.4 },
+  dayCard: {
+    marginTop: 12,
+    borderRadius: 16,
+    border: "1px solid #e2e8f0",
+    overflow: "hidden",
+    backgroundColor: "#ffffff",
+  },
+  dayCover: { width: "100%", height: 120, objectFit: "cover" },
+  dayCardInner: { padding: 14 },
+  dayMeta: { marginTop: 6, color: "#475569", lineHeight: 1.4 },
+  slotsRow: { flexDirection: "row", gap: 10, marginTop: 12 },
+  slot: {
+    flex: 1,
+    borderRadius: 12,
+    border: "1px solid #e2e8f0",
+    backgroundColor: "#f8fafc",
+    padding: 10,
+  },
+  slotTitle: { fontSize: 9, letterSpacing: 1.2, textTransform: "uppercase", color: "#475569", fontWeight: 700 },
+  slotItemTitle: { marginTop: 8, fontSize: 10, fontWeight: 700 },
+  slotItemBody: { marginTop: 2, fontSize: 10, color: "#475569", lineHeight: 1.35 },
   card: {
     borderRadius: 14,
     border: "1px solid #e2e8f0",
@@ -174,11 +200,19 @@ function HeaderFooter({
   logoUrl,
   companyName,
   licenceNumber,
+  contact,
 }: {
   logoUrl?: string | null;
   companyName?: string;
   licenceNumber?: string;
+  contact?: ItineraryPdfModel["contact"];
 }) {
+  const phone = contact?.phone?.trim() || "";
+  const email = contact?.email?.trim() || "";
+  const website = contact?.website?.trim() || "";
+  const address = contact?.officeAddress?.trim() || "";
+  const strip = [phone, email, website, address].filter(Boolean).join(" | ") || " ";
+
   return (
     <>
       <View style={styles.header} fixed>
@@ -186,22 +220,16 @@ function HeaderFooter({
           <SafeImage src={logoUrl ?? undefined} style={styles.headerLogo} />
           <Text style={styles.headerName}>{companyName?.trim() || "JunketTours"}</Text>
         </View>
-        <View />
+        <View style={styles.headerRight}>
+          {licenceNumber?.trim() ? (
+            <Text style={styles.headerLicence}>{`Licence #${licenceNumber.trim()}`}</Text>
+          ) : null}
+        </View>
       </View>
       <View style={styles.footer} fixed>
-        <View style={styles.footerLeft}>
-          {licenceNumber?.trim() ? (
-            <Text style={styles.pageNum}>{`Licence #${licenceNumber.trim()}`}</Text>
-          ) : (
-            <Text style={styles.pageNum}> </Text>
-          )}
-        </View>
-        <View style={styles.footerRight}>
-          <Text
-            style={styles.pageNum}
-            render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
-          />
-        </View>
+        <Text style={styles.footerText} wrap={false}>
+          {strip}
+        </Text>
       </View>
     </>
   );
@@ -280,26 +308,83 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
           logoUrl={model.logoUrl}
           companyName={model.companyName}
           licenceNumber={model.licenceNumber}
+          contact={model.contact}
         />
         <Text style={styles.sectionTitle}>{`Your ${model.daysLabel || ""} Itinerary`.trim()}</Text>
         {(model.dayPlans ?? []).map((d) => {
-          const highlights =
-            d.highlights?.length
-              ? d.highlights.join(" ³ ")
-              : "";
-          const overnight = d.overnight?.trim()
-            ? ` ³ ${d.overnight.trim()}`
-            : "";
+          const highlights = d.highlights?.length ? d.highlights.join(", ") : "";
+          const overnight = d.overnight?.trim() ? d.overnight.trim() : "";
+          const meta = [highlights, overnight].filter(Boolean).join(" · ");
+
+          const morning = (d.morning ?? []).filter((x) => x.title.trim() || x.description.trim());
+          const afternoon = (d.afternoon ?? []).filter((x) => x.title.trim() || x.description.trim());
+          const evening = (d.evening ?? []).filter((x) => x.title.trim() || x.description.trim());
+
           return (
-            <View key={`d-${d.dayNumber}`} style={styles.dayRow}>
-              <View style={styles.dayNum}>
-                <Text style={styles.dayNumText}>{d.dayNumber}</Text>
-              </View>
-              <View style={styles.dayBody}>
-                <Text style={styles.dayTitle}>{`Day ${d.dayNumber} — ${d.title}`}</Text>
-                <Text style={[styles.muted, styles.highlightsText]}>
-                  {highlights ? `${highlights}${overnight}` : overnight.replace(/^ ³ /, "")}
-                </Text>
+            <View key={`d-${d.dayNumber}`} style={styles.dayCard} wrap={false}>
+              {d.imageUrl ? (
+                <SafeImage src={d.imageUrl} style={styles.dayCover} />
+              ) : null}
+              <View style={styles.dayCardInner}>
+                <View style={styles.dayRow}>
+                  <View style={styles.dayNum}>
+                    <Text style={styles.dayNumText}>{d.dayNumber}</Text>
+                  </View>
+                  <View style={styles.dayBody}>
+                    <Text style={styles.dayTitle}>{`Day ${d.dayNumber} — ${d.title}`}</Text>
+                    {meta ? <Text style={styles.dayMeta}>{meta}</Text> : null}
+                  </View>
+                </View>
+
+                {(morning.length || afternoon.length || evening.length) ? (
+                  <View style={styles.slotsRow}>
+                    <View style={styles.slot}>
+                      <Text style={styles.slotTitle}>Morning</Text>
+                      {morning.length ? (
+                        morning.slice(0, 3).map((a, idx) => (
+                          <View key={`m-${d.dayNumber}-${idx}`}>
+                            <Text style={styles.slotItemTitle}>{a.title || "—"}</Text>
+                            {a.description?.trim() ? (
+                              <Text style={styles.slotItemBody}>{a.description}</Text>
+                            ) : null}
+                          </View>
+                        ))
+                      ) : (
+                        <Text style={styles.slotItemBody}>—</Text>
+                      )}
+                    </View>
+                    <View style={styles.slot}>
+                      <Text style={styles.slotTitle}>Afternoon</Text>
+                      {afternoon.length ? (
+                        afternoon.slice(0, 3).map((a, idx) => (
+                          <View key={`a-${d.dayNumber}-${idx}`}>
+                            <Text style={styles.slotItemTitle}>{a.title || "—"}</Text>
+                            {a.description?.trim() ? (
+                              <Text style={styles.slotItemBody}>{a.description}</Text>
+                            ) : null}
+                          </View>
+                        ))
+                      ) : (
+                        <Text style={styles.slotItemBody}>—</Text>
+                      )}
+                    </View>
+                    <View style={styles.slot}>
+                      <Text style={styles.slotTitle}>Evening</Text>
+                      {evening.length ? (
+                        evening.slice(0, 3).map((a, idx) => (
+                          <View key={`e-${d.dayNumber}-${idx}`}>
+                            <Text style={styles.slotItemTitle}>{a.title || "—"}</Text>
+                            {a.description?.trim() ? (
+                              <Text style={styles.slotItemBody}>{a.description}</Text>
+                            ) : null}
+                          </View>
+                        ))
+                      ) : (
+                        <Text style={styles.slotItemBody}>—</Text>
+                      )}
+                    </View>
+                  </View>
+                ) : null}
               </View>
             </View>
           );
@@ -311,6 +396,7 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
           logoUrl={model.logoUrl}
           companyName={model.companyName}
           licenceNumber={model.licenceNumber}
+          contact={model.contact}
         />
         <Text style={styles.sectionTitle}>What&apos;s Included &amp; What&apos;s Not</Text>
         <View style={{ marginTop: 12, flexDirection: "row", gap: 14 }}>
@@ -350,6 +436,7 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
           logoUrl={model.logoUrl}
           companyName={model.companyName}
           licenceNumber={model.licenceNumber}
+          contact={model.contact}
         />
         <Text style={styles.sectionTitle}>Choose Your Package</Text>
         <Text style={[styles.muted, { marginTop: 6, lineHeight: 1.4 }]}>
@@ -381,6 +468,7 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
           logoUrl={model.logoUrl}
           companyName={model.companyName}
           licenceNumber={model.licenceNumber}
+          contact={model.contact}
         />
         <Text style={styles.sectionTitle}>Payment Terms &amp; How to Book</Text>
         <View style={styles.payRow}>
@@ -430,6 +518,7 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
           logoUrl={model.logoUrl}
           companyName={model.companyName}
           licenceNumber={model.licenceNumber}
+          contact={model.contact}
         />
         <Text style={styles.sectionTitle}>Terms &amp; Conditions</Text>
         <View style={{ marginTop: 12 }}>

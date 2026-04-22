@@ -327,6 +327,27 @@ export const markFinal = mutation({
   },
 });
 
+export const markDraft = mutation({
+  args: { sessionToken: v.string(), itineraryId: v.id("itineraries") },
+  handler: async (ctx, { sessionToken, itineraryId }) => {
+    const user = await requireUserFromSession(ctx, sessionToken);
+    assertAdminFromSession(user);
+
+    const row = await ctx.db.get(itineraryId);
+    if (!row) throw new Error("Itinerary not found");
+    if (row.status === "draft") return;
+
+    const now = Date.now();
+    await ctx.db.patch(itineraryId, { status: "draft", updatedAt: now });
+    await ctx.db.insert("adminLogs", {
+      action: "itinerary_mark_draft",
+      performedBy: user._id,
+      timestamp: now,
+      details: `${itineraryId}`,
+    });
+  },
+});
+
 export const deleteItinerary = mutation({
   args: { sessionToken: v.string(), itineraryId: v.id("itineraries") },
   handler: async (ctx, { sessionToken, itineraryId }) => {

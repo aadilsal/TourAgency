@@ -3,6 +3,8 @@ import { getServerSession } from "@/lib/session";
 
 export default async function AdminSettingsPage() {
   const s = await getServerSession();
+  const role =
+    s?.role === "admin" || s?.role === "super_admin" ? s.role : undefined;
   return (
     <main>
       <h1 className="text-2xl font-semibold text-brand-ink">Settings</h1>
@@ -10,7 +12,7 @@ export default async function AdminSettingsPage() {
         Update company contact details used in documents.
       </p>
       <div className="mt-8">
-        <AdminSettingsPanel role={s?.role} />
+        <AdminSettingsPanel role={role} />
       </div>
     </main>
   );

@@ -17,6 +17,41 @@ const invoiceItemValidator = v.object({
   price: v.number(),
 });
 
+function pad4(n: number) {
+  return String(n).padStart(4, "0");
+}
+
+function fiscalYearKeyFromMs(ms: number) {
+  // Keep consistent with the sample format: INV/24-25/0002
+  const d = new Date(ms);
+  const yy = d.getUTCFullYear() % 100;
+  const next = (yy + 1) % 100;
+  return `${String(yy).padStart(2, "0")}-${String(next).padStart(2, "0")}`;
+}
+
+async function issueInvoiceNumber(ctx: { db: any }, nowMs: number) {
+  const fiscalYearKey = fiscalYearKeyFromMs(nowMs);
+  const existing = await ctx.db
+    .query("invoiceCounters")
+    .withIndex("by_fiscal_year", (q: any) => q.eq("fiscalYearKey", fiscalYearKey))
+    .unique();
+
+  const now = Date.now();
+  if (!existing) {
+    // First invoice in this fiscal year: issue 0001, store nextSeq=2
+    await ctx.db.insert("invoiceCounters", {
+      fiscalYearKey,
+      nextSeq: 2,
+      updatedAt: now,
+    });
+    return `INV/${fiscalYearKey}/${pad4(1)}`;
+  }
+
+  const seq = Math.max(1, Number(existing.nextSeq || 1));
+  await ctx.db.patch(existing._id, { nextSeq: seq + 1, updatedAt: now });
+  return `INV/${fiscalYearKey}/${pad4(seq)}`;
+}
+
 export const createDraft = mutation({
   args: {
     sessionToken: v.string(),
@@ -24,13 +59,17 @@ export const createDraft = mutation({
     itineraryId: v.optional(v.id("itineraries")),
     invoiceDate: v.string(),
     currency: v.union(v.literal("PKR"), v.literal("USD")),
+    advanceAmount: v.optional(v.number()),
+    tripSummary: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await requireUserFromSession(ctx, args.sessionToken);
     assertAdminFromSession(user);
 
     const now = Date.now();
+    const invoiceNumber = await issueInvoiceNumber(ctx, now);
     const id = await ctx.db.insert("invoices", {
+      invoiceNumber,
       clientName: args.clientName.trim(),
       itineraryId: args.itineraryId,
       invoiceDate: args.invoiceDate.trim(),
@@ -39,6 +78,8 @@ export const createDraft = mutation({
       items: [],
       discount: 0,
       tax: 0,
+      advanceAmount: typeof args.advanceAmount === "number" ? Math.max(0, args.advanceAmount) : 0,
+      tripSummary: args.tripSummary?.trim() || "",
       paymentMethod: "bank",
       paymentDetails: "",
       createdAt: now,
@@ -69,6 +110,8 @@ export const patchDraft = mutation({
     items: v.optional(v.array(invoiceItemValidator)),
     discount: v.optional(v.number()),
     tax: v.optional(v.number()),
+    advanceAmount: v.optional(v.number()),
+    tripSummary: v.optional(v.string()),
 
     paymentMethod: v.optional(
       v.union(v.literal("bank"), v.literal("easypaisa"), v.literal("jazzcash")),
@@ -88,10 +131,15 @@ export const patchDraft = mutation({
     const next: Record<string, unknown> = {};
     for (const [k, val] of Object.entries(patch)) {
       if (val === undefined) continue;
+      if (k === "advanceAmount" && typeof val === "number") {
+        next[k] = Math.max(0, val);
+        continue;
+      }
       if (
         (k === "invoiceDate" ||
           k === "clientName" ||
           k === "paymentDetails" ||
+          k === "tripSummary" ||
           k === "terms" ||
           k === "cancellationPolicy") &&
         typeof val === "string"
@@ -168,13 +216,53 @@ export const markPaid = mutation({
   },
 });
 
+export const markDraft = mutation({
+  args: { sessionToken: v.string(), invoiceId: v.id("invoices") },
+  handler: async (ctx, { sessionToken, invoiceId }) => {
+    const user = await requireUserFromSession(ctx, sessionToken);
+    assertAdminFromSession(user);
+
+    const row = await ctx.db.get(invoiceId);
+    if (!row) throw new Error("Invoice not found");
+    if (row.status === "draft") return;
+    const now = Date.now();
+    await ctx.db.patch(invoiceId, { status: "draft", updatedAt: now });
+    await ctx.db.insert("adminLogs", {
+      action: "invoice_mark_draft",
+      performedBy: user._id,
+      timestamp: now,
+      details: `${invoiceId}`,
+    });
+  },
+});
+
+export const deleteInvoice = mutation({
+  args: { sessionToken: v.string(), invoiceId: v.id("invoices") },
+  handler: async (ctx, { sessionToken, invoiceId }) => {
+    const user = await requireUserFromSession(ctx, sessionToken);
+    assertAdminFromSession(user);
+
+    const row = await ctx.db.get(invoiceId);
+    if (!row) return;
+    await ctx.db.delete(invoiceId);
+    await ctx.db.insert("adminLogs", {
+      action: "invoice_delete",
+      performedBy: user._id,
+      timestamp: Date.now(),
+      details: `${invoiceId}`,
+    });
+  },
+});
+
 export const createFromItinerary = mutation({
   args: {
     sessionToken: v.string(),
     itineraryId: v.id("itineraries"),
     currency: v.optional(v.union(v.literal("PKR"), v.literal("USD"))),
+    advanceAmount: v.optional(v.number()),
+    tripSummary: v.optional(v.string()),
   },
-  handler: async (ctx, { sessionToken, itineraryId, currency }) => {
+  handler: async (ctx, { sessionToken, itineraryId, currency, tripSummary }) => {
     const user = await requireUserFromSession(ctx, sessionToken);
     assertAdminFromSession(user);
 
@@ -182,7 +270,9 @@ export const createFromItinerary = mutation({
     if (!itin) throw new Error("Itinerary not found");
 
     const now = Date.now();
+    const invoiceNumber = await issueInvoiceNumber(ctx, now);
     const id = await ctx.db.insert("invoices", {
+      invoiceNumber,
       clientName: itin.clientName,
       itineraryId: itin._id,
       invoiceDate: new Date().toISOString().slice(0, 10),
@@ -198,6 +288,8 @@ export const createFromItinerary = mutation({
       ],
       discount: 0,
       tax: 0,
+      advanceAmount: 0,
+      tripSummary: typeof tripSummary === "string" ? tripSummary.trim() : "",
       paymentMethod: "bank",
       paymentDetails: "",
       createdAt: now,

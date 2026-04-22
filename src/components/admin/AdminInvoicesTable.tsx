@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { TextInput } from "@/components/ui/FormField";
+import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 
 type Row = {
   _id: Id<"invoices">;
@@ -36,6 +37,11 @@ export function AdminInvoicesTable() {
   const sessionToken = useConvexSessionToken();
   const canQuery = typeof sessionToken === "string";
   const [q, setQ] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const deleteInvoice = useMutation(api.invoices.deleteInvoice);
+  const markPaid = useMutation(api.invoices.markPaid);
+  const markDraft = useMutation(api.invoices.markDraft);
 
   const rows = useQuery(
     api.invoices.listForAdmin,
@@ -71,6 +77,11 @@ export function AdminInvoicesTable() {
 
   return (
     <div className="space-y-4">
+      {msg ? (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          {msg}
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="w-full max-w-md">
           <TextInput
@@ -86,11 +97,11 @@ export function AdminInvoicesTable() {
         <table className="min-w-[860px] w-full text-left text-sm">
           <thead className="border-b border-border bg-black/5 text-xs font-semibold uppercase tracking-wide text-muted dark:bg-white/5">
             <tr>
-              <th className="px-4 py-3">Client</th>
-              <th className="px-4 py-3">Date</th>
-              <th className="px-4 py-3">Currency</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Updated</th>
+              <th className="px-4 py-3 text-center">Client</th>
+              <th className="px-4 py-3 text-center">Date</th>
+              <th className="px-4 py-3 text-center">Currency</th>
+              <th className="px-4 py-3 text-center">Status</th>
+              <th className="px-4 py-3 text-center">Updated</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -120,12 +131,65 @@ export function AdminInvoicesTable() {
                 </td>
                 <td className="px-4 py-3 text-muted tabular-nums">{fmt(r.updatedAt)}</td>
                 <td className="px-4 py-3 text-right">
-                  <Link
-                    href={`/admin/invoices/${r._id}`}
-                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-brand-cta hover:bg-panel-elevated"
-                  >
-                    Open
-                  </Link>
+                  <div className="inline-flex items-center gap-2">
+                    <Link
+                      href={`/admin/invoices/${r._id}`}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-brand-cta hover:bg-panel-elevated"
+                    >
+                      Edit
+                    </Link>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-panel-elevated"
+                      onClick={() => {
+                        if (!canQuery) return;
+                        setMsg(null);
+                        void (async () => {
+                          try {
+                            if (r.status === "paid") {
+                              await markDraft({
+                                sessionToken,
+                                invoiceId: r._id as Id<"invoices">,
+                              });
+                            } else {
+                              await markPaid({
+                                sessionToken,
+                                invoiceId: r._id as Id<"invoices">,
+                              });
+                            }
+                          } catch (e) {
+                            setMsg(toUserFacingErrorMessage(e));
+                          }
+                        })();
+                      }}
+                    >
+                      {r.status === "paid" ? "Mark draft" : "Mark paid"}
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-panel-elevated"
+                      onClick={() => {
+                        if (!canQuery) return;
+                        const ok = window.confirm(
+                          `Delete invoice for ${r.clientName || "—"} (${r.invoiceDate})? This cannot be undone.`,
+                        );
+                        if (!ok) return;
+                        setMsg(null);
+                        void (async () => {
+                          try {
+                            await deleteInvoice({
+                              sessionToken,
+                              invoiceId: r._id as Id<"invoices">,
+                            });
+                          } catch (e) {
+                            setMsg(toUserFacingErrorMessage(e));
+                          }
+                        })();
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -17,6 +17,13 @@ export type InvoicePdfModel = {
   companyLogoUrl?: string | null;
   companyName?: string;
   companyAddress?: string;
+  tripSummary?: string;
+  footer?: {
+    phone?: string;
+    email?: string;
+    website?: string;
+    address?: string;
+  };
   client: {
     name: string;
     phone?: string;
@@ -32,6 +39,10 @@ export type InvoicePdfModel = {
   discount: number;
   /** Percentage 0–100 */
   tax: number;
+  /** Amount already paid (>= 0) */
+  advanceAmount?: number;
+  /** If true, show “Paid” when remaining is 0 */
+  isFinal?: boolean;
   payment: {
     method: "bank" | "easypaisa" | "jazzcash";
     details: string;
@@ -45,6 +56,7 @@ export type InvoicePdfModel = {
 const styles = StyleSheet.create({
   page: {
     padding: 44,
+    paddingBottom: 78,
     fontSize: 11,
     color: "#0f172a",
     fontFamily: "Helvetica",
@@ -59,6 +71,13 @@ const styles = StyleSheet.create({
     border: "1px solid #e2e8f0",
     padding: 14,
     backgroundColor: "#ffffff",
+  },
+  summaryBox: {
+    borderRadius: 14,
+    border: "1px solid #e2e8f0",
+    padding: 14,
+    backgroundColor: "#ffffff",
+    minHeight: 148,
   },
   tableHeader: {
     flexDirection: "row",
@@ -87,6 +106,19 @@ const styles = StyleSheet.create({
   },
   totalsLine: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
   grand: { fontSize: 16, fontWeight: 700 },
+  footerStrip: {
+    position: "absolute",
+    left: 44,
+    right: 44,
+    bottom: 22,
+    borderRadius: 999,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    backgroundColor: "#0f172a",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  footerText: { fontSize: 9, color: "#ffffff" },
 });
 
 function money(currency: "PKR" | "USD", n: number) {
@@ -107,6 +139,17 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
   const taxableBase = Math.max(0, subtotal - discountAmount);
   const taxAmount = (taxableBase * taxPct) / 100;
   const total = Math.max(0, taxableBase + taxAmount);
+  const advance = Math.max(0, model.advanceAmount || 0);
+  const remaining = Math.max(0, total - advance);
+  const showPaid = Boolean(model.isFinal) && remaining <= 0.00001;
+
+  const footerStrip = (() => {
+    const phone = model.footer?.phone?.trim() || "";
+    const email = model.footer?.email?.trim() || "";
+    const website = model.footer?.website?.trim() || "";
+    const address = model.footer?.address?.trim() || model.companyAddress?.trim() || "";
+    return [phone, email, website, address].filter(Boolean).join(" | ") || " ";
+  })();
 
   return (
     <Document>
@@ -189,22 +232,47 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
         })}
 
         <View style={styles.totalsRow}>
-          <View style={styles.totalsBox}>
-            <View style={styles.totalsLine}>
-              <Text style={styles.muted}>Subtotal</Text>
-              <Text>{money(model.currency, subtotal)}</Text>
+          <View style={{ flexDirection: "row", gap: 12, width: "100%" }}>
+            <View style={[styles.summaryBox, { flex: 1 }]}>
+              <Text style={[styles.label, styles.muted]}>Trip summary</Text>
+              <Text style={[styles.muted, { marginTop: 8, lineHeight: 1.6 }]}>
+                {model.tripSummary?.trim() ? model.tripSummary.trim() : "—"}
+              </Text>
             </View>
-            <View style={styles.totalsLine}>
-              <Text style={styles.muted}>{`Discount (${discountPct}%)`}</Text>
-              <Text>{money(model.currency, discountAmount)}</Text>
-            </View>
-            <View style={styles.totalsLine}>
-              <Text style={styles.muted}>{`Tax (${taxPct}%)`}</Text>
-              <Text>{money(model.currency, taxAmount)}</Text>
-            </View>
-            <View style={[styles.totalsLine, { marginTop: 10 }]}>
-              <Text style={[styles.grand, { color: brand }]}>Total</Text>
-              <Text style={styles.grand}>{money(model.currency, total)}</Text>
+
+            <View style={styles.totalsBox}>
+              <View style={styles.totalsLine}>
+                <Text style={styles.muted}>Subtotal</Text>
+                <Text>{money(model.currency, subtotal)}</Text>
+              </View>
+              {discountPct > 0 ? (
+                <View style={styles.totalsLine}>
+                  <Text style={styles.muted}>{`Discount (${discountPct}%)`}</Text>
+                  <Text>{money(model.currency, discountAmount)}</Text>
+                </View>
+              ) : null}
+              {taxPct > 0 ? (
+                <View style={styles.totalsLine}>
+                  <Text style={styles.muted}>{`Tax (${taxPct}%)`}</Text>
+                  <Text>{money(model.currency, taxAmount)}</Text>
+                </View>
+              ) : null}
+              {advance > 0 ? (
+                <View style={styles.totalsLine}>
+                  <Text style={styles.muted}>Advance amount</Text>
+                  <Text>{money(model.currency, Math.min(advance, total))}</Text>
+                </View>
+              ) : null}
+              <View style={styles.totalsLine}>
+                <Text style={styles.muted}>Remaining balance</Text>
+                <Text>{money(model.currency, remaining)}</Text>
+              </View>
+              <View style={[styles.totalsLine, { marginTop: 10 }]}>
+                <Text style={[styles.grand, { color: brand }]}>Total</Text>
+                <Text style={styles.grand}>
+                  {showPaid ? "Paid" : money(model.currency, total)}
+                </Text>
+              </View>
             </View>
           </View>
         </View>
@@ -234,6 +302,12 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
                 : "Cancellation: —"}
             </Text>
           </View>
+        </View>
+
+        <View style={styles.footerStrip} fixed>
+          <Text style={styles.footerText} wrap={false}>
+            {footerStrip}
+          </Text>
         </View>
       </Page>
     </Document>

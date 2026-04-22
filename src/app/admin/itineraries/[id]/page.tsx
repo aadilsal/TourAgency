@@ -1,4 +1,4 @@
-import { AdminItineraryDetail } from "@/components/admin/AdminItineraryDetail";
+import { AdminItineraryWizard } from "@/components/admin/AdminItineraryWizard";
 
 export default function AdminItineraryDetailPage({
   params,
@@ -7,7 +7,7 @@ export default function AdminItineraryDetailPage({
 }) {
   return (
     <main>
-      <AdminItineraryDetail itineraryId={params.id} />
+      <AdminItineraryWizard itineraryId={params.id} />
     </main>
   );
 }

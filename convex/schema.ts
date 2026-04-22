@@ -407,6 +407,8 @@ export default defineSchema({
     .index("by_created", ["createdAt"]),
 
   invoices: defineTable({
+    /** Unique invoice number label, e.g. "INV/26-27/0001" */
+    invoiceNumber: v.optional(v.string()),
     clientName: v.string(),
     itineraryId: v.optional(v.id("itineraries")),
     invoiceDate: v.string(),
@@ -423,6 +425,10 @@ export default defineSchema({
     ),
     discount: v.number(),
     tax: v.number(),
+    /** Amount already received from the client */
+    advanceAmount: v.optional(v.number()),
+    /** Admin-entered summary of the trip (shown on invoice) */
+    tripSummary: v.optional(v.string()),
 
     paymentMethod: v.union(
       v.literal("bank"),
@@ -440,4 +446,12 @@ export default defineSchema({
     .index("by_itinerary", ["itineraryId"])
     .index("by_status", ["status"])
     .index("by_created", ["createdAt"]),
+
+  invoiceCounters: defineTable({
+    /** Fiscal-year key, e.g. "26-27" */
+    fiscalYearKey: v.string(),
+    /** Next sequence number to issue (starts at 1) */
+    nextSeq: v.number(),
+    updatedAt: v.number(),
+  }).index("by_fiscal_year", ["fiscalYearKey"]),
 });

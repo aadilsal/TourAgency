@@ -41,6 +41,8 @@ export function AdminItinerariesTable() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const deleteItinerary = useMutation(api.itineraries.deleteItinerary);
+  const markFinal = useMutation(api.itineraries.markFinal);
+  const markDraft = useMutation(api.itineraries.markDraft);
 
   const rows = useQuery(
     api.itineraries.listForAdmin,
@@ -96,11 +98,11 @@ export function AdminItinerariesTable() {
         <table className="min-w-[860px] w-full text-left text-sm">
           <thead className="border-b border-border bg-black/5 text-xs font-semibold uppercase tracking-wide text-muted dark:bg-white/5">
             <tr>
-              <th className="px-4 py-3">Title</th>
-              <th className="px-4 py-3">Client</th>
-              <th className="px-4 py-3">Days</th>
-              <th className="px-4 py-3">Status</th>
-              <th className="px-4 py-3">Updated</th>
+              <th className="px-4 py-3 text-center">Title</th>
+              <th className="px-4 py-3 text-center">Client</th>
+              <th className="px-4 py-3 text-center">Days</th>
+              <th className="px-4 py-3 text-center">Status</th>
+              <th className="px-4 py-3 text-center">Updated</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
@@ -139,6 +141,33 @@ export function AdminItinerariesTable() {
                     >
                       Edit
                     </Link>
+                    <button
+                      type="button"
+                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-panel-elevated"
+                      onClick={() => {
+                        if (!canQuery) return;
+                        setMsg(null);
+                        void (async () => {
+                          try {
+                            if (r.status === "final") {
+                              await markDraft({
+                                sessionToken,
+                                itineraryId: r._id as Id<"itineraries">,
+                              });
+                            } else {
+                              await markFinal({
+                                sessionToken,
+                                itineraryId: r._id as Id<"itineraries">,
+                              });
+                            }
+                          } catch (e) {
+                            setMsg(toUserFacingErrorMessage(e));
+                          }
+                        })();
+                      }}
+                    >
+                      {r.status === "final" ? "Mark draft" : "Mark final"}
+                    </button>
                     <button
                       type="button"
                       className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-panel-elevated"

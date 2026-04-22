@@ -155,8 +155,14 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
       dayPlans: (itin.dayPlans ?? []).map((d) => ({
         dayNumber: d.dayNumber,
         title: d.title,
+        imageUrl: d.imageStorageId
+          ? toAbsoluteUrl(urlCursor.get(String(d.imageStorageId)) ?? null)
+          : null,
         highlights: d.highlights ?? [],
         overnight: d.overnight ?? undefined,
+        morning: (d.morning ?? []).map((a) => ({ title: a.title, description: a.description })),
+        afternoon: (d.afternoon ?? []).map((a) => ({ title: a.title, description: a.description })),
+        evening: (d.evening ?? []).map((a) => ({ title: a.title, description: a.description })),
       })),
       included: itin.included ?? [],
       notIncluded: itin.notIncluded ?? [],

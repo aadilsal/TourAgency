@@ -1,4 +1,4 @@
-import { AdminInvoiceDetail } from "@/components/admin/AdminInvoiceDetail";
+import { AdminInvoiceWizard } from "@/components/admin/AdminInvoiceWizard";
 
 export default function AdminInvoiceDetailPage({
   params,
@@ -7,7 +7,7 @@ export default function AdminInvoiceDetailPage({
 }) {
   return (
     <main>
-      <AdminInvoiceDetail invoiceId={params.id} />
+      <AdminInvoiceWizard invoiceId={params.id} />
     </main>
   );
 }

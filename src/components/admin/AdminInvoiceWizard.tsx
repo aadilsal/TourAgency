@@ -28,6 +28,7 @@ const DEFAULT_LOGO_URL = "/images-removebg-preview.png";
 
 type InvoiceDoc = {
   _id: Id<"invoices">;
+  invoiceNumber?: string;
   clientName: string;
   invoiceDate: string;
   currency: Currency;
@@ -42,6 +43,8 @@ type InvoiceDoc = {
   discount: number;
   /** Percentage 0–100 */
   tax: number;
+  advanceAmount?: number;
+  tripSummary?: string;
   paymentMethod: PaymentMethod;
   paymentDetails: string;
   terms?: string;
@@ -57,7 +60,7 @@ function money(currency: Currency, n: number) {
   return `${sym} ${Number.isFinite(n) ? n.toLocaleString() : "0"}`;
 }
 
-export function AdminInvoiceWizard() {
+export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: string }) {
   const sessionToken = useConvexSessionToken();
   const canMutate = typeof sessionToken === "string";
   const minDate = useMemo(() => todayYmdLocal(), []);
@@ -69,7 +72,9 @@ export function AdminInvoiceWizard() {
   const [step, setStep] = useState(1);
   const steps = ["Basic", "Items", "Pricing", "Payment", "Notes", "Export"];
 
-  const [invoiceId, setInvoiceId] = useState<Id<"invoices"> | null>(null);
+  const [invoiceId, setInvoiceId] = useState<Id<"invoices"> | null>(
+    invoiceIdProp ? (invoiceIdProp as Id<"invoices">) : null,
+  );
   const [clientName, setClientName] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(() =>
     new Date().toISOString().slice(0, 10),
@@ -81,6 +86,8 @@ export function AdminInvoiceWizard() {
   ]);
   const [discount, setDiscount] = useState(0);
   const [tax, setTax] = useState(0);
+  const [advanceAmount, setAdvanceAmount] = useState(0);
+  const [tripSummary, setTripSummary] = useState("");
 
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bank");
   const [paymentDetails, setPaymentDetails] = useState("");
@@ -98,6 +105,34 @@ export function AdminInvoiceWizard() {
   const publicSettings = useQuery(api.siteSettings.getPublicSiteSettings, {});
   const fallbackLogoAbs = useMemo(() => toAbsoluteUrl(DEFAULT_LOGO_URL), []);
 
+  const invoiceDoc = useQuery(
+    api.invoices.getForAdmin,
+    invoiceId && typeof sessionToken === "string"
+      ? { sessionToken, invoiceId }
+      : "skip",
+  ) as InvoiceDoc | null | undefined;
+
+  const didHydrateFromDoc = useRef(false);
+  useEffect(() => {
+    if (didHydrateFromDoc.current) return;
+    if (!invoiceDoc) return;
+    // Hydrate local editor state once for editing existing invoices.
+    setClientName(invoiceDoc.clientName ?? "");
+    setInvoiceDate(invoiceDoc.invoiceDate ?? new Date().toISOString().slice(0, 10));
+    setCurrency((invoiceDoc.currency as Currency) ?? "PKR");
+    setItems((invoiceDoc.items as InvoiceDoc["items"]) ?? []);
+    setDiscount(Number(invoiceDoc.discount ?? 0));
+    setTax(Number(invoiceDoc.tax ?? 0));
+    setAdvanceAmount(Number(invoiceDoc.advanceAmount ?? 0));
+    setTripSummary(invoiceDoc.tripSummary ?? "");
+    setPaymentMethod((invoiceDoc.paymentMethod as PaymentMethod) ?? "bank");
+    setPaymentDetails(invoiceDoc.paymentDetails ?? "");
+    setTerms(invoiceDoc.terms ?? "");
+    setCancellationPolicy(invoiceDoc.cancellationPolicy ?? "");
+    setSavingState("saved");
+    didHydrateFromDoc.current = true;
+  }, [invoiceDoc]);
+
   const subtotal = useMemo(() => {
     return items.reduce((sum, i) => sum + (i.quantity || 0) * (i.price || 0), 0);
   }, [items]);
@@ -110,6 +145,9 @@ export function AdminInvoiceWizard() {
   const total = useMemo(() => {
     return Math.max(0, taxableBase + taxAmount);
   }, [taxableBase, taxAmount]);
+  const remainingBalance = useMemo(() => {
+    return Math.max(0, total - Math.max(0, advanceAmount || 0));
+  }, [total, advanceAmount]);
 
   const saveTimer = useRef<number | null>(null);
   const lastPatchJson = useRef<string>("");
@@ -147,11 +185,18 @@ export function AdminInvoiceWizard() {
   const pdfModel: InvoicePdfModel | null = useMemo(() => {
     if (!clientName.trim()) return null;
     return {
+      invoiceNumberLabel: invoiceDoc?.invoiceNumber,
       invoiceDateLabel: invoiceDate,
       currency,
       companyLogoUrl: toAbsoluteUrl(companyLogoUrl) ?? fallbackLogoAbs,
       companyName: "JunketTours",
       companyAddress: publicSettings?.officeAddress?.trim() || undefined,
+      footer: {
+        phone: publicSettings?.phone?.trim() || undefined,
+        email: publicSettings?.email?.trim() || undefined,
+        website: publicSettings?.website?.trim() || undefined,
+        address: publicSettings?.officeAddress?.trim() || undefined,
+      },
       client: { name: clientName },
       items: items.map((i) => ({
         name: i.name,
@@ -161,19 +206,28 @@ export function AdminInvoiceWizard() {
       })),
       discount: discountPct,
       tax: taxPct,
+      advanceAmount: Math.max(0, advanceAmount || 0),
+      isFinal: true,
+      tripSummary: tripSummary.trim() || undefined,
       payment: { method: paymentMethod, details: paymentDetails },
       notes: { terms: terms || undefined, cancellationPolicy: cancellationPolicy || undefined },
     };
   }, [
+    invoiceDoc?.invoiceNumber,
     clientName,
     invoiceDate,
     currency,
     companyLogoUrl,
     fallbackLogoAbs,
     publicSettings?.officeAddress,
+    publicSettings?.phone,
+    publicSettings?.email,
+    publicSettings?.website,
     items,
     discountPct,
     taxPct,
+    advanceAmount,
+    tripSummary,
     paymentMethod,
     paymentDetails,
     terms,
@@ -193,6 +247,8 @@ export function AdminInvoiceWizard() {
         clientName,
         invoiceDate,
         currency,
+        advanceAmount: Math.max(0, advanceAmount || 0),
+        tripSummary: tripSummary.trim() || undefined,
       });
       setInvoiceId(id);
       setStep(2);
@@ -204,7 +260,11 @@ export function AdminInvoiceWizard() {
 
   function next() {
     if (step === 1) {
-      void onCreateDraft();
+      if (invoiceId) {
+        setStep(2);
+      } else {
+        void onCreateDraft();
+      }
       return;
     }
     if (step === steps.length) {
@@ -261,7 +321,9 @@ export function AdminInvoiceWizard() {
                 required
                 value={clientName}
                 onChange={(e) => {
-                  setClientName(e.target.value);
+                  const v = e.target.value;
+                  setClientName(v);
+                  queuePatch({ clientName: v });
                 }}
                 placeholder="Ahmed Ali"
               />
@@ -275,14 +337,22 @@ export function AdminInvoiceWizard() {
                   type="date"
                   min={minDate}
                   value={invoiceDate}
-                  onChange={(e) => setInvoiceDate(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setInvoiceDate(v);
+                    queuePatch({ invoiceDate: v });
+                  }}
                 />
               </div>
               <div>
                 <FieldLabel required>Currency</FieldLabel>
                 <SelectField
                   value={currency}
-                  onChange={(e) => setCurrency(e.target.value as Currency)}
+                  onChange={(e) => {
+                    const v = e.target.value as Currency;
+                    setCurrency(v);
+                    queuePatch({ currency: v });
+                  }}
                 >
                   <option value="PKR">PKR</option>
                   <option value="USD">USD</option>
@@ -408,6 +478,20 @@ export function AdminInvoiceWizard() {
                 </div>
               ))}
             </div>
+
+            <div className="rounded-2xl border border-border bg-panel-elevated p-4">
+              <FieldLabel>Trip summary (shows on invoice)</FieldLabel>
+              <TextAreaField
+                rows={5}
+                value={tripSummary}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setTripSummary(v);
+                  queuePatch({ tripSummary: v });
+                }}
+                placeholder="Short summary of the trip: destinations, dates, inclusions, vehicle, hotels…"
+              />
+            </div>
           </div>
         ) : step === 3 ? (
           <div className="space-y-4">
@@ -465,10 +549,36 @@ export function AdminInvoiceWizard() {
                     {money(currency, taxAmount)}
                   </span>
                 </div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <FieldLabel>Advance amount</FieldLabel>
+                    <TextInput
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={advanceAmount}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        const safe = Number.isFinite(v) ? Math.max(0, v) : 0;
+                        setAdvanceAmount(safe);
+                        queuePatch({ advanceAmount: safe });
+                      }}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="rounded-xl border border-border bg-white/70 px-3 py-2">
+                    <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                      Remaining balance
+                    </p>
+                    <p className="mt-1 text-lg font-extrabold tabular-nums text-foreground">
+                      {money(currency, remainingBalance)}
+                    </p>
+                  </div>
+                </div>
                 <div className="mt-2 flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
                   <span className="text-sm font-bold text-foreground">Grand total</span>
                   <span className="text-lg font-extrabold tabular-nums text-foreground">
-                    {money(currency, total)}
+                    {remainingBalance <= 0.00001 ? "Paid" : money(currency, total)}
                   </span>
                 </div>
               </div>
@@ -580,15 +690,40 @@ export function AdminInvoiceWizard() {
         title="Invoice preview"
         description="This is the PDF preview (Option A)."
         panelClassName="max-w-5xl"
+        fullscreenOnMobile
       >
-        <div className="h-[75vh] overflow-hidden rounded-xl border border-border bg-white">
-          {pdfModel ? (
-            <PDFViewer style={{ width: "100%", height: "100%" }}>
-              <InvoicePdf model={pdfModel} />
-            </PDFViewer>
-          ) : (
-            <p className="p-4 text-sm text-muted">Select a client to preview.</p>
-          )}
+        <div className="relative flex h-[82vh] flex-col overflow-hidden rounded-xl border border-border bg-white sm:h-[75vh]">
+          <div className="min-h-0 flex-1">
+            {pdfModel ? (
+              <PDFViewer style={{ width: "100%", height: "100%" }}>
+                <InvoicePdf model={pdfModel} />
+              </PDFViewer>
+            ) : (
+              <p className="p-4 text-sm text-muted">Select a client to preview.</p>
+            )}
+          </div>
+          <div className="z-10 flex items-center justify-between gap-2 border-t border-border bg-slate-900 px-3 py-2 text-white sm:px-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setPreviewOpen(false)}
+              className="border-white/15 bg-white/10 text-white hover:bg-white/15"
+            >
+              Close
+            </Button>
+            {pdfModel ? (
+              <PDFDownloadLink
+                document={<InvoicePdf model={pdfModel} />}
+                fileName={`invoice-${invoiceDate}.pdf`}
+              >
+                {({ loading }) => (
+                  <Button type="button" disabled={loading} className="bg-brand-primary text-white">
+                    {loading ? "Preparing…" : "Download PDF"}
+                  </Button>
+                )}
+              </PDFDownloadLink>
+            ) : null}
+          </div>
         </div>
       </Modal>
     </>

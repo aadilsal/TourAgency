@@ -106,7 +106,11 @@ function emptyDay(dayNumber: number) {
   } as NonNullable<ItineraryDoc["dayPlans"]>[number];
 }
 
-export function AdminItineraryWizard() {
+export function AdminItineraryWizard({
+  itineraryId: itineraryIdProp,
+}: {
+  itineraryId?: string;
+}) {
   const sessionToken = useConvexSessionToken();
   const canMutate = typeof sessionToken === "string";
   const minDate = useMemo(() => todayYmdLocal(), []);
@@ -126,7 +130,9 @@ export function AdminItineraryWizard() {
 
   const [step, setStep] = useState(1);
   const steps = ["Basic", "Brand", "Overview", "Days", "Details", "Preview"];
-  const [itineraryId, setItineraryId] = useState<Id<"itineraries"> | null>(null);
+  const [itineraryId, setItineraryId] = useState<Id<"itineraries"> | null>(
+    itineraryIdProp ? (itineraryIdProp as Id<"itineraries">) : null,
+  );
 
   // Step 1
   const [title, setTitle] = useState("");
@@ -225,6 +231,9 @@ export function AdminItineraryWizard() {
   >("idle");
   const [msg, setMsg] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [highlightsInputByDay, setHighlightsInputByDay] = useState<Record<number, string>>(
+    {},
+  );
 
   const existing = useQuery(
     api.itineraries.getForAdmin,
@@ -403,8 +412,14 @@ export function AdminItineraryWizard() {
       dayPlans: (dayPlans ?? []).map((d) => ({
         dayNumber: d.dayNumber,
         title: d.title,
+        imageUrl: d.imageStorageId
+          ? (toAbsoluteUrl(idToUrl.get(String(d.imageStorageId)) ?? null) ?? null)
+          : null,
         highlights: d.highlights ?? [],
         overnight: d.overnight ?? undefined,
+        morning: (d.morning ?? []).map((a) => ({ title: a.title, description: a.description })),
+        afternoon: (d.afternoon ?? []).map((a) => ({ title: a.title, description: a.description })),
+        evening: (d.evening ?? []).map((a) => ({ title: a.title, description: a.description })),
       })),
       included,
       notIncluded,
@@ -1152,10 +1167,18 @@ export function AdminItineraryWizard() {
                     <div>
                       <FieldLabel>Highlights</FieldLabel>
                       <TextInput
-                        value={(d.highlights ?? []).join(" ³ ")}
+                        value={
+                          highlightsInputByDay[d.dayNumber] ??
+                          (d.highlights ?? []).join(", ")
+                        }
                         onChange={(e) => {
-                          const parts = e.target.value
-                            .split("³")
+                          const raw = e.target.value;
+                          setHighlightsInputByDay((prev) => ({
+                            ...prev,
+                            [d.dayNumber]: raw,
+                          }));
+                          const parts = raw
+                            .split(",")
                             .map((s) => s.trim())
                             .filter(Boolean);
                           setDayPlans((prev) => {
@@ -1166,9 +1189,9 @@ export function AdminItineraryWizard() {
                             return next;
                           });
                         }}
-                        placeholder="Airport pickup ³ Hotel check-in ³ Upper Kachura Lake"
+                        placeholder="Airport pickup, Hotel check-in, Upper Kachura Lake"
                       />
-                      <FieldHint>Use `³` to separate highlights (like the PDF).</FieldHint>
+                      <FieldHint>Use commas to separate highlights (like the PDF).</FieldHint>
                     </div>
                   </div>
 
@@ -1816,11 +1839,34 @@ export function AdminItineraryWizard() {
         title="Itinerary preview"
         description="This is the PDF preview (Option A)."
         panelClassName="max-w-5xl"
+        fullscreenOnMobile
       >
-        <div className="h-[75vh] overflow-hidden rounded-xl border border-border bg-white">
-          <PDFViewer style={{ width: "100%", height: "100%" }}>
-            <ItineraryPdf key={pdfRenderKey} model={pdfModel} />
-          </PDFViewer>
+        <div className="relative flex h-[82vh] flex-col overflow-hidden rounded-xl border border-border bg-white sm:h-[75vh]">
+          <div className="min-h-0 flex-1">
+            <PDFViewer style={{ width: "100%", height: "100%" }}>
+              <ItineraryPdf key={pdfRenderKey} model={pdfModel} />
+            </PDFViewer>
+          </div>
+          <div className="z-10 flex items-center justify-between gap-2 border-t border-border bg-slate-900 px-3 py-2 text-white sm:px-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setPreviewOpen(false)}
+              className="border-white/15 bg-white/10 text-white hover:bg-white/15"
+            >
+              Close
+            </Button>
+            <PDFDownloadLink
+              document={<ItineraryPdf key={pdfRenderKey} model={pdfModel} />}
+              fileName={`${(title || "itinerary").replace(/\s+/g, "-").toLowerCase()}.pdf`}
+            >
+              {({ loading }) => (
+                <Button type="button" disabled={loading || pdfHasUnresolvedImages}>
+                  {loading ? "Preparing…" : pdfHasUnresolvedImages ? "Loading images…" : "Download PDF"}
+                </Button>
+              )}
+            </PDFDownloadLink>
+          </div>
         </div>
       </Modal>
     </>
