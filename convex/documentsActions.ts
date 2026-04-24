@@ -160,7 +160,7 @@ export const exportItineraryDocx: ReturnType<typeof action> = action({
   },
 });
 
-export const exportInvoiceDocx = action({
+export const exportInvoiceDocx: ReturnType<typeof action> = action({
   args: { sessionToken: v.string(), invoiceId: v.id("invoices") },
   handler: async (ctx, { sessionToken, invoiceId }) => {
     const ok = await ctx.runQuery(internal.auth.isAdminSession, { sessionToken });
