@@ -25,7 +25,7 @@ function money(currency: "PKR" | "USD", n: number) {
   }
 }
 
-export const exportItineraryDocx = action({
+export const exportItineraryDocx: ReturnType<typeof action> = action({
   args: {
     sessionToken: v.string(),
     itineraryId: v.id("itineraries"),
