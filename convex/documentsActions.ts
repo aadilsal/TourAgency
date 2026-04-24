@@ -150,7 +150,7 @@ export const exportItineraryDocx: ReturnType<typeof action> = action({
     });
 
     const buf = await Packer.toBuffer(doc);
-    const blob = new Blob([buf], {
+    const blob = new Blob([new Uint8Array(buf)], {
       type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
     const storageId = await ctx.storage.store(blob);
@@ -240,7 +240,7 @@ export const exportInvoiceDocx = action({
     });
 
     const buf = await Packer.toBuffer(doc);
-    const blob = new Blob([buf], {
+    const blob = new Blob([new Uint8Array(buf)], {
       type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     });
     const storageId = await ctx.storage.store(blob);
