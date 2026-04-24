@@ -293,6 +293,10 @@ export default defineSchema({
     contactWebsite: v.optional(v.string()),
 
     destinations: v.optional(v.array(v.string())),
+    /** Optional linkage to a rate-card record (legacy string id). */
+    rateCardId: v.optional(v.string()),
+    /** Optional linkage to an itinerary template (legacy string id). */
+    templateId: v.optional(v.string()),
     transportType: v.optional(v.string()),
     accommodationType: v.optional(v.string()),
     mealsIncluded: v.optional(v.string()),

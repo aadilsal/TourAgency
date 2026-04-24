@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from "@react-pdf/renderer";
+import { PdfFooterStrip, PdfHeader, type PdfFooterContact } from "@/documents/shared/PdfChrome";
 
 export type InvoicePdfModel = {
   invoiceNumberLabel?: string;
@@ -18,12 +19,8 @@ export type InvoicePdfModel = {
   companyName?: string;
   companyAddress?: string;
   tripSummary?: string;
-  footer?: {
-    phone?: string;
-    email?: string;
-    website?: string;
-    address?: string;
-  };
+  licenceNumber?: string;
+  contact?: PdfFooterContact;
   client: {
     name: string;
     phone?: string;
@@ -55,11 +52,13 @@ export type InvoicePdfModel = {
 
 const styles = StyleSheet.create({
   page: {
-    padding: 44,
+    paddingTop: 68,
+    paddingHorizontal: 44,
     paddingBottom: 78,
     fontSize: 11,
     color: "#0f172a",
     fontFamily: "Helvetica",
+    lineHeight: 1.35,
   },
   row: { flexDirection: "row" },
   muted: { color: "#475569" },
@@ -106,19 +105,11 @@ const styles = StyleSheet.create({
   },
   totalsLine: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
   grand: { fontSize: 16, fontWeight: 700 },
-  footerStrip: {
-    position: "absolute",
-    left: 44,
-    right: 44,
-    bottom: 22,
-    borderRadius: 999,
-    paddingVertical: 7,
-    paddingHorizontal: 14,
-    backgroundColor: "#0f172a",
-    flexDirection: "row",
-    alignItems: "center",
+  totalDivider: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTop: "1px solid #e2e8f0",
   },
-  footerText: { fontSize: 9, color: "#ffffff" },
 });
 
 function money(currency: "PKR" | "USD", n: number) {
@@ -143,17 +134,14 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
   const remaining = Math.max(0, total - advance);
   const showPaid = Boolean(model.isFinal) && remaining <= 0.00001;
 
-  const footerStrip = (() => {
-    const phone = model.footer?.phone?.trim() || "";
-    const email = model.footer?.email?.trim() || "";
-    const website = model.footer?.website?.trim() || "";
-    const address = model.footer?.address?.trim() || model.companyAddress?.trim() || "";
-    return [phone, email, website, address].filter(Boolean).join(" | ") || " ";
-  })();
-
   return (
     <Document>
       <Page size="A4" style={styles.page}>
+        <PdfHeader
+          logoUrl={model.companyLogoUrl}
+          companyName={model.companyName}
+          licenceNumber={model.licenceNumber}
+        />
         <View style={[styles.row, { justifyContent: "space-between", gap: 16 }]}>
           <View style={{ flex: 1 }}>
             {model.companyLogoUrl ? (
@@ -175,8 +163,12 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
           </View>
           <View style={{ alignItems: "flex-end" }}>
             <Text style={[styles.h1, { color: brand }]}>Invoice</Text>
-            <Text style={[styles.muted, { marginTop: 4 }]}>
-              {model.invoiceNumberLabel ? `${model.invoiceNumberLabel} · ` : ""}
+            {model.invoiceNumberLabel ? (
+              <Text style={[styles.muted, { marginTop: 8 }]}>
+                {model.invoiceNumberLabel}
+              </Text>
+            ) : null}
+            <Text style={[styles.muted, { marginTop: model.invoiceNumberLabel ? 2 : 8 }]}>
               {model.invoiceDateLabel}
             </Text>
           </View>
@@ -231,6 +223,9 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
           );
         })}
 
+        {/* Keep totals readable for long invoices */}
+        {model.items.length > 12 ? <View break /> : null}
+
         <View style={styles.totalsRow}>
           <View style={{ flexDirection: "row", gap: 12, width: "100%" }}>
             <View style={[styles.summaryBox, { flex: 1 }]}>
@@ -267,7 +262,7 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
                 <Text style={styles.muted}>Remaining balance</Text>
                 <Text>{money(model.currency, remaining)}</Text>
               </View>
-              <View style={[styles.totalsLine, { marginTop: 10 }]}>
+              <View style={[styles.totalsLine, styles.totalDivider]}>
                 <Text style={[styles.grand, { color: brand }]}>Total</Text>
                 <Text style={styles.grand}>
                   {showPaid ? "Paid" : money(model.currency, total)}
@@ -303,12 +298,12 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
             </Text>
           </View>
         </View>
-
-        <View style={styles.footerStrip} fixed>
-          <Text style={styles.footerText} wrap={false}>
-            {footerStrip}
-          </Text>
-        </View>
+        <PdfFooterStrip
+          contact={{
+            ...(model.contact ?? {}),
+            officeAddress: model.contact?.officeAddress ?? model.companyAddress,
+          }}
+        />
       </Page>
     </Document>
   );

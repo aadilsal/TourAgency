@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
@@ -14,8 +14,9 @@ import {
   TextAreaField,
   TextInput,
 } from "@/components/ui/FormField";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClass } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { PopoverMenu } from "@/components/ui/PopoverMenu";
 import { isoDateRangeLabel } from "@/lib/dates";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
 import { toAbsoluteUrl } from "@/lib/absoluteUrl";
@@ -27,6 +28,151 @@ type Theme = "luxury" | "minimal" | "adventure";
 type ActivityIcon = "flight" | "hotel" | "food" | "sightseeing";
 
 const DEFAULT_LOGO_URL = "/images-removebg-preview.png";
+
+type TripPreset = {
+  key: string;
+  label: string;
+  defaults: Partial<{
+    title: string;
+    destinations: string[];
+    pickupDropoff: string;
+    transportType: string;
+    accommodationType: string;
+    mealsIncluded: string;
+    days: number;
+  }>;
+};
+
+type PackagePreset = {
+  key: string;
+  label: string;
+  packages: NonNullable<ItineraryDoc["packages"]>;
+};
+
+const CUSTOM_TRIP_PRESETS_KEY = "jt:customTripPresets:v1";
+const CUSTOM_PACKAGE_PRESETS_KEY = "jt:customPackagePresets:v1";
+
+const MAP_FALLBACK_IMAGES = [
+  "hunza.jpg",
+  "gilgit.jpg",
+  "Khunerjab.jpg",
+  "islamabad.jpg",
+  "lahore.jpg",
+  "karachi.jpg",
+] as const;
+
+function pickMapFallbackImage(input: string) {
+  const v = input.toLowerCase();
+  if (v.includes("hunza")) return "hunza.jpg";
+  if (v.includes("gilgit")) return "gilgit.jpg";
+  if (v.includes("khunjerab") || v.includes("khunerjab")) return "Khunerjab.jpg";
+  if (v.includes("islamabad")) return "islamabad.jpg";
+  if (v.includes("lahore")) return "lahore.jpg";
+  if (v.includes("karachi")) return "karachi.jpg";
+  return MAP_FALLBACK_IMAGES[0];
+}
+
+const TRIP_PRESETS: TripPreset[] = [
+  {
+    key: "generic",
+    label: "Generic trip (fast)",
+    defaults: {
+      title: "Custom Trip",
+      pickupDropoff: "Pickup & drop included.",
+      transportType: "4x4",
+      accommodationType: "3-star",
+      mealsIncluded: "Breakfast",
+      days: 5,
+      destinations: [],
+    },
+  },
+  {
+    key: "hunza-5d",
+    label: "Hunza (5D/4N) starter",
+    defaults: {
+      title: "Hunza Trip",
+      pickupDropoff: "Pickup & drop included.",
+      transportType: "4x4",
+      accommodationType: "3-star",
+      mealsIncluded: "Breakfast",
+      days: 5,
+      destinations: ["Hunza", "Attabad", "Passu"],
+    },
+  },
+  {
+    key: "skardu-7d",
+    label: "Skardu (7D/6N) starter",
+    defaults: {
+      title: "Skardu Trip",
+      pickupDropoff: "Pickup & drop included.",
+      transportType: "4x4",
+      accommodationType: "3-star",
+      mealsIncluded: "Breakfast",
+      days: 7,
+      destinations: ["Skardu", "Shigar", "Khaplu"],
+    },
+  },
+];
+
+const PACKAGE_PRESETS: PackagePreset[] = [
+  {
+    key: "none",
+    label: "No preset (start empty)",
+    packages: [],
+  },
+  {
+    key: "3-tiers",
+    label: "3 tiers (Standard / Deluxe / Platinum)",
+    packages: [
+      {
+        name: "Standard",
+        pricePkr: undefined,
+        vehicle: "Sedan",
+        note: "",
+        stays: [
+          { location: "Destination 1", hotel: "", nights: 2 },
+          { location: "Destination 2", hotel: "", nights: 2 },
+        ],
+      },
+      {
+        name: "Deluxe",
+        pricePkr: undefined,
+        vehicle: "Prado",
+        note: "",
+        stays: [
+          { location: "Destination 1", hotel: "", nights: 2 },
+          { location: "Destination 2", hotel: "", nights: 2 },
+        ],
+      },
+      {
+        name: "Platinum",
+        pricePkr: undefined,
+        vehicle: "Land Cruiser",
+        note: "",
+        stays: [
+          { location: "Destination 1", hotel: "", nights: 2 },
+          { location: "Destination 2", hotel: "", nights: 2 },
+        ],
+      },
+    ],
+  },
+  {
+    key: "standard-only",
+    label: "One package (Standard only)",
+    packages: [
+      {
+        name: "Standard",
+        pricePkr: undefined,
+        vehicle: "Sedan",
+        note: "",
+        stays: [
+          { location: "Destination 1", hotel: "", nights: 2 },
+          { location: "Destination 2", hotel: "", nights: 2 },
+        ],
+      },
+    ],
+  },
+];
 
 type ItineraryDoc = {
   _id: Id<"itineraries">;
@@ -120,6 +266,7 @@ export function AdminItineraryWizard({
   const createDraft = useMutation(api.itineraries.createDraft);
   const patchDraft = useMutation(api.itineraries.patchDraft);
   const markFinal = useMutation(api.itineraries.markFinal);
+  const exportDocx = useAction(api.documentsActions.exportItineraryDocx);
   const generateUploadUrl = useMutation(api.media.generateItineraryImageUploadUrl);
   const addItineraryImageAsset = useMutation(api.media.addItineraryImageAsset);
   const resolveUrls = useQuery(
@@ -128,8 +275,22 @@ export function AdminItineraryWizard({
   );
   void resolveUrls;
 
+  const [quickMode, setQuickMode] = useState(true);
+
+  const flows = useMemo(() => {
+    const quick = {
+      ids: ["basic", "daysQuick", "packages", "export"] as const,
+      labels: ["Trip details", "Day-by-day (short)", "Packages & hotels", "Preview & send"],
+    };
+    const advanced = {
+      ids: ["basic", "brand", "overview", "days", "details", "export"] as const,
+      labels: ["Trip details", "Branding", "Overview", "Day plan", "Packages & terms", "Preview & send"],
+    };
+    return quickMode ? quick : advanced;
+  }, [quickMode]);
+
   const [step, setStep] = useState(1);
-  const steps = ["Basic", "Brand", "Overview", "Days", "Details", "Preview"];
+  const activeStepId = flows.ids[clamp(step - 1, 0, flows.ids.length - 1)];
   const [itineraryId, setItineraryId] = useState<Id<"itineraries"> | null>(
     itineraryIdProp ? (itineraryIdProp as Id<"itineraries">) : null,
   );
@@ -142,6 +303,14 @@ export function AdminItineraryWizard({
   const [days, setDays] = useState(5);
   const [theme, setTheme] = useState<Theme>("luxury");
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage"> | null>(null);
+  const [tripPresetKey, setTripPresetKey] = useState("");
+  const [packagePresetKey, setPackagePresetKey] = useState("");
+  const [customTripPresets, setCustomTripPresets] = useState<TripPreset[]>([]);
+  const [customPackagePresets, setCustomPackagePresets] = useState<PackagePreset[]>([]);
+  const [tripPresetModalOpen, setTripPresetModalOpen] = useState(false);
+  const [packagePresetModalOpen, setPackagePresetModalOpen] = useState(false);
+  const [newTripPresetName, setNewTripPresetName] = useState("");
+  const [newPackagePresetName, setNewPackagePresetName] = useState("");
 
   const computedDays = useMemo(() => {
     if (!startDate || !endDate) return null;
@@ -154,7 +323,7 @@ export function AdminItineraryWizard({
 
   // Step 2
   const [headline, setHeadline] = useState("Your Dream Trip Awaits —");
-  const [variantLabel, setVariantLabel] = useState("Customised by Air");
+  const [variantLabel, setVariantLabel] = useState("Built by Junket Tours");
   const [coverSubtitle, setCoverSubtitle] = useState("");
   const [pickupDropoff, setPickupDropoff] = useState("");
   const [licenceNumber, setLicenceNumber] = useState("");
@@ -187,6 +356,8 @@ export function AdminItineraryWizard({
   const [importantNotes, setImportantNotes] = useState("");
 
   const [packages, setPackages] = useState<NonNullable<ItineraryDoc["packages"]>>([]);
+  const [bulkHotelFind, setBulkHotelFind] = useState("");
+  const [bulkHotelReplace, setBulkHotelReplace] = useState("");
   const [paymentTerms, setPaymentTerms] = useState<
     NonNullable<ItineraryDoc["paymentTerms"]>
   >([
@@ -231,6 +402,63 @@ export function AdminItineraryWizard({
   >("idle");
   const [msg, setMsg] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [docxLoading, setDocxLoading] = useState(false);
+  const [copyMsg, setCopyMsg] = useState<string | null>(null);
+  const [creatingDraft, setCreatingDraft] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(CUSTOM_TRIP_PRESETS_KEY);
+      if (raw) setCustomTripPresets(JSON.parse(raw) as TripPreset[]);
+    } catch {
+      // ignore
+    }
+    try {
+      const raw = window.localStorage.getItem(CUSTOM_PACKAGE_PRESETS_KEY);
+      if (raw) setCustomPackagePresets(JSON.parse(raw) as PackagePreset[]);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  function persistCustomTripPresets(next: TripPreset[]) {
+    setCustomTripPresets(next);
+    try {
+      window.localStorage.setItem(CUSTOM_TRIP_PRESETS_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  }
+
+  function persistCustomPackagePresets(next: PackagePreset[]) {
+    setCustomPackagePresets(next);
+    try {
+      window.localStorage.setItem(CUSTOM_PACKAGE_PRESETS_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  }
+
+  function applyTripPreset(key: string) {
+    const preset = [...TRIP_PRESETS, ...customTripPresets].find((p) => p.key === key);
+    if (!preset) return;
+    const d = preset.defaults;
+    if (d.title) setTitle((prev) => (prev.trim() ? prev : d.title || ""));
+    if (typeof d.days === "number") setDays(d.days);
+    if (d.pickupDropoff)
+      setPickupDropoff((prev) => (prev.trim() ? prev : d.pickupDropoff || ""));
+    if (d.transportType) setTransportType(d.transportType);
+    if (d.accommodationType) setAccommodationType(d.accommodationType);
+    if (d.mealsIncluded) setMealsIncluded(d.mealsIncluded);
+    if (d.destinations) setDestinationsInput(d.destinations.join(", "));
+  }
+
+  function applyPackagePreset(key: string) {
+    const preset = [...PACKAGE_PRESETS, ...customPackagePresets].find((p) => p.key === key);
+    if (!preset) return;
+    setPackages(preset.packages);
+    queuePatch({ packages: preset.packages });
+  }
   const [highlightsInputByDay, setHighlightsInputByDay] = useState<Record<number, string>>(
     {},
   );
@@ -247,7 +475,9 @@ export function AdminItineraryWizard({
   const existingAssets = useQuery(
     api.media.listItineraryImageAssetsForAdmin,
     canMutate && itineraryId ? { sessionToken, itineraryId } : "skip",
-  );
+  ) as
+    | Array<{ storageId: Id<"_storage">; url: string | null; createdAt: number }>
+    | undefined;
 
   useEffect(() => {
     if (!publicSettings) return;
@@ -342,11 +572,13 @@ export function AdminItineraryWizard({
     if (coverStorageId) ids.push(coverStorageId);
     if (logoStorageId) ids.push(logoStorageId);
     for (const id of affiliations) ids.push(id);
-    for (const d of dayPlans) {
-      if (d.imageStorageId) ids.push(d.imageStorageId);
+    if (!quickMode) {
+      for (const d of dayPlans) {
+        if (d.imageStorageId) ids.push(d.imageStorageId);
+      }
     }
     return ids;
-  }, [coverStorageId, logoStorageId, affiliations, dayPlans]);
+  }, [coverStorageId, logoStorageId, affiliations, dayPlans, quickMode]);
 
   const pdfUrls = useQuery(
     api.media.resolveStorageIdsForAdmin,
@@ -386,7 +618,11 @@ export function AdminItineraryWizard({
       .filter(Boolean);
     const safeDays = clamp(computedDays ?? days, 1, 60);
     const nights = Math.max(0, safeDays - 1);
+    const mapFallback = pickMapFallbackImage(
+      [title, destinationsInput, pickupDropoff].filter(Boolean).join(" "),
+    );
     return {
+      includeEmptySections: !quickMode,
       headline,
       variantLabel,
       tripTitle: title || "Trip Itinerary",
@@ -405,24 +641,35 @@ export function AdminItineraryWizard({
         website: contactWebsite || undefined,
         officeAddress: publicSettings?.officeAddress?.trim() || undefined,
       },
-      coverImageUrl: coverStorageId ? (toAbsoluteUrl(idToUrl.get(coverStorageId)) ?? null) : null,
+      coverImageUrl: coverStorageId
+        ? (toAbsoluteUrl(idToUrl.get(coverStorageId)) ?? null)
+        : toAbsoluteUrl(`/maps/${mapFallback}`),
       logoUrl: logoStorageId
         ? (toAbsoluteUrl(idToUrl.get(logoStorageId)) ?? null)
         : defaultLogoUrlAbs,
-      dayPlans: (dayPlans ?? []).map((d) => ({
-        dayNumber: d.dayNumber,
-        title: d.title,
-        imageUrl: d.imageStorageId
-          ? (toAbsoluteUrl(idToUrl.get(String(d.imageStorageId)) ?? null) ?? null)
-          : null,
-        highlights: d.highlights ?? [],
-        overnight: d.overnight ?? undefined,
-        morning: (d.morning ?? []).map((a) => ({ title: a.title, description: a.description })),
-        afternoon: (d.afternoon ?? []).map((a) => ({ title: a.title, description: a.description })),
-        evening: (d.evening ?? []).map((a) => ({ title: a.title, description: a.description })),
-      })),
-      included,
-      notIncluded,
+      dayPlans: (dayPlans ?? []).map((d) => {
+        const rawHighlights =
+          (highlightsInputByDay[d.dayNumber] ?? "")
+            .split("\n")
+            .map((s) => s.trim())
+            .filter(Boolean) ?? [];
+        const highlights = quickMode ? rawHighlights.slice(0, 4) : (d.highlights ?? []);
+        return {
+          dayNumber: d.dayNumber,
+          title: d.title,
+          imageUrl: d.imageStorageId
+            ? (toAbsoluteUrl(idToUrl.get(String(d.imageStorageId)) ?? null) ?? null)
+            : toAbsoluteUrl(`/maps/${mapFallback}`),
+          highlights,
+          overnight: d.overnight ?? undefined,
+          // Quick mode: keep it short (no detailed slots on PDF).
+          morning: quickMode ? [] : (d.morning ?? []).map((a) => ({ title: a.title, description: a.description })),
+          afternoon: quickMode ? [] : (d.afternoon ?? []).map((a) => ({ title: a.title, description: a.description })),
+          evening: quickMode ? [] : (d.evening ?? []).map((a) => ({ title: a.title, description: a.description })),
+        };
+      }),
+      included: quickMode ? [] : included,
+      notIncluded: quickMode ? [] : notIncluded,
       packages: (packages ?? []).map((p) => ({
         name: p.name,
         priceLabel: p.pricePkr ? `PKR ${p.pricePkr.toLocaleString()}` : "PKR —",
@@ -434,11 +681,12 @@ export function AdminItineraryWizard({
         })),
         note: p.note?.trim() || undefined,
       })),
-      paymentTerms,
-      bankDetails,
-      termsBlocks,
+      paymentTerms: quickMode ? [] : paymentTerms,
+      bankDetails: quickMode ? undefined : bankDetails,
+      termsBlocks: quickMode ? [] : termsBlocks,
     };
   }, [
+    quickMode,
     headline,
     variantLabel,
     title,
@@ -460,6 +708,8 @@ export function AdminItineraryWizard({
     dayPlans,
     includedInput,
     notIncludedInput,
+    destinationsInput,
+    highlightsInputByDay,
     packages,
     paymentTerms,
     bankDetails,
@@ -468,13 +718,55 @@ export function AdminItineraryWizard({
     defaultLogoUrlAbs,
   ]);
 
+  const primaryPackage = useMemo(() => {
+    const p = (packages ?? [])[0];
+    if (!p) return null;
+    const name = p.name?.trim() || "Package";
+    const price = typeof p.pricePkr === "number" ? p.pricePkr : null;
+    return { name, price };
+  }, [packages]);
+
+  async function copyWhatsappMessage() {
+    const line1 = `Hi ${clientName?.trim() || ""}`.trim();
+    const dateLine =
+      startDate && endDate ? `Travel dates: ${startDate} → ${endDate}` : "";
+    const titleLine = title?.trim() ? `Trip: ${title.trim()}` : "";
+    const priceLine =
+      primaryPackage?.price != null
+        ? `Starting from: PKR ${primaryPackage.price.toLocaleString()} (${primaryPackage.name})`
+        : "";
+    const lines = [line1, titleLine, dateLine, priceLine].filter(Boolean);
+    const text = lines.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopyMsg("Copied WhatsApp message.");
+      window.setTimeout(() => setCopyMsg(null), 2000);
+    } catch {
+      setCopyMsg("Copy failed — your browser may block clipboard access.");
+      window.setTimeout(() => setCopyMsg(null), 2500);
+    }
+  }
+
+  function buildWhatsappText() {
+    const line1 = `Hi ${clientName?.trim() || ""}`.trim();
+    const dateLine = startDate && endDate ? `Travel dates: ${startDate} → ${endDate}` : "";
+    const titleLine = title?.trim() ? `Trip: ${title.trim()}` : "";
+    const priceLine =
+      primaryPackage?.price != null
+        ? `Starting from: PKR ${primaryPackage.price.toLocaleString()} (${primaryPackage.name})`
+        : "";
+    return [line1, titleLine, dateLine, priceLine].filter(Boolean).join("\n");
+  }
+
   async function onCreateDraft() {
     if (!canMutate) return;
     if (!clientName.trim()) {
       setMsg("Enter client name to continue.");
       return;
     }
+    if (creatingDraft) return;
     setMsg(null);
+    setCreatingDraft(true);
     try {
       const id = await createDraft({
         sessionToken,
@@ -507,6 +799,8 @@ export function AdminItineraryWizard({
       setSavingState("saved");
     } catch (e) {
       setMsg(toUserFacingErrorMessage(e));
+    } finally {
+      setCreatingDraft(false);
     }
   }
 
@@ -515,7 +809,7 @@ export function AdminItineraryWizard({
       void onCreateDraft();
       return;
     }
-    if (step === steps.length) {
+    if (step === flows.ids.length) {
       if (!itineraryId) return;
       void (async () => {
         try {
@@ -527,11 +821,11 @@ export function AdminItineraryWizard({
       })();
       return;
     }
-    setStep((s) => clamp(s + 1, 1, 6));
+    setStep((s) => clamp(s + 1, 1, flows.ids.length));
   }
 
   function back() {
-    setStep((s) => clamp(s - 1, 1, 6));
+    setStep((s) => clamp(s - 1, 1, flows.ids.length));
   }
 
   useEffect(() => {
@@ -540,9 +834,76 @@ export function AdminItineraryWizard({
   }, [existing]);
 
   const rightActions = (
-    <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
-      Preview PDF
-    </Button>
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {/* Mobile: show BOTH options, no hidden menu */}
+      <div className="flex items-center gap-1 rounded-full border border-border bg-panel-elevated p-1 sm:hidden">
+        <button
+          type="button"
+          className={[
+            "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
+            quickMode
+              ? "bg-brand-cta text-white shadow-sm"
+              : "text-muted hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10",
+          ].join(" ")}
+          onClick={() => {
+            setQuickMode(true);
+            setStep(1);
+          }}
+        >
+          Quick
+        </button>
+        <button
+          type="button"
+          className={[
+            "rounded-full px-3 py-1.5 text-xs font-bold transition-colors",
+            !quickMode
+              ? "bg-brand-cta text-white shadow-sm"
+              : "text-muted hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10",
+          ].join(" ")}
+          onClick={() => {
+            setQuickMode(false);
+            setStep(1);
+          }}
+        >
+          Advanced
+        </button>
+      </div>
+      <div className="hidden sm:flex items-center gap-1 rounded-full border border-border bg-panel-elevated p-1">
+        <button
+          type="button"
+          className={[
+            "rounded-full px-3 py-1 text-xs font-bold transition-colors",
+            quickMode
+              ? "bg-brand-cta text-white shadow-sm"
+              : "text-muted hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10",
+          ].join(" ")}
+          onClick={() => {
+            setQuickMode(true);
+            setStep(1);
+          }}
+        >
+          Quick
+        </button>
+        <button
+          type="button"
+          className={[
+            "rounded-full px-3 py-1 text-xs font-bold transition-colors",
+            !quickMode
+              ? "bg-brand-cta text-white shadow-sm"
+              : "text-muted hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10",
+          ].join(" ")}
+          onClick={() => {
+            setQuickMode(false);
+            setStep(1);
+          }}
+        >
+          Advanced
+        </button>
+      </div>
+      <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
+        Preview PDF
+      </Button>
+    </div>
   );
 
   if (!canMutate) {
@@ -563,20 +924,294 @@ export function AdminItineraryWizard({
         </div>
       ) : null}
 
+      <Modal
+        open={tripPresetModalOpen}
+        onClose={() => setTripPresetModalOpen(false)}
+        title="Save trip preset"
+        description="Save the current trip details as a reusable preset for this browser."
+      >
+        <div className="space-y-3">
+          <div>
+            <FieldLabel required>Preset name</FieldLabel>
+            <TextInput
+              value={newTripPresetName}
+              onChange={(e) => setNewTripPresetName(e.target.value)}
+              placeholder="e.g. Hunza 5D (my version)"
+            />
+            <FieldHint>Stored on this device only (not shared).</FieldHint>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              disabled={!newTripPresetName.trim()}
+              onClick={() => {
+                const name = newTripPresetName.trim();
+                if (!name) return;
+                const key = `custom-${Date.now()}`;
+                const next: TripPreset[] = [
+                  ...customTripPresets,
+                  {
+                    key,
+                    label: name,
+                    defaults: {
+                      title: title.trim() || undefined,
+                      days: days,
+                      destinations: destinationsInput
+                        .split(",")
+                        .map((s) => s.trim())
+                        .filter(Boolean),
+                      pickupDropoff: pickupDropoff.trim() || undefined,
+                      transportType: transportType.trim() || undefined,
+                      accommodationType: accommodationType.trim() || undefined,
+                      mealsIncluded: mealsIncluded.trim() || undefined,
+                    },
+                  },
+                ];
+                persistCustomTripPresets(next);
+                setTripPresetKey(key);
+                setTripPresetModalOpen(false);
+              }}
+            >
+              Save preset
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setTripPresetModalOpen(false)}>
+              Cancel
+            </Button>
+          </div>
+
+          {customTripPresets.length ? (
+            <div className="rounded-2xl border border-border bg-panel p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">Your saved presets</p>
+              <div className="mt-2 space-y-2">
+                {customTripPresets.map((p) => (
+                  <div key={p.key} className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-foreground hover:underline"
+                      onClick={() => {
+                        setTripPresetKey(p.key);
+                        applyTripPreset(p.key);
+                        setTripPresetModalOpen(false);
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-red-700 hover:underline"
+                      onClick={() => {
+                        const next = customTripPresets.filter((x) => x.key !== p.key);
+                        persistCustomTripPresets(next);
+                        if (tripPresetKey === p.key) setTripPresetKey("");
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </Modal>
+
+      <Modal
+        open={packagePresetModalOpen}
+        onClose={() => setPackagePresetModalOpen(false)}
+        title="Save package preset"
+        description="Save the current packages + stays as a reusable preset for this browser."
+      >
+        <div className="space-y-3">
+          <div>
+            <FieldLabel required>Preset name</FieldLabel>
+            <TextInput
+              value={newPackagePresetName}
+              onChange={(e) => setNewPackagePresetName(e.target.value)}
+              placeholder="e.g. May pricing tiers"
+            />
+            <FieldHint>Stored on this device only (not shared).</FieldHint>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              disabled={!newPackagePresetName.trim()}
+              onClick={() => {
+                const name = newPackagePresetName.trim();
+                if (!name) return;
+                const key = `custom-${Date.now()}`;
+                const clone = (packages ?? []).map((p) => ({
+                  ...p,
+                  stays: (p.stays ?? []).map((s) => ({ ...s })),
+                }));
+                const next: PackagePreset[] = [
+                  ...customPackagePresets,
+                  {
+                    key,
+                    label: name,
+                    packages: clone,
+                  },
+                ];
+                persistCustomPackagePresets(next);
+                setPackagePresetKey(key);
+                setPackagePresetModalOpen(false);
+              }}
+            >
+              Save preset
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setPackagePresetModalOpen(false)}
+            >
+              Cancel
+            </Button>
+          </div>
+
+          {customPackagePresets.length ? (
+            <div className="rounded-2xl border border-border bg-panel p-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">Your saved presets</p>
+              <div className="mt-2 space-y-2">
+                {customPackagePresets.map((p) => (
+                  <div key={p.key} className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-foreground hover:underline"
+                      onClick={() => {
+                        setPackagePresetKey(p.key);
+                        applyPackagePreset(p.key);
+                        setPackagePresetModalOpen(false);
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                    <button
+                      type="button"
+                      className="text-sm font-semibold text-red-700 hover:underline"
+                      onClick={() => {
+                        const next = customPackagePresets.filter((x) => x.key !== p.key);
+                        persistCustomPackagePresets(next);
+                        if (packagePresetKey === p.key) setPackagePresetKey("");
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </Modal>
+
       <WizardLayout
         title="Itinerary"
-        steps={steps}
+        steps={flows.labels}
         currentStep={step}
         onBack={step === 1 ? undefined : back}
         onNext={next}
         backDisabled={step === 1}
-        nextDisabled={step === 1 ? !clientName.trim() : false}
-        nextLabel={step === steps.length ? "Final" : "Next"}
+        nextDisabled={step === 1 ? !clientName.trim() || creatingDraft : false}
+        nextLabel={
+          step === 1
+            ? creatingDraft
+              ? "Creating…"
+              : "Generate itinerary"
+            : step === flows.ids.length
+              ? "Mark final"
+              : step === flows.ids.length - 1
+                ? "Preview & send"
+                : "Next"
+        }
         savingState={itineraryId ? savingState : "idle"}
         rightActions={rightActions}
       >
-        {step === 1 ? (
+        {activeStepId === "basic" ? (
           <div className="space-y-4">
+            <div className="rounded-2xl border border-border bg-panel-elevated p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                Start fast (recommended)
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <FieldLabel>Trip preset</FieldLabel>
+                  <SelectField
+                    value={tripPresetKey}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "__custom_new__") {
+                        setTripPresetKey("");
+                        setNewTripPresetName("");
+                        setTripPresetModalOpen(true);
+                        return;
+                      }
+                      setTripPresetKey(v);
+                      applyTripPreset(v);
+                    }}
+                  >
+                    <option value="">No preset</option>
+                    {TRIP_PRESETS.map((p) => (
+                      <option key={p.key} value={p.key}>
+                        {p.label}
+                      </option>
+                    ))}
+                    {customTripPresets.length ? (
+                      <>
+                        <option disabled value="__divider__">
+                          ──────────
+                        </option>
+                        {customTripPresets.map((p) => (
+                          <option key={p.key} value={p.key}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </>
+                    ) : null}
+                    <option value="__custom_new__">+ Custom…</option>
+                  </SelectField>
+                  <FieldHint>Auto-fills common trip fields to save time.</FieldHint>
+                </div>
+                <div>
+                  <FieldLabel>Package preset</FieldLabel>
+                  <SelectField
+                    value={packagePresetKey}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "__custom_new__") {
+                        setPackagePresetKey("");
+                        setNewPackagePresetName("");
+                        setPackagePresetModalOpen(true);
+                        return;
+                      }
+                      setPackagePresetKey(v);
+                      applyPackagePreset(v);
+                    }}
+                  >
+                    {PACKAGE_PRESETS.map((p) => (
+                      <option key={p.key} value={p.key}>
+                        {p.label}
+                      </option>
+                    ))}
+                    {customPackagePresets.length ? (
+                      <>
+                        <option disabled value="__divider__">
+                          ──────────
+                        </option>
+                        {customPackagePresets.map((p) => (
+                          <option key={p.key} value={p.key}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </>
+                    ) : null}
+                    <option value="__custom_new__">+ Custom…</option>
+                  </SelectField>
+                  <FieldHint>Pre-creates package tiers + stay rows.</FieldHint>
+                </div>
+              </div>
+            </div>
+
             <div>
               <FieldLabel required>Trip title</FieldLabel>
               <TextInput
@@ -647,7 +1282,7 @@ export function AdminItineraryWizard({
               </div>
             </div>
           </div>
-        ) : step === 2 ? (
+        ) : activeStepId === "brand" ? (
           <div className="space-y-4">
             <div className="rounded-2xl border border-border bg-panel-elevated p-4">
               <p className="text-xs font-bold uppercase tracking-wide text-muted">
@@ -940,7 +1575,7 @@ export function AdminItineraryWizard({
               </div>
             </div>
           </div>
-        ) : step === 3 ? (
+        ) : activeStepId === "overview" ? (
           <div className="space-y-4">
             <div>
               <FieldLabel>Destinations</FieldLabel>
@@ -1004,7 +1639,101 @@ export function AdminItineraryWizard({
               </div>
             </div>
           </div>
-        ) : step === 4 ? (
+        ) : activeStepId === "daysQuick" ? (
+          <div className="space-y-4">
+            <p className="text-sm text-muted">
+              Keep it simple. Add 2–4 highlights per day so the client understands the plan.
+            </p>
+
+            <div className="space-y-3">
+              {(dayPlans ?? []).map((d, idx) => (
+                <div key={d.dayNumber} className="rounded-2xl border border-border bg-panel-elevated p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                      Day {d.dayNumber}
+                    </p>
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-brand-cta hover:underline"
+                      onClick={() => {
+                        setDayPlans((prev) => {
+                          const next = prev.map((x, i) =>
+                            i === idx ? { ...x, title: `Day ${x.dayNumber}` } : x,
+                          );
+                          queuePatch({ dayPlans: next });
+                          return next;
+                        });
+                      }}
+                    >
+                      Reset title
+                    </button>
+                  </div>
+
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <FieldLabel>Title</FieldLabel>
+                      <TextInput
+                        value={d.title}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setDayPlans((prev) => {
+                            const next = prev.map((x, i) => (i === idx ? { ...x, title: v } : x));
+                            queuePatch({ dayPlans: next });
+                            return next;
+                          });
+                        }}
+                        placeholder={`Day ${d.dayNumber} — Arrival & explore`}
+                      />
+                    </div>
+                    <div>
+                      <FieldLabel>Overnight (optional)</FieldLabel>
+                      <TextInput
+                        value={d.overnight ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setDayPlans((prev) => {
+                            const next = prev.map((x, i) =>
+                              i === idx ? { ...x, overnight: v } : x,
+                            );
+                            queuePatch({ dayPlans: next });
+                            return next;
+                          });
+                        }}
+                        placeholder="Overnight in Hunza"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <FieldLabel>Highlights (one per line)</FieldLabel>
+                    <TextAreaField
+                      rows={4}
+                      value={highlightsInputByDay[d.dayNumber] ?? (d.highlights ?? []).join("\n")}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setHighlightsInputByDay((prev) => ({ ...prev, [d.dayNumber]: v }));
+                        const parsed = v
+                          .split("\n")
+                          .map((s) => s.trim())
+                          .filter(Boolean)
+                          .slice(0, 8);
+                        setDayPlans((prev) => {
+                          const next = prev.map((x, i) =>
+                            i === idx ? { ...x, highlights: parsed } : x,
+                          );
+                          queuePatch({ dayPlans: next });
+                          return next;
+                        });
+                      }}
+                      placeholder={"- Travel\n- Sightseeing\n- Hotel check-in"}
+                    />
+                    <FieldHint>Quick PDF will show up to 4 highlights per day.</FieldHint>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : activeStepId === "days" ? (
           <div className="space-y-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-semibold text-foreground">Day builder</p>
@@ -1306,7 +2035,460 @@ export function AdminItineraryWizard({
               ))}
             </div>
           </div>
-        ) : step === 5 ? (
+        ) : activeStepId === "packages" ? (
+          <div className="space-y-4 pb-24">
+            <p className="text-sm text-muted">
+              Packages are the fastest part. Build 1, then duplicate tiers.
+            </p>
+
+            <div className="rounded-2xl border border-border bg-panel-elevated p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-foreground">Choose your package</p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    const next = [
+                      ...packages,
+                      { name: "", pricePkr: undefined, vehicle: "", note: "", stays: [] },
+                    ];
+                    setPackages(next);
+                    queuePatch({ packages: next });
+                  }}
+                >
+                  + Add package
+                </Button>
+              </div>
+
+              <div className="mt-3 rounded-2xl border border-border bg-panel p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                  Bulk edit (time saver)
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <FieldLabel>Find hotel</FieldLabel>
+                    <TextInput
+                      value={bulkHotelFind}
+                      onChange={(e) => setBulkHotelFind(e.target.value)}
+                      placeholder="e.g. Shangrila Resort"
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel>Replace with</FieldLabel>
+                    <TextInput
+                      value={bulkHotelReplace}
+                      onChange={(e) => setBulkHotelReplace(e.target.value)}
+                      placeholder="e.g. Serena Shigar"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full"
+                      disabled={!bulkHotelFind.trim()}
+                      onClick={() => {
+                        const find = bulkHotelFind.trim();
+                        const replace = bulkHotelReplace;
+                        const escapeRegExp = (s: string) =>
+                          s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                        const re = new RegExp(escapeRegExp(find), "gi");
+                        setPackages((prev) => {
+                          const next = prev.map((p) => ({
+                            ...p,
+                            stays: (p.stays ?? []).map((s) => ({
+                              ...s,
+                              hotel: (s.hotel ?? "").replace(re, replace),
+                            })),
+                          }));
+                          queuePatch({ packages: next });
+                          return next;
+                        });
+                      }}
+                    >
+                      Apply to all tiers
+                    </Button>
+                  </div>
+                </div>
+                <FieldHint>
+                  Replaces matching hotel text across all packages (all tiers).
+                </FieldHint>
+              </div>
+
+              <div className="mt-3 space-y-3">
+                {packages.length === 0 ? (
+                  <p className="text-sm text-muted">No packages added yet.</p>
+                ) : (
+                  packages.map((p, idx) => (
+                    <div key={idx} className="rounded-2xl border border-border bg-panel p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                          Package {idx + 1}
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <div className="sm:hidden">
+                            <PopoverMenu
+                              buttonLabel="Actions"
+                              buttonClassName="rounded-xl border border-border bg-panel-elevated px-3 py-1.5 text-xs font-semibold text-foreground shadow-sm hover:bg-panel"
+                              menuClassName="w-44 bg-white"
+                              items={[
+                                {
+                                  label: "Duplicate",
+                                  onClick: () => {
+                                    setPackages((prev) => {
+                                      const src = prev[idx];
+                                      if (!src) return prev;
+                                      const copy = {
+                                        ...src,
+                                        stays: (src.stays ?? []).map((s) => ({ ...s })),
+                                      };
+                                      const next = [
+                                        ...prev.slice(0, idx + 1),
+                                        copy,
+                                        ...prev.slice(idx + 1),
+                                      ];
+                                      queuePatch({ packages: next });
+                                      return next;
+                                    });
+                                  },
+                                },
+                                {
+                                  label: "Move up",
+                                  disabled: idx === 0,
+                                  onClick: () => {
+                                    setPackages((prev) => {
+                                      if (idx <= 0) return prev;
+                                      const next = [...prev];
+                                      const tmp = next[idx - 1]!;
+                                      next[idx - 1] = next[idx]!;
+                                      next[idx] = tmp;
+                                      queuePatch({ packages: next });
+                                      return next;
+                                    });
+                                  },
+                                },
+                                {
+                                  label: "Move down",
+                                  disabled: idx >= packages.length - 1,
+                                  onClick: () => {
+                                    setPackages((prev) => {
+                                      if (idx >= prev.length - 1) return prev;
+                                      const next = [...prev];
+                                      const tmp = next[idx + 1]!;
+                                      next[idx + 1] = next[idx]!;
+                                      next[idx] = tmp;
+                                      queuePatch({ packages: next });
+                                      return next;
+                                    });
+                                  },
+                                },
+                                {
+                                  label: "Remove",
+                                  tone: "danger",
+                                  onClick: () => {
+                                    const next = packages.filter((_, i) => i !== idx);
+                                    setPackages(next);
+                                    queuePatch({ packages: next });
+                                  },
+                                },
+                              ]}
+                            />
+                          </div>
+
+                          <div className="hidden items-center gap-2 sm:flex">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="rounded-lg px-3 py-1.5 text-xs"
+                              onClick={() => {
+                                setPackages((prev) => {
+                                  const src = prev[idx];
+                                  if (!src) return prev;
+                                  const copy = {
+                                    ...src,
+                                    stays: (src.stays ?? []).map((s) => ({ ...s })),
+                                  };
+                                  const next = [
+                                    ...prev.slice(0, idx + 1),
+                                    copy,
+                                    ...prev.slice(idx + 1),
+                                  ];
+                                  queuePatch({ packages: next });
+                                  return next;
+                                });
+                              }}
+                            >
+                              Duplicate
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="rounded-lg px-3 py-1.5 text-xs"
+                              disabled={idx === 0}
+                              onClick={() => {
+                                setPackages((prev) => {
+                                  if (idx <= 0) return prev;
+                                  const next = [...prev];
+                                  const tmp = next[idx - 1]!;
+                                  next[idx - 1] = next[idx]!;
+                                  next[idx] = tmp;
+                                  queuePatch({ packages: next });
+                                  return next;
+                                });
+                              }}
+                            >
+                              Up
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="rounded-lg px-3 py-1.5 text-xs"
+                              disabled={idx >= packages.length - 1}
+                              onClick={() => {
+                                setPackages((prev) => {
+                                  if (idx >= prev.length - 1) return prev;
+                                  const next = [...prev];
+                                  const tmp = next[idx + 1]!;
+                                  next[idx + 1] = next[idx]!;
+                                  next[idx] = tmp;
+                                  queuePatch({ packages: next });
+                                  return next;
+                                });
+                              }}
+                            >
+                              Down
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="rounded-lg px-3 py-1.5 text-xs text-red-700 hover:bg-red-50"
+                              onClick={() => {
+                                const next = packages.filter((_, i) => i !== idx);
+                                setPackages(next);
+                                queuePatch({ packages: next });
+                              }}
+                            >
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <FieldLabel>Name</FieldLabel>
+                          <TextInput
+                            value={p.name}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setPackages((prev) => {
+                                const next = prev.map((x, i) => (i === idx ? { ...x, name: v } : x));
+                                queuePatch({ packages: next });
+                                return next;
+                              });
+                            }}
+                            placeholder="Deluxe Plus"
+                          />
+                        </div>
+                        <div>
+                          <FieldLabel>Price (PKR)</FieldLabel>
+                          <TextInput
+                            type="number"
+                            min={0}
+                            value={p.pricePkr ?? ""}
+                            onChange={(e) => {
+                              const v = Number(e.target.value);
+                              setPackages((prev) => {
+                                const next = prev.map((x, i) =>
+                                  i === idx ? { ...x, pricePkr: Number.isFinite(v) ? v : undefined } : x,
+                                );
+                                queuePatch({ packages: next });
+                                return next;
+                              });
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <FieldLabel>Vehicle</FieldLabel>
+                          <TextInput
+                            value={p.vehicle ?? ""}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setPackages((prev) => {
+                                const next = prev.map((x, i) => (i === idx ? { ...x, vehicle: v } : x));
+                                queuePatch({ packages: next });
+                                return next;
+                              });
+                            }}
+                            placeholder="Sedan / Prado"
+                          />
+                        </div>
+                        <div>
+                          <FieldLabel>Note</FieldLabel>
+                          <TextInput
+                            value={p.note ?? ""}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setPackages((prev) => {
+                                const next = prev.map((x, i) => (i === idx ? { ...x, note: v } : x));
+                                queuePatch({ packages: next });
+                                return next;
+                              });
+                            }}
+                            placeholder="For two adults (airfare excluded)"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-4">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                            Stays
+                          </p>
+                          <div className="flex flex-wrap items-center gap-3">
+                            <button
+                              type="button"
+                              className="text-xs font-semibold text-brand-cta hover:underline disabled:opacity-50"
+                              disabled={idx === 0 || (packages[0]?.stays?.length ?? 0) === 0}
+                              onClick={() => {
+                                setPackages((prev) => {
+                                  const base = prev[0];
+                                  if (!base?.stays?.length) return prev;
+                                  const next = prev.map((x, i) => {
+                                    if (i !== idx) return x;
+                                    return {
+                                      ...x,
+                                      stays: base.stays!.map((s) => ({ ...s })),
+                                    };
+                                  });
+                                  queuePatch({ packages: next });
+                                  return next;
+                                });
+                              }}
+                            >
+                              Duplicate stays from Package 1
+                            </button>
+                            <button
+                              type="button"
+                              className="text-xs font-semibold text-brand-cta hover:underline"
+                              onClick={() => {
+                                setPackages((prev) => {
+                                  const next = prev.map((x, i) => {
+                                    if (i !== idx) return x;
+                                    const stays = [
+                                      ...(x.stays ?? []),
+                                      { location: "", hotel: "", nights: 1 },
+                                    ];
+                                    return { ...x, stays };
+                                  });
+                                  queuePatch({ packages: next });
+                                  return next;
+                                });
+                              }}
+                            >
+                              + Add stay
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mt-2 space-y-2">
+                          {(p.stays ?? []).length ? (
+                            <div className="hidden grid-cols-4 gap-2 text-xs font-bold uppercase tracking-wide text-muted sm:grid">
+                              <span>Location</span>
+                              <span>Hotel</span>
+                              <span>Nights</span>
+                              <span className="text-right">Action</span>
+                            </div>
+                          ) : null}
+                          {(p.stays ?? []).length ? (
+                            <div className="grid grid-cols-3 gap-2 text-xs font-bold uppercase tracking-wide text-muted sm:hidden">
+                              <span>Location</span>
+                              <span>Hotel</span>
+                              <span>Nights</span>
+                            </div>
+                          ) : null}
+                          {(p.stays ?? []).map((s, sIdx) => (
+                            <div key={sIdx} className="grid gap-2 sm:grid-cols-4">
+                              <TextInput
+                                value={s.location}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setPackages((prev) => {
+                                    const next = prev.map((x, i) => {
+                                      if (i !== idx) return x;
+                                      const stays = [...(x.stays ?? [])];
+                                      stays[sIdx] = { ...stays[sIdx], location: v };
+                                      return { ...x, stays };
+                                    });
+                                    queuePatch({ packages: next });
+                                    return next;
+                                  });
+                                }}
+                                placeholder="Skardu"
+                              />
+                              <TextInput
+                                value={s.hotel}
+                                onChange={(e) => {
+                                  const v = e.target.value;
+                                  setPackages((prev) => {
+                                    const next = prev.map((x, i) => {
+                                      if (i !== idx) return x;
+                                      const stays = [...(x.stays ?? [])];
+                                      stays[sIdx] = { ...stays[sIdx], hotel: v };
+                                      return { ...x, stays };
+                                    });
+                                    queuePatch({ packages: next });
+                                    return next;
+                                  });
+                                }}
+                                placeholder="Arcadian Skardu"
+                              />
+                              <TextInput
+                                type="number"
+                                min={1}
+                                value={s.nights}
+                                onChange={(e) => {
+                                  const v = Number(e.target.value);
+                                  setPackages((prev) => {
+                                    const next = prev.map((x, i) => {
+                                      if (i !== idx) return x;
+                                      const stays = [...(x.stays ?? [])];
+                                      stays[sIdx] = { ...stays[sIdx], nights: Math.max(1, v || 1) };
+                                      return { ...x, stays };
+                                    });
+                                    queuePatch({ packages: next });
+                                    return next;
+                                  });
+                                }}
+                              />
+                              <button
+                                type="button"
+                                className="text-xs font-semibold text-red-600 hover:underline"
+                                onClick={() => {
+                                  setPackages((prev) => {
+                                    const next = prev.map((x, i) => {
+                                      if (i !== idx) return x;
+                                      const stays = (x.stays ?? []).filter((_, j) => j !== sIdx);
+                                      return { ...x, stays };
+                                    });
+                                    queuePatch({ packages: next });
+                                    return next;
+                                  });
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        ) : activeStepId === "details" ? (
           <div className="space-y-4">
             <div>
               <FieldLabel>Accommodation details</FieldLabel>
@@ -1386,6 +2568,62 @@ export function AdminItineraryWizard({
                   + Add package
                 </Button>
               </div>
+
+              <div className="mt-3 rounded-2xl border border-border bg-panel p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                  Bulk edit (time saver)
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div>
+                    <FieldLabel>Find hotel</FieldLabel>
+                    <TextInput
+                      value={bulkHotelFind}
+                      onChange={(e) => setBulkHotelFind(e.target.value)}
+                      placeholder="e.g. Shangrila Resort"
+                    />
+                  </div>
+                  <div>
+                    <FieldLabel>Replace with</FieldLabel>
+                    <TextInput
+                      value={bulkHotelReplace}
+                      onChange={(e) => setBulkHotelReplace(e.target.value)}
+                      placeholder="e.g. Serena Shigar"
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full"
+                      disabled={!bulkHotelFind.trim()}
+                      onClick={() => {
+                        const find = bulkHotelFind.trim();
+                        const replace = bulkHotelReplace;
+                        const escapeRegExp = (s: string) =>
+                          s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                        const re = new RegExp(escapeRegExp(find), "gi");
+                        setPackages((prev) => {
+                          const next = prev.map((p) => ({
+                            ...p,
+                            stays: (p.stays ?? []).map((s) => ({
+                              ...s,
+                              hotel: (s.hotel ?? "").replace(re, replace),
+                            })),
+                          }));
+                          queuePatch({ packages: next });
+                          return next;
+                        });
+                      }}
+                    >
+                      Apply to all tiers
+                    </Button>
+                  </div>
+                </div>
+                <FieldHint>
+                  Replaces matching hotel text across all packages (all tiers).
+                </FieldHint>
+              </div>
+
               <div className="mt-3 space-y-3">
                 {packages.length === 0 ? (
                   <p className="text-sm text-muted">No packages added yet.</p>
@@ -1396,17 +2634,78 @@ export function AdminItineraryWizard({
                         <p className="text-xs font-bold uppercase tracking-wide text-muted">
                           Package {idx + 1}
                         </p>
-                        <button
-                          type="button"
-                          className="text-xs font-semibold text-red-600 hover:underline"
-                          onClick={() => {
-                            const next = packages.filter((_, i) => i !== idx);
-                            setPackages(next);
-                            queuePatch({ packages: next });
-                          }}
-                        >
-                          Remove
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-brand-cta hover:underline"
+                            onClick={() => {
+                              setPackages((prev) => {
+                                const src = prev[idx];
+                                if (!src) return prev;
+                                const copy = {
+                                  ...src,
+                                  stays: (src.stays ?? []).map((s) => ({ ...s })),
+                                };
+                                const next = [
+                                  ...prev.slice(0, idx + 1),
+                                  copy,
+                                  ...prev.slice(idx + 1),
+                                ];
+                                queuePatch({ packages: next });
+                                return next;
+                              });
+                            }}
+                          >
+                            Duplicate
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-foreground/80 hover:underline disabled:opacity-40"
+                            disabled={idx === 0}
+                            onClick={() => {
+                              setPackages((prev) => {
+                                if (idx <= 0) return prev;
+                                const next = [...prev];
+                                const tmp = next[idx - 1]!;
+                                next[idx - 1] = next[idx]!;
+                                next[idx] = tmp;
+                                queuePatch({ packages: next });
+                                return next;
+                              });
+                            }}
+                          >
+                            Up
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-foreground/80 hover:underline disabled:opacity-40"
+                            disabled={idx >= packages.length - 1}
+                            onClick={() => {
+                              setPackages((prev) => {
+                                if (idx >= prev.length - 1) return prev;
+                                const next = [...prev];
+                                const tmp = next[idx + 1]!;
+                                next[idx + 1] = next[idx]!;
+                                next[idx] = tmp;
+                                queuePatch({ packages: next });
+                                return next;
+                              });
+                            }}
+                          >
+                            Down
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs font-semibold text-red-600 hover:underline"
+                            onClick={() => {
+                              const next = packages.filter((_, i) => i !== idx);
+                              setPackages(next);
+                              queuePatch({ packages: next });
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                       <div className="mt-3 grid gap-3 sm:grid-cols-2">
                         <div>
@@ -1478,23 +2777,50 @@ export function AdminItineraryWizard({
                           <p className="text-xs font-bold uppercase tracking-wide text-muted">
                             Stays
                           </p>
-                          <button
-                            type="button"
-                            className="text-xs font-semibold text-brand-cta hover:underline"
-                            onClick={() => {
-                              setPackages((prev) => {
-                                const next = prev.map((x, i) => {
-                                  if (i !== idx) return x;
-                                  const stays = [...(x.stays ?? []), { location: "", hotel: "", nights: 1 }];
-                                  return { ...x, stays };
+                          <div className="flex flex-wrap items-center gap-3">
+                            <button
+                              type="button"
+                              className="text-xs font-semibold text-brand-cta hover:underline disabled:opacity-50"
+                              disabled={idx === 0 || (packages[0]?.stays?.length ?? 0) === 0}
+                              onClick={() => {
+                                setPackages((prev) => {
+                                  const base = prev[0];
+                                  if (!base?.stays?.length) return prev;
+                                  const next = prev.map((x, i) => {
+                                    if (i !== idx) return x;
+                                    return {
+                                      ...x,
+                                      stays: base.stays!.map((s) => ({ ...s })),
+                                    };
+                                  });
+                                  queuePatch({ packages: next });
+                                  return next;
                                 });
-                                queuePatch({ packages: next });
-                                return next;
-                              });
-                            }}
-                          >
-                            + Add stay
-                          </button>
+                              }}
+                            >
+                              Duplicate stays from Package 1
+                            </button>
+                            <button
+                              type="button"
+                              className="text-xs font-semibold text-brand-cta hover:underline"
+                              onClick={() => {
+                                setPackages((prev) => {
+                                  const next = prev.map((x, i) => {
+                                    if (i !== idx) return x;
+                                    const stays = [
+                                      ...(x.stays ?? []),
+                                      { location: "", hotel: "", nights: 1 },
+                                    ];
+                                    return { ...x, stays };
+                                  });
+                                  queuePatch({ packages: next });
+                                  return next;
+                                });
+                              }}
+                            >
+                              + Add stay
+                            </button>
+                          </div>
                         </div>
                         <div className="mt-2 space-y-2">
                           {(p.stays ?? []).map((s, sIdx) => (
@@ -1790,15 +3116,64 @@ export function AdminItineraryWizard({
               </div>
             </div>
           </div>
-        ) : (
+        ) : activeStepId === "export" ? (
           <div className="space-y-4">
             <p className="text-sm text-muted">
               Preview and export your document. Mark as final when ready.
             </p>
 
+            {copyMsg ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                {copyMsg}
+              </div>
+            ) : null}
+
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
                 Preview
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  void copyWhatsappMessage();
+                }}
+              >
+                Copy WhatsApp message
+              </Button>
+              <a
+                className={buttonClass("secondary")}
+                href={`https://wa.me/?text=${encodeURIComponent(buildWhatsappText())}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open WhatsApp
+              </a>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!itineraryId || docxLoading}
+                onClick={() => {
+                  if (!itineraryId) return;
+                  if (!canMutate) return;
+                  setMsg(null);
+                  setDocxLoading(true);
+                  void (async () => {
+                    try {
+                      const res = await exportDocx({
+                        sessionToken,
+                        itineraryId,
+                      });
+                      window.open(res.url, "_blank", "noopener,noreferrer");
+                    } catch (e) {
+                      setMsg(toUserFacingErrorMessage(e));
+                    } finally {
+                      setDocxLoading(false);
+                    }
+                  })();
+                }}
+              >
+                {docxLoading ? "Preparing…" : "Download Word"}
               </Button>
               <PDFDownloadLink
                 document={<ItineraryPdf key={pdfRenderKey} model={pdfModel} />}
@@ -1830,7 +3205,7 @@ export function AdminItineraryWizard({
               </Button>
             </div>
           </div>
-        )}
+        ) : null}
       </WizardLayout>
 
       <Modal
@@ -1841,7 +3216,7 @@ export function AdminItineraryWizard({
         panelClassName="max-w-5xl"
         fullscreenOnMobile
       >
-        <div className="relative flex h-[82vh] flex-col overflow-hidden rounded-xl border border-border bg-white sm:h-[75vh]">
+        <div className="relative flex h-[82dvh] flex-col overflow-hidden rounded-xl border border-border bg-white sm:h-[75dvh]">
           <div className="min-h-0 flex-1">
             <PDFViewer style={{ width: "100%", height: "100%" }}>
               <ItineraryPdf key={pdfRenderKey} model={pdfModel} />

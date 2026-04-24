@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
@@ -30,6 +30,7 @@ type InvoiceDoc = {
   _id: Id<"invoices">;
   invoiceNumber?: string;
   clientName: string;
+  itineraryId?: Id<"itineraries">;
   invoiceDate: string;
   currency: Currency;
   status: "draft" | "paid";
@@ -60,6 +61,36 @@ function money(currency: Currency, n: number) {
   return `${sym} ${Number.isFinite(n) ? n.toLocaleString() : "0"}`;
 }
 
+function paymentTemplate(method: PaymentMethod) {
+  if (method === "easypaisa") {
+    return [
+      "Easypaisa payment details",
+      "",
+      "Account title: Junket Tours",
+      "Account number: __________",
+      "Instructions: Share screenshot after payment.",
+    ].join("\n");
+  }
+  if (method === "jazzcash") {
+    return [
+      "JazzCash payment details",
+      "",
+      "Account title: Junket Tours",
+      "Account number: __________",
+      "Instructions: Share screenshot after payment.",
+    ].join("\n");
+  }
+  return [
+    "Bank transfer details",
+    "",
+    "Bank name: __________",
+    "Account title: Junket Tours",
+    "Account number: __________",
+    "IBAN: __________",
+    "Instructions: Share receipt after payment.",
+  ].join("\n");
+}
+
 export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: string }) {
   const sessionToken = useConvexSessionToken();
   const canMutate = typeof sessionToken === "string";
@@ -68,6 +99,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
   const createDraft = useMutation(api.invoices.createDraft);
   const patchDraft = useMutation(api.invoices.patchDraft);
   const markPaid = useMutation(api.invoices.markPaid);
+  const exportDocx = useAction(api.documentsActions.exportInvoiceDocx);
 
   const [step, setStep] = useState(1);
   const steps = ["Basic", "Items", "Pricing", "Payment", "Notes", "Export"];
@@ -100,10 +132,18 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
   >("idle");
   const [msg, setMsg] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [docxLoading, setDocxLoading] = useState(false);
 
   const companyLogoUrl = useQuery(api.media.getSiteAssetUrl, { key: "logo" });
   const publicSettings = useQuery(api.siteSettings.getPublicSiteSettings, {});
   const fallbackLogoAbs = useMemo(() => toAbsoluteUrl(DEFAULT_LOGO_URL), []);
+  const officeAddress = publicSettings?.officeAddress?.trim() || undefined;
+  const whatsappPhone = publicSettings?.whatsappPhone?.trim() || undefined;
+  const contactEmail = publicSettings?.contactEmail?.trim() || undefined;
+  const website = (publicSettings as { website?: string } | undefined)?.website?.trim() || undefined;
+  const governmentLicenseNo =
+    (publicSettings as { governmentLicenseNo?: string } | undefined)?.governmentLicenseNo?.trim() ||
+    undefined;
 
   const invoiceDoc = useQuery(
     api.invoices.getForAdmin,
@@ -111,6 +151,24 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
       ? { sessionToken, invoiceId }
       : "skip",
   ) as InvoiceDoc | null | undefined;
+
+  const linkedItinerary = useQuery(
+    api.itineraries.getForAdmin,
+    invoiceDoc?.itineraryId && typeof sessionToken === "string"
+      ? { sessionToken, itineraryId: invoiceDoc.itineraryId }
+      : "skip",
+  ) as
+    | {
+        packages?: Array<{
+          name: string;
+          pricePkr?: number;
+          vehicle?: string;
+          note?: string;
+          stays?: Array<{ location: string; hotel: string; nights: number }>;
+        }>;
+      }
+    | null
+    | undefined;
 
   const didHydrateFromDoc = useRef(false);
   useEffect(() => {
@@ -120,7 +178,10 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
     setClientName(invoiceDoc.clientName ?? "");
     setInvoiceDate(invoiceDoc.invoiceDate ?? new Date().toISOString().slice(0, 10));
     setCurrency((invoiceDoc.currency as Currency) ?? "PKR");
-    setItems((invoiceDoc.items as InvoiceDoc["items"]) ?? []);
+    const nextItems = ((invoiceDoc.items as InvoiceDoc["items"]) ?? []).length
+      ? ((invoiceDoc.items as InvoiceDoc["items"]) ?? [])
+      : [{ name: "Trip package", description: "", quantity: 1, price: 0 }];
+    setItems(nextItems);
     setDiscount(Number(invoiceDoc.discount ?? 0));
     setTax(Number(invoiceDoc.tax ?? 0));
     setAdvanceAmount(Number(invoiceDoc.advanceAmount ?? 0));
@@ -190,12 +251,13 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
       currency,
       companyLogoUrl: toAbsoluteUrl(companyLogoUrl) ?? fallbackLogoAbs,
       companyName: "JunketTours",
-      companyAddress: publicSettings?.officeAddress?.trim() || undefined,
-      footer: {
-        phone: publicSettings?.whatsappPhone?.trim() || undefined,
-        email: publicSettings?.contactEmail?.trim() || undefined,
-        website: publicSettings?.website?.trim() || undefined,
-        address: publicSettings?.officeAddress?.trim() || undefined,
+      companyAddress: officeAddress,
+      licenceNumber: governmentLicenseNo,
+      contact: {
+        phone: whatsappPhone,
+        email: contactEmail,
+        website,
+        officeAddress,
       },
       client: { name: clientName },
       items: items.map((i) => ({
@@ -207,22 +269,24 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
       discount: discountPct,
       tax: taxPct,
       advanceAmount: Math.max(0, advanceAmount || 0),
-      isFinal: true,
+      isFinal: invoiceDoc?.status === "paid",
       tripSummary: tripSummary.trim() || undefined,
       payment: { method: paymentMethod, details: paymentDetails },
       notes: { terms: terms || undefined, cancellationPolicy: cancellationPolicy || undefined },
     };
   }, [
     invoiceDoc?.invoiceNumber,
+    invoiceDoc?.status,
     clientName,
     invoiceDate,
     currency,
     companyLogoUrl,
     fallbackLogoAbs,
-    publicSettings?.officeAddress,
-    publicSettings?.whatsappPhone,
-    publicSettings?.contactEmail,
-    publicSettings?.website,
+    officeAddress,
+    whatsappPhone,
+    contactEmail,
+    website,
+    governmentLicenseNo,
     items,
     discountPct,
     taxPct,
@@ -364,18 +428,85 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-foreground">Line items</p>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  const next = [...items, { name: "", description: "", quantity: 1, price: 0 }];
-                  setItems(next);
-                  queuePatch({ items: next });
-                }}
-              >
-                + Add item
-              </Button>
+              <div className="flex items-center gap-2">
+                {linkedItinerary?.packages?.length ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      const ok = window.confirm(
+                        "Import packages from the linked itinerary? This will replace your current items.",
+                      );
+                      if (!ok) return;
+                      const next = (linkedItinerary.packages ?? [])
+                        .filter((p) => (p.name ?? "").trim())
+                        .map((p) => {
+                          const stays = (p.stays ?? [])
+                            .map((s) => `${s.location}: ${s.hotel} (${s.nights}N)`)
+                            .filter((x) => x.trim());
+                          const descParts = [
+                            p.vehicle?.trim() || "",
+                            stays.length ? stays.join("\n") : "",
+                            p.note?.trim() || "",
+                          ].filter(Boolean);
+                          return {
+                            name: p.name,
+                            description: descParts.length ? descParts.join("\n") : "",
+                            quantity: 1,
+                            price: typeof p.pricePkr === "number" ? p.pricePkr : 0,
+                          };
+                        });
+                      const safe = next.length
+                        ? next
+                        : [{ name: "Trip package", description: "", quantity: 1, price: 0 }];
+                      setItems(safe);
+                      queuePatch({ items: safe });
+                    }}
+                  >
+                    Import packages
+                  </Button>
+                ) : null}
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    const next = [...items, { name: "", description: "", quantity: 1, price: 0 }];
+                    setItems(next);
+                    queuePatch({ items: next });
+                  }}
+                >
+                  + Add item
+                </Button>
+              </div>
             </div>
+
+            {items.length ? (
+              <div className="rounded-2xl border border-border bg-panel-elevated p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                  Package preview
+                </p>
+                <div className="mt-2 grid gap-2 text-sm sm:grid-cols-4">
+                  <div className="min-w-0 sm:col-span-2">
+                    <p className="text-xs text-muted">Item</p>
+                    <p className="truncate font-semibold text-foreground">
+                      {items[0]?.name?.trim() || "Trip package"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">Qty</p>
+                    <p className="font-semibold text-foreground tabular-nums">
+                      {items[0]?.quantity ?? 1}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted">Price</p>
+                    <p className="font-semibold text-foreground tabular-nums">
+                      {money(currency, items[0]?.price ?? 0)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             <div className="space-y-3">
               {items.map((it, idx) => (
@@ -393,6 +524,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                             return next;
                           });
                         }}
+                        placeholder={idx === 0 ? "Trip package" : "Add-on / Service"}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -460,9 +592,10 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                         {money(currency, (it.quantity || 0) * (it.price || 0))}
                       </span>
                     </p>
-                    <button
+                    <Button
                       type="button"
-                      className="text-xs font-semibold text-red-600 hover:underline"
+                      variant="ghost"
+                      className="rounded-lg px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
                       onClick={() => {
                         setItems((prev) => {
                           const next = prev.filter((_, i) => i !== idx);
@@ -473,7 +606,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                       }}
                     >
                       Remove
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -570,14 +703,14 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                     <p className="text-xs font-bold uppercase tracking-wide text-muted">
                       Remaining balance
                     </p>
-                    <p className="mt-1 text-lg font-extrabold tabular-nums text-foreground">
+                    <p className="mt-1 text-lg font-extrabold tabular-nums text-slate-900">
                       {money(currency, remainingBalance)}
                     </p>
                   </div>
                 </div>
                 <div className="mt-2 flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
-                  <span className="text-sm font-bold text-foreground">Grand total</span>
-                  <span className="text-lg font-extrabold tabular-nums text-foreground">
+                  <span className="text-sm font-bold text-slate-900">Grand total</span>
+                  <span className="text-lg font-extrabold tabular-nums text-slate-900">
                     {remainingBalance <= 0.00001 ? "Paid" : money(currency, total)}
                   </span>
                 </div>
@@ -604,6 +737,55 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
 
             <div>
               <FieldLabel required>Payment details</FieldLabel>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    const t = paymentTemplate(paymentMethod);
+                    setPaymentDetails(t);
+                    queuePatch({ paymentDetails: t });
+                  }}
+                >
+                  Use template
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    const t = paymentTemplate("bank");
+                    setPaymentMethod("bank");
+                    setPaymentDetails(t);
+                    queuePatch({ paymentMethod: "bank", paymentDetails: t });
+                  }}
+                >
+                  Bank
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    const t = paymentTemplate("easypaisa");
+                    setPaymentMethod("easypaisa");
+                    setPaymentDetails(t);
+                    queuePatch({ paymentMethod: "easypaisa", paymentDetails: t });
+                  }}
+                >
+                  Easypaisa
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    const t = paymentTemplate("jazzcash");
+                    setPaymentMethod("jazzcash");
+                    setPaymentDetails(t);
+                    queuePatch({ paymentMethod: "jazzcash", paymentDetails: t });
+                  }}
+                >
+                  JazzCash
+                </Button>
+              </div>
               <TextAreaField
                 rows={6}
                 value={paymentDetails}
@@ -649,6 +831,29 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
                 Preview
               </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={!invoiceId || docxLoading}
+                onClick={() => {
+                  if (!invoiceId) return;
+                  if (!canMutate) return;
+                  setMsg(null);
+                  setDocxLoading(true);
+                  void (async () => {
+                    try {
+                      const res = await exportDocx({ sessionToken, invoiceId });
+                      window.open(res.url, "_blank", "noopener,noreferrer");
+                    } catch (e) {
+                      setMsg(toUserFacingErrorMessage(e));
+                    } finally {
+                      setDocxLoading(false);
+                    }
+                  })();
+                }}
+              >
+                {docxLoading ? "Preparing…" : "Download Word"}
+              </Button>
               {pdfModel ? (
                 <PDFDownloadLink
                   document={<InvoicePdf model={pdfModel} />}
@@ -692,7 +897,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
         panelClassName="max-w-5xl"
         fullscreenOnMobile
       >
-        <div className="relative flex h-[82vh] flex-col overflow-hidden rounded-xl border border-border bg-white sm:h-[75vh]">
+        <div className="relative flex h-[82dvh] flex-col overflow-hidden rounded-xl border border-border bg-white sm:h-[75dvh]">
           <div className="min-h-0 flex-1">
             {pdfModel ? (
               <PDFViewer style={{ width: "100%", height: "100%" }}>

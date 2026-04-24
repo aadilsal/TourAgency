@@ -31,11 +31,31 @@ export function Modal({
 
   useEffect(() => {
     if (!open) return;
-    const prev = document.body.style.overflow;
+    // Robust scroll lock (incl. iOS): freeze body at current scrollY.
+    const scrollY = window.scrollY;
+    const prev = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width,
+      paddingRight: document.body.style.paddingRight,
+    };
+    const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
     document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    if (scrollBarWidth > 0) {
+      document.body.style.paddingRight = `${scrollBarWidth}px`;
+    }
     closeRef.current?.focus();
     return () => {
-      document.body.style.overflow = prev;
+      document.body.style.overflow = prev.overflow;
+      document.body.style.position = prev.position;
+      document.body.style.top = prev.top;
+      document.body.style.width = prev.width;
+      document.body.style.paddingRight = prev.paddingRight;
+      window.scrollTo(0, scrollY);
     };
   }, [open]);
 
@@ -74,7 +94,10 @@ export function Modal({
               aria-labelledby={title ? titleId : undefined}
               aria-describedby={description ? descId : undefined}
               className={cn(
-                "pointer-events-auto max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/20 bg-white/95 p-6 shadow-glass backdrop-blur-glass-lg",
+                "pointer-events-auto max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/20 bg-white/95 p-6 text-slate-900 shadow-glass backdrop-blur-glass-lg",
+                // Many admin components use dark-theme tokens like text-foreground/text-muted.
+                // Inside a white modal panel, force them to readable (black) shades.
+                "[&_.text-foreground]:text-slate-900 [&_.text-muted]:text-slate-600 [&_.text-brand-ink]:text-slate-900 [&_.text-brand-muted]:text-slate-600",
                 fullscreenOnMobile &&
                   "max-h-[92vh] p-4 sm:max-h-[90vh] sm:p-6",
                 fullscreenOnMobile &&
@@ -94,7 +117,7 @@ export function Modal({
                   {title ? (
                     <h2
                       id={titleId}
-                      className="text-lg font-bold text-brand-ink"
+                      className="text-lg font-bold text-slate-900"
                     >
                       {title}
                     </h2>
@@ -109,7 +132,7 @@ export function Modal({
                   ref={closeRef}
                   type="button"
                   onClick={onClose}
-                  className="shrink-0 rounded-xl p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-brand-ink"
+                  className="shrink-0 rounded-xl p-2 text-slate-900 transition-colors hover:bg-slate-100 hover:text-slate-950"
                 >
                   <X className="h-5 w-5" />
                 </button>

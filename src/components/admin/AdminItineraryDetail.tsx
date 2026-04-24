@@ -14,6 +14,8 @@ import { PDFViewer, PDFDownloadLink } from "@react-pdf/renderer";
 import { ItineraryPdf, type ItineraryPdfModel } from "@/documents/itinerary/ItineraryPdf";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { toAbsoluteUrl } from "@/lib/absoluteUrl";
+import { cn } from "@/lib/cn";
+import { PopoverMenu } from "@/components/ui/PopoverMenu";
 
 type ActivityIcon = "flight" | "hotel" | "food" | "sightseeing";
 type ItineraryDoc = {
@@ -211,65 +213,117 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
             {itin.days} days
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/admin/itineraries">
-            <Button type="button" variant="secondary">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
+          <Link href="/admin/itineraries" className="sm:order-1">
+            <Button type="button" variant="secondary" className="w-full sm:w-auto">
               Back to list
             </Button>
           </Link>
-          <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
-            Preview
-          </Button>
+
           {pdfModel ? (
             <PDFDownloadLink
               document={<ItineraryPdf model={pdfModel} />}
               fileName={`${itin.title.replace(/\s+/g, "-").toLowerCase()}.pdf`}
             >
               {({ loading }) => (
-                <Button type="button" disabled={loading}>
+                <Button type="button" disabled={loading} className="w-full sm:w-auto">
                   {loading ? "Preparing…" : "Download PDF"}
                 </Button>
               )}
             </PDFDownloadLink>
           ) : null}
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => {
-              void (async () => {
-                try {
-                  await markFinal({
-                    sessionToken,
-                    itineraryId: itin._id as Id<"itineraries">,
-                  });
-                  setMsg("Marked as final.");
-                } catch (e) {
-                  setMsg(toUserFacingErrorMessage(e));
-                }
-              })();
-            }}
-          >
-            Mark final
-          </Button>
-          <Button
-            type="button"
-            onClick={() => {
-              void (async () => {
-                try {
-                  const invoiceId = await createFromItinerary({
-                    sessionToken,
-                    itineraryId: itin._id as Id<"itineraries">,
-                  });
-                  window.dispatchEvent(new Event("jt:routing:start"));
-                  window.location.href = `/admin/invoices/${invoiceId}`;
-                } catch (e) {
-                  setMsg(toUserFacingErrorMessage(e));
-                }
-              })();
-            }}
-          >
-            Generate invoice
-          </Button>
+
+          <div className="sm:hidden">
+            <PopoverMenu
+              buttonLabel="More actions"
+              buttonClassName={cn(
+                "w-full",
+                "inline-flex items-center justify-center",
+                "rounded-xl border border-border bg-panel px-5 py-2.5 text-sm font-semibold text-foreground",
+              )}
+              items={[
+                { label: "Preview", onClick: () => setPreviewOpen(true) },
+                {
+                  label: "Mark final",
+                  onClick: () => {
+                    void (async () => {
+                      try {
+                        await markFinal({
+                          sessionToken,
+                          itineraryId: itin._id as Id<"itineraries">,
+                        });
+                        setMsg("Marked as final.");
+                      } catch (e) {
+                        setMsg(toUserFacingErrorMessage(e));
+                      }
+                    })();
+                  },
+                },
+                {
+                  label: "Generate invoice",
+                  onClick: () => {
+                    void (async () => {
+                      try {
+                        const invoiceId = await createFromItinerary({
+                          sessionToken,
+                          itineraryId: itin._id as Id<"itineraries">,
+                        });
+                        window.dispatchEvent(new Event("jt:routing:start"));
+                        window.location.href = `/admin/invoices/${invoiceId}`;
+                      } catch (e) {
+                        setMsg(toUserFacingErrorMessage(e));
+                      }
+                    })();
+                  },
+                },
+              ]}
+            />
+          </div>
+
+          {/* Desktop/tablet: keep buttons visible */}
+          <div className="hidden sm:flex sm:flex-wrap sm:gap-2">
+            <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
+              Preview
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                void (async () => {
+                  try {
+                    await markFinal({
+                      sessionToken,
+                      itineraryId: itin._id as Id<"itineraries">,
+                    });
+                    setMsg("Marked as final.");
+                  } catch (e) {
+                    setMsg(toUserFacingErrorMessage(e));
+                  }
+                })();
+              }}
+            >
+              Mark final
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                void (async () => {
+                  try {
+                    const invoiceId = await createFromItinerary({
+                      sessionToken,
+                      itineraryId: itin._id as Id<"itineraries">,
+                    });
+                    window.dispatchEvent(new Event("jt:routing:start"));
+                    window.location.href = `/admin/invoices/${invoiceId}`;
+                  } catch (e) {
+                    setMsg(toUserFacingErrorMessage(e));
+                  }
+                })();
+              }}
+            >
+              Generate invoice
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -293,7 +347,7 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
         description="This is the PDF preview."
         panelClassName="max-w-5xl"
       >
-        <div className="h-[75vh] overflow-hidden rounded-xl border border-border bg-white">
+        <div className="h-[75vh] overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
           {pdfModel ? (
             <PDFViewer style={{ width: "100%", height: "100%" }}>
               <ItineraryPdf model={pdfModel} />

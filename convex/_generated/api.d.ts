@@ -19,6 +19,7 @@ import type * as bookings from "../bookings.js";
 import type * as customItineraries from "../customItineraries.js";
 import type * as dashboard from "../dashboard.js";
 import type * as destinations from "../destinations.js";
+import type * as documentsActions from "../documentsActions.js";
 import type * as email from "../email.js";
 import type * as invoices from "../invoices.js";
 import type * as itineraries from "../itineraries.js";
@@ -53,6 +54,7 @@ declare const fullApi: ApiFromModules<{
   customItineraries: typeof customItineraries;
   dashboard: typeof dashboard;
   destinations: typeof destinations;
+  documentsActions: typeof documentsActions;
   email: typeof email;
   invoices: typeof invoices;
   itineraries: typeof itineraries;

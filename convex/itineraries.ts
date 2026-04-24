@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
 import { requireUserFromSession } from "./lib/authHelpers.js";
+import { paginationOptsValidator } from "convex/server";
 
 function assertAdminFromSession(
   user: { role: string },
@@ -282,17 +283,21 @@ export const getForAdmin = query({
 export const listForAdmin = query({
   args: {
     sessionToken: v.string(),
-    status: v.optional(v.union(v.literal("draft"), v.literal("final"))),
+    paginationOpts: paginationOptsValidator,
   },
-  handler: async (ctx, { sessionToken, status }) => {
+  handler: async (ctx, { sessionToken, paginationOpts }) => {
     const user = await requireUserFromSession(ctx, sessionToken);
     assertAdminFromSession(user);
 
-    const all = await ctx.db.query("itineraries").collect();
-    const filtered = status ? all.filter((i) => i.status === status) : all;
-    return filtered
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .map((i) => ({
+    const paged = await ctx.db
+      .query("itineraries")
+      .withIndex("by_created")
+      .order("desc")
+      .paginate(paginationOpts);
+
+    return {
+      ...paged,
+      page: paged.page.map((i) => ({
         _id: i._id,
         title: i.title,
         clientName: i.clientName,
@@ -302,7 +307,8 @@ export const listForAdmin = query({
         status: i.status,
         createdAt: i.createdAt,
         updatedAt: i.updatedAt,
-      }));
+      })),
+    };
   },
 });
 
@@ -364,4 +370,3 @@ export const deleteItinerary = mutation({
     });
   },
 });
-

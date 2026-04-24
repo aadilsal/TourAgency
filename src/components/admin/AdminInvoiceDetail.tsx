@@ -13,9 +13,12 @@ import { PDFViewer, PDFDownloadLink } from "@react-pdf/renderer";
 import { InvoicePdf, type InvoicePdfModel } from "@/documents/invoice/InvoicePdf";
 import { toAbsoluteUrl } from "@/lib/absoluteUrl";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { cn } from "@/lib/cn";
+import { PopoverMenu } from "@/components/ui/PopoverMenu";
 
 type InvoiceDoc = {
   _id: Id<"invoices">;
+  invoiceNumber?: string;
   clientName: string;
   itineraryId?: Id<"itineraries">;
   invoiceDate: string;
@@ -31,6 +34,8 @@ type InvoiceDoc = {
   discount: number;
   /** Percentage 0–100 */
   tax: number;
+  advanceAmount?: number;
+  tripSummary?: string;
   paymentMethod: "bank" | "easypaisa" | "jazzcash";
   paymentDetails: string;
   terms?: string;
@@ -56,6 +61,7 @@ export function AdminInvoiceDetail({ invoiceId }: { invoiceId: string }) {
   const pdfModel: InvoicePdfModel | null = useMemo(() => {
     if (!inv) return null;
     return {
+      invoiceNumberLabel: inv.invoiceNumber?.trim() || undefined,
       invoiceDateLabel: inv.invoiceDate,
       currency: inv.currency,
       companyLogoUrl:
@@ -63,14 +69,32 @@ export function AdminInvoiceDetail({ invoiceId }: { invoiceId: string }) {
         toAbsoluteUrl("/images-removebg-preview.png"),
       companyName: "JunketTours",
       companyAddress: publicSettings?.officeAddress?.trim() || undefined,
+      licenceNumber: publicSettings?.governmentLicenseNo?.trim() || undefined,
+      contact: {
+        phone: publicSettings?.whatsappPhone?.trim() || undefined,
+        email: publicSettings?.contactEmail?.trim() || undefined,
+        website: publicSettings?.website?.trim() || undefined,
+        officeAddress: publicSettings?.officeAddress?.trim() || undefined,
+      },
       client: { name: inv.clientName },
       items: inv.items ?? [],
       discount: inv.discount ?? 0,
       tax: inv.tax ?? 0,
+      advanceAmount: inv.advanceAmount ?? 0,
+      tripSummary: inv.tripSummary?.trim() || undefined,
+      isFinal: inv.status === "paid",
       payment: { method: inv.paymentMethod, details: inv.paymentDetails },
       notes: { terms: inv.terms, cancellationPolicy: inv.cancellationPolicy },
     };
-  }, [inv, companyLogoUrl, publicSettings?.officeAddress]);
+  }, [
+    inv,
+    companyLogoUrl,
+    publicSettings?.officeAddress,
+    publicSettings?.governmentLicenseNo,
+    publicSettings?.whatsappPhone,
+    publicSettings?.contactEmail,
+    publicSettings?.website,
+  ]);
 
   if (!canQuery) {
     return (
@@ -99,42 +123,73 @@ export function AdminInvoiceDetail({ invoiceId }: { invoiceId: string }) {
             {inv.clientName || "—"} · {inv.invoiceDate} · {inv.currency}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end">
           <Link href="/admin/invoices">
-            <Button type="button" variant="secondary">
+            <Button type="button" variant="secondary" className="w-full sm:w-auto">
               Back to list
             </Button>
           </Link>
-          <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
-            Preview
-          </Button>
+
           {pdfModel ? (
             <PDFDownloadLink
               document={<InvoicePdf model={pdfModel} />}
               fileName={`invoice-${inv.invoiceDate}.pdf`}
             >
               {({ loading }) => (
-                <Button type="button" disabled={loading}>
+                <Button type="button" disabled={loading} className="w-full sm:w-auto">
                   {loading ? "Preparing…" : "Download PDF"}
                 </Button>
               )}
             </PDFDownloadLink>
           ) : null}
-          <Button
-            type="button"
-            onClick={() => {
-              void (async () => {
-                try {
-                  await markPaid({ sessionToken, invoiceId: inv._id as Id<"invoices"> });
-                  setMsg("Marked as paid.");
-                } catch (e) {
-                  setMsg(toUserFacingErrorMessage(e));
-                }
-              })();
-            }}
-          >
-            Mark paid
-          </Button>
+
+          <div className="sm:hidden">
+            <PopoverMenu
+              buttonLabel="More actions"
+              buttonClassName={cn(
+                "w-full",
+                "inline-flex items-center justify-center",
+                "rounded-xl border border-border bg-panel px-5 py-2.5 text-sm font-semibold text-foreground",
+              )}
+              items={[
+                { label: "Preview", onClick: () => setPreviewOpen(true) },
+                {
+                  label: "Mark paid",
+                  onClick: () => {
+                    void (async () => {
+                      try {
+                        await markPaid({ sessionToken, invoiceId: inv._id as Id<"invoices"> });
+                        setMsg("Marked as paid.");
+                      } catch (e) {
+                        setMsg(toUserFacingErrorMessage(e));
+                      }
+                    })();
+                  },
+                },
+              ]}
+            />
+          </div>
+
+          <div className="hidden sm:flex sm:flex-wrap sm:gap-2">
+            <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
+              Preview
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                void (async () => {
+                  try {
+                    await markPaid({ sessionToken, invoiceId: inv._id as Id<"invoices"> });
+                    setMsg("Marked as paid.");
+                  } catch (e) {
+                    setMsg(toUserFacingErrorMessage(e));
+                  }
+                })();
+              }}
+            >
+              Mark paid
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -158,7 +213,7 @@ export function AdminInvoiceDetail({ invoiceId }: { invoiceId: string }) {
         description="This is the PDF preview."
         panelClassName="max-w-5xl"
       >
-        <div className="h-[75vh] overflow-hidden rounded-xl border border-border bg-white">
+        <div className="h-[75vh] overflow-hidden rounded-2xl border border-border bg-white shadow-sm">
           {pdfModel ? (
             <PDFViewer style={{ width: "100%", height: "100%" }}>
               <InvoicePdf model={pdfModel} />

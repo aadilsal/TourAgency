@@ -1,6 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
+import type { MutationCtx } from "./_generated/server.js";
 import { requireUserFromSession } from "./lib/authHelpers.js";
+import { paginationOptsValidator } from "convex/server";
 
 function assertAdminFromSession(
   user: { role: string },
@@ -29,11 +31,11 @@ function fiscalYearKeyFromMs(ms: number) {
   return `${String(yy).padStart(2, "0")}-${String(next).padStart(2, "0")}`;
 }
 
-async function issueInvoiceNumber(ctx: { db: any }, nowMs: number) {
+async function issueInvoiceNumber(ctx: MutationCtx, nowMs: number) {
   const fiscalYearKey = fiscalYearKeyFromMs(nowMs);
   const existing = await ctx.db
     .query("invoiceCounters")
-    .withIndex("by_fiscal_year", (q: any) => q.eq("fiscalYearKey", fiscalYearKey))
+    .withIndex("by_fiscal_year", (q) => q.eq("fiscalYearKey", fiscalYearKey))
     .unique();
 
   const now = Date.now();
@@ -75,7 +77,9 @@ export const createDraft = mutation({
       invoiceDate: args.invoiceDate.trim(),
       currency: args.currency,
       status: "draft",
-      items: [],
+      items: [
+        { name: "Trip package", description: "", quantity: 1, price: 0 },
+      ],
       discount: 0,
       tax: 0,
       advanceAmount: typeof args.advanceAmount === "number" ? Math.max(0, args.advanceAmount) : 0,
@@ -164,17 +168,21 @@ export const patchDraft = mutation({
 export const listForAdmin = query({
   args: {
     sessionToken: v.string(),
-    status: v.optional(v.union(v.literal("draft"), v.literal("paid"))),
+    paginationOpts: paginationOptsValidator,
   },
-  handler: async (ctx, { sessionToken, status }) => {
+  handler: async (ctx, { sessionToken, paginationOpts }) => {
     const user = await requireUserFromSession(ctx, sessionToken);
     assertAdminFromSession(user);
 
-    const all = await ctx.db.query("invoices").collect();
-    const filtered = status ? all.filter((i) => i.status === status) : all;
-    return filtered
-      .sort((a, b) => b.createdAt - a.createdAt)
-      .map((i) => ({
+    const paged = await ctx.db
+      .query("invoices")
+      .withIndex("by_created")
+      .order("desc")
+      .paginate(paginationOpts);
+
+    return {
+      ...paged,
+      page: paged.page.map((i) => ({
         _id: i._id,
         clientName: i.clientName,
         itineraryId: i.itineraryId,
@@ -183,7 +191,8 @@ export const listForAdmin = query({
         status: i.status,
         createdAt: i.createdAt,
         updatedAt: i.updatedAt,
-      }));
+      })),
+    };
   },
 });
 
