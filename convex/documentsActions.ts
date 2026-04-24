@@ -25,6 +25,17 @@ function money(currency: "PKR" | "USD", n: number) {
   }
 }
 
+type ItineraryPackage = {
+  name?: string | null;
+  pricePkr?: number | null;
+  vehicle?: string | null;
+  stays?: Array<{
+    location: string;
+    hotel: string;
+    nights: number;
+  }> | null;
+};
+
 export const exportItineraryDocx: ReturnType<typeof action> = action({
   args: {
     sessionToken: v.string(),
@@ -84,7 +95,7 @@ export const exportItineraryDocx: ReturnType<typeof action> = action({
       }
     }
 
-    const packages = itin.packages ?? [];
+    const packages = (itin.packages ?? []) as ItineraryPackage[];
     const packageRows: TableRow[] = [
       new TableRow({
         children: [
