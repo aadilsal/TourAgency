@@ -24,21 +24,21 @@ export function ScrollyChapter({
       <div data-chapter-inner className="max-w-xl">
         <p
           data-chapter-eyebrow
-          className="text-xs font-bold uppercase tracking-[0.26em] text-white/70"
+          className="text-xs font-bold uppercase tracking-[0.26em] text-muted"
         >
           {chapter.eyebrow}
         </p>
         <h3
           data-chapter-title
-          className="mt-4 text-balance font-display text-3xl font-semibold tracking-tight text-white md:text-4xl"
+          className="mt-4 text-balance font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl"
         >
           {chapter.title}
         </h3>
-        <ul className="mt-6 space-y-3 text-sm leading-relaxed text-white/80 md:text-base">
+        <ul className="mt-6 space-y-3 text-sm leading-relaxed text-muted md:text-base">
           {chapter.bullets.map((b) => (
             <li key={b} data-chapter-bullet className="flex gap-3">
               <span
-                className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-white/70"
+                className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-havezic-primary"
                 aria-hidden
               />
               <span>{b}</span>
@@ -50,7 +50,7 @@ export function ScrollyChapter({
             {chapter.stats.map((s) => (
               <span
                 key={s}
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold text-white/75 backdrop-blur"
+                className="rounded-full border border-border bg-havezic-background-light px-3 py-1 text-xs font-semibold text-foreground"
               >
                 {s}
               </span>

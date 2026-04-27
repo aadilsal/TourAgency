@@ -20,6 +20,7 @@ import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { blogCoverImage } from "@/lib/blog-covers";
 import { SceneCut } from "@/components/ui/SceneCut";
 import { ScrollyJourneyReelLazy } from "./ScrollyJourneyReelLazy";
+import { NewsletterSection } from "@/components/landing/havezic/NewsletterSection";
 
 type BlogPostInput = {
   slug: string;
@@ -94,10 +95,9 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
   return (
     <>
       <SceneCut />
-      <MotionSection className="py-16 md:py-24">
+      <MotionSection className="py-10 md:py-14">
         <PageContainer>
           <SectionHeader
-            variant="onDark"
             eyebrow="Story"
             title="A journey that unfolds as you scroll"
             description="Mountains, culture, desert & coast — pick your style (budget to luxury, private or group)."
@@ -113,11 +113,10 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
       <FeaturedToursCarousel tours={tours} />
 
       <SceneCut />
-      <MotionSection className="py-16 md:py-24">
+      <MotionSection className="py-10 md:py-14">
         <PageContainer>
           <SectionHeader
             align="center"
-            variant="onDark"
             eyebrow="Simple flow"
             title="How it works"
             description="Three steps from idea to booking — AI does the heavy lifting."
@@ -142,11 +141,11 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
             ].map((s) => (
               <li key={s.step}>
                 <Card className="h-full p-8 text-center">
-                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-primary text-sm font-bold text-white">
+                  <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-havezic-primary text-sm font-bold text-white">
                     {s.step}
                   </span>
-                  <h3 className="mt-5 text-lg font-bold text-brand-ink">{s.title}</h3>
-                  <p className="mt-3 text-sm leading-relaxed text-brand-muted">{s.body}</p>
+                  <h3 className="mt-5 text-lg font-bold text-foreground">{s.title}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-muted">{s.body}</p>
                 </Card>
               </li>
             ))}
@@ -155,11 +154,10 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
       </MotionSection>
 
       <SceneCut />
-      <MotionSection className="py-16 md:py-24">
+      <MotionSection className="py-10 md:py-14">
         <PageContainer>
           <SectionHeader
             align="center"
-            variant="onDark"
             title="Why choose JunketTours"
             description="Built for travelers who want clarity, speed, and real local expertise."
           />
@@ -189,11 +187,11 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
               const Icon = item.icon;
               return (
                 <Card key={item.title} className="p-6 text-center sm:text-left" hover>
-                  <div className="flex justify-center text-brand-accent sm:justify-start">
+                  <div className="flex justify-center text-havezic-primary sm:justify-start">
                     <Icon className="h-8 w-8" strokeWidth={1.5} />
                   </div>
-                  <h3 className="mt-4 font-bold text-brand-ink">{item.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-brand-muted">{item.text}</p>
+                  <h3 className="mt-4 font-bold text-foreground">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted">{item.text}</p>
                 </Card>
               );
             })}
@@ -202,10 +200,9 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
       </MotionSection>
 
       <SceneCut />
-      <MotionSection className="py-16 md:py-24">
+      <MotionSection className="py-10 md:py-14">
         <PageContainer>
           <SectionHeader
-            variant="onDark"
             title="Destinations"
             description="Deep-dive guides for the routes travelers book most."
           />
@@ -213,9 +210,9 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
             {DESTINATIONS.map((d) => (
               <Link key={d.slug} href={`/destinations/${d.slug}`} className="block h-full">
                 <Card className="flex h-full flex-col p-6 transition-shadow hover:shadow-card-hover" hover>
-                  <h3 className="text-lg font-bold text-brand-ink">{d.name}</h3>
-                  <p className="mt-2 flex-1 text-sm text-brand-muted">{d.blurb}</p>
-                  <span className="mt-4 text-sm font-semibold text-brand-accent">
+                  <h3 className="text-lg font-bold text-foreground">{d.name}</h3>
+                  <p className="mt-2 flex-1 text-sm text-muted">{d.blurb}</p>
+                  <span className="mt-4 text-sm font-semibold text-havezic-primary">
                     Explore →
                   </span>
                 </Card>
@@ -229,16 +226,19 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
       <TestimonialsCarousel />
 
       <SceneCut />
+      <NewsletterSection />
+
+      <SceneCut />
       <PlanByBudgetCarousel />
 
       <SceneCut />
-      <MotionSection className="py-20 md:py-28">
+      <MotionSection className="py-12 md:py-16">
         <PageContainer className="max-w-3xl text-center">
           <div className="glass-panel-strong rounded-3xl px-8 py-12 md:px-14 md:py-14">
-            <h2 className="font-display text-3xl font-semibold tracking-tight text-brand-ink md:text-4xl">
+            <h2 className="font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
               Ready to plan your trip?
             </h2>
-            <p className="mt-4 text-lg text-brand-muted">
+            <p className="mt-4 text-lg text-muted">
               Start with AI or browse tours — we are one message away.
             </p>
             <div className="mt-10 flex flex-col items-stretch justify-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center">

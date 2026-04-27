@@ -47,7 +47,7 @@ export default function RootLayout({
 }>) {
   const gaId = process.env.NEXT_PUBLIC_GA4_ID;
   return (
-    <html lang="en">
+    <html lang="en" className="theme-havezic">
       <head>
         <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />

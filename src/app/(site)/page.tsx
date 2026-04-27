@@ -2,8 +2,8 @@ import { getConvexServer } from "@/lib/convex-server";
 import { api } from "@convex/_generated/api";
 import { getWhatsAppClickUrl } from "@/lib/whatsapp-server";
 import { blogCoverImage } from "@/lib/blog-covers";
-import { HomeLandingAboveFold } from "@/components/landing/HomeLandingAboveFold";
 import { HomeLandingBelowFold } from "@/components/landing/HomeLandingBelowFold";
+import { HomeHero } from "@/components/landing/havezic/HomeHero";
 import type { FeaturedTour } from "@/components/landing/FeaturedToursCarousel";
 import { Suspense } from "react";
 
@@ -71,7 +71,7 @@ async function HomePageDeferred() {
 export default async function HomePage() {
   return (
     <main className="min-h-screen">
-      <HomeLandingAboveFold />
+      <HomeHero />
       <Suspense fallback={null}>
         <HomePageDeferred />
       </Suspense>

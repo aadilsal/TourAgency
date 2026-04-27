@@ -40,14 +40,11 @@ const SLIDES: { label: string; href: string; image: string }[] = [
 
 export function TourTypesCarousel() {
   return (
-    <section className="border-y border-white/10 py-16 md:py-24">
+    <section className="py-10 md:py-14">
       <PageContainer>
         <SectionHeader
-          align="center"
-          variant="onDark"
-          eyebrow="Browse by style"
-          title="Types of tours"
-          description="Swipe through styles — each opens matching packages. Real photos, real routes."
+          align="left"
+          title="Choose Your Travel Style"
         />
         <div className="mt-12 md:mt-16">
           <EmblaRow slideClassName="min-w-0 flex-[0_0_88%] sm:flex-[0_0_72%] md:flex-[0_0_48%] lg:flex-[0_0_38%]">
@@ -55,22 +52,22 @@ export function TourTypesCarousel() {
               <Link
                 key={s.href}
                 href={s.href}
-                className="group relative block h-[min(22rem,65vw)] overflow-hidden rounded-2xl border border-white/15 shadow-glass transition-all duration-300 hover:-translate-y-0.5 hover:shadow-card-hover"
+                className="group relative block h-[min(24rem,72vw)] overflow-hidden rounded-3xl bg-black/5 shadow-[0_16px_40px_rgba(0,0,0,0.12)] ring-1 ring-black/10 transition hover:-translate-y-0.5"
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={s.image}
                   alt=""
-                  className="absolute inset-0 h-full w-full object-cover transition duration-700 ease-out group-hover:scale-105"
+                  className="absolute inset-0 h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-brand-primary via-brand-primary/40 to-brand-primary/10" />
-                <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
-                  <h3 className="text-2xl font-bold text-white md:text-3xl">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+                <div className="absolute inset-0 flex flex-col items-center justify-between p-6">
+                  <p className="mt-2 text-lg font-semibold text-white drop-shadow-sm">
                     {s.label}
-                  </h3>
-                  <span className="mt-2 inline-flex text-sm font-semibold text-brand-accent">
-                    Explore packages →
-                  </span>
+                  </p>
+                  <div className="mb-2 flex h-12 items-center justify-center rounded-full bg-havezic-primary px-5 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(251,91,50,0.35)] ring-1 ring-white/20">
+                    Open
+                  </div>
                 </div>
               </Link>
             ))}

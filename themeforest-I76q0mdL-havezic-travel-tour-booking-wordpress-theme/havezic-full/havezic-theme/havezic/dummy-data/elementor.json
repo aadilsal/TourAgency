@@ -1,0 +1,175 @@
+{
+    "system_colors": [
+        {
+            "_id": "primary",
+            "title": "Primary",
+            "color": "#FB5B32"
+        },
+        {
+            "_id": "primary_hover",
+            "title": "Primary Hover",
+            "color": "#E1512D"
+        },
+        {
+            "_id": "secondary",
+            "title": "Secondary",
+            "color": "#4D40CA"
+        },
+        {
+            "_id": "secondary_hover",
+            "title": "Secondary Hover",
+            "color": "#4539B5"
+        },
+        {
+            "_id": "text",
+            "title": "Text",
+            "color": "#6E6E6E"
+        },
+        {
+            "_id": "text_light",
+            "title": "Text light",
+            "color": "#999999"
+        },
+        {
+            "_id": "accent",
+            "title": "Accent",
+            "color": "#000000"
+        },
+        {
+            "_id": "border",
+            "title": "Border",
+            "color": "#DEE0EA"
+        },
+        {
+            "_id": "background",
+            "title": "Background",
+            "color": "#FFFFFF"
+        },
+        {
+            "_id": "background_light",
+            "title": "Background Light",
+            "color": "#F6F6F6"
+        }
+    ],
+    "custom_colors": [],
+    "system_typography": [
+        {
+            "_id": "primary",
+            "title": "Primary",
+            "typography_typography": "custom"
+        },
+        {
+            "_id": "secondary",
+            "title": "Secondary",
+            "typography_typography": "custom"
+        },
+        {
+            "_id": "accent",
+            "title": "Accent",
+            "typography_typography": "custom"
+        },
+        {
+            "_id": "text",
+            "title": "Text",
+            "typography_typography": "custom"
+        },
+        {
+            "_id": "heading_title",
+            "title": "Heading Title",
+            "typography_typography": "custom",
+            "typography_font_family": "Inter",
+            "typography_font_weight": "600",
+            "typography_letter_spacing": {
+                "unit": "px",
+                "size": 0,
+                "sizes": []
+            },
+            "typography_font_size": {
+                "unit": "px",
+                "size": 36,
+                "sizes": []
+            },
+            "typography_line_height": {
+                "unit": "em",
+                "size": 1.1670000000000000373034936274052597582340240478515625,
+                "sizes": []
+            },
+            "typography_font_size_mobile": {
+                "unit": "px",
+                "size": 34,
+                "sizes": []
+            },
+            "typography_line_height_mobile": {
+                "unit": "px",
+                "size": 36,
+                "sizes": []
+            }
+        }
+    ],
+    "custom_typography": [
+        {
+            "_id": "219ccbe",
+            "title": "Sub Title",
+            "typography_typography": "custom",
+            "typography_font_size": {
+                "unit": "px",
+                "size": 32,
+                "sizes": []
+            },
+            "typography_font_weight": "700",
+            "typography_text_transform": "uppercase",
+            "typography_line_height": {
+                "unit": "em",
+                "size": 1.1999999999999999555910790149937383830547332763671875,
+                "sizes": []
+            },
+            "typography_letter_spacing": {
+                "unit": "px",
+                "size": 2,
+                "sizes": []
+            },
+            "typography_font_family": "Amatic SC",
+            "typography_font_size_mobile": {
+                "unit": "px",
+                "size": 28,
+                "sizes": []
+            }
+        }
+    ],
+    "default_generic_fonts": "Sans-serif",
+    "site_name": "Havezic",
+    "site_description": "Travel &amp; Tour Booking WordPress Theme",
+    "page_title_selector": "h1.entry-title",
+    "activeItemIndex": 1,
+    "active_breakpoints": [
+        "viewport_mobile",
+        "viewport_mobile_extra",
+        "viewport_tablet",
+        "viewport_tablet_extra",
+        "viewport_laptop"
+    ],
+    "viewport_md": 768,
+    "viewport_lg": 1025,
+    "container_width": {
+        "unit": "px",
+        "size": 1290,
+        "sizes": []
+    },
+    "space_between_widgets": {
+        "column": "0",
+        "row": "0",
+        "isLinked": true,
+        "unit": "px",
+        "size": 0,
+        "sizes": []
+    },
+    "typography_enable_styleguide_preview": "yes",
+    "colors_enable_styleguide_preview": "yes",
+    "site_logo": {
+        "url": "https:\/\/demo2wpopal.b-cdn.net\/havezic\/wp-content\/uploads\/2024\/07\/logo.svg",
+        "id": 359,
+        "size": "",
+        "alt": "",
+        "source": "library"
+    }
+}

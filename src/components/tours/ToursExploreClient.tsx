@@ -45,6 +45,7 @@ type Props = {
   initialType?: string | null;
   initialMax?: string | null;
   initialMin?: string | null;
+  initialLocation?: string | null;
 };
 
 const fieldClass =
@@ -238,8 +239,9 @@ export function ToursExploreClient({
   initialType,
   initialMax,
   initialMin,
+  initialLocation,
 }: Props) {
-  const [location, setLocation] = useState("");
+  const [location, setLocation] = useState(initialLocation ?? "");
   const [priceMin, setPriceMin] = useState(initialMin ?? "");
   const [priceMax, setPriceMax] = useState(initialMax ?? "");
   const [durMin, setDurMin] = useState("");

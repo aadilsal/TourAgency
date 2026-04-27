@@ -36,11 +36,10 @@ const ITEMS: {
 
 export function TestimonialsCarousel() {
   return (
-    <section className="py-16 md:py-24">
+    <section className="py-10 md:py-14">
       <PageContainer>
         <SectionHeader
           align="center"
-          variant="onDark"
           eyebrow="Verified Google reviews"
           title="Travelers love the experience"
           description="Real feedback from guests who planned and booked with JunketTours."

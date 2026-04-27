@@ -15,12 +15,26 @@ import {
   LayoutDashboard,
   Shield,
   LogIn,
+  Search,
+  Heart,
+  User,
+  ChevronDown,
 } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@convex/_generated/api";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { LogoutButton } from "./LogoutButton";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/cn";
+
+type DestinationIndexRow = {
+  slug: string;
+  name: string;
+  line: string;
+  heroUrl: string;
+  tourCount: number;
+};
 
 type SessionInfo = {
   email?: string;
@@ -107,7 +121,7 @@ function AccountDropdown({
       <button
         type="button"
         className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-xs font-bold uppercase tracking-wide text-white ring-1 ring-white/30 transition hover:bg-white/20",
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-havezic-background text-xs font-bold uppercase tracking-wide text-foreground ring-1 ring-border transition hover:ring-havezic-primary/40",
           align === "full" && "h-10 w-10",
         )}
         aria-expanded={open}
@@ -129,7 +143,7 @@ function AccountDropdown({
             exit={{ opacity: 0, y: 4 }}
             transition={{ duration: 0.15 }}
             className={cn(
-              "absolute z-[80] mt-2 min-w-[13.5rem] rounded-xl border border-white/20 bg-slate-950/98 py-2 shadow-xl backdrop-blur-md",
+              "absolute z-[80] mt-2 min-w-[13.5rem] rounded-2xl border border-border bg-background py-2 shadow-[0_18px_44px_rgba(0,0,0,0.12)]",
               align === "right" ? "right-0" : "left-0 right-0",
             )}
             role="menu"
@@ -140,32 +154,297 @@ function AccountDropdown({
               if (prefersHoverFinePointer()) scheduleClose();
             }}
           >
-            <p className="truncate px-3 pb-2 text-xs text-slate-400">
+            <p className="truncate px-4 pb-2 text-xs text-muted">
               {session.email}
             </p>
-            <div className="border-t border-white/10" />
+            <div className="border-t border-border" />
             <Link
               href="/dashboard"
               role="menuitem"
-              className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-white hover:bg-white/10"
+              className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-havezic-background-light"
               onClick={() => setOpen(false)}
             >
-              <LayoutDashboard className="h-4 w-4 text-brand-sun" aria-hidden />
+              <LayoutDashboard className="h-4 w-4 text-havezic-primary" aria-hidden />
               Dashboard
             </Link>
             {isAdmin ? (
               <Link
                 href="/admin"
                 role="menuitem"
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-slate-200 hover:bg-white/10"
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-havezic-background-light"
                 onClick={() => setOpen(false)}
               >
-                <Shield className="h-4 w-4 text-brand-sun/80" aria-hidden />
+                <Shield className="h-4 w-4 text-havezic-primary/90" aria-hidden />
                 Admin
               </Link>
             ) : null}
-            <div className="border-t border-white/10 px-3 pt-2">
-              <LogoutButton className="w-full text-left text-slate-200 hover:text-white" />
+            <div className="border-t border-border px-4 pt-2">
+              <LogoutButton className="w-full text-left text-muted hover:text-havezic-primary" />
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function DestinationsMegaDropdown({
+  pathname,
+  destinations,
+}: {
+  pathname: string | null;
+  destinations: DestinationIndexRow[] | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const closeT = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!wrapRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+
+  function clearCloseTimer() {
+    if (closeT.current) {
+      clearTimeout(closeT.current);
+      closeT.current = null;
+    }
+  }
+
+  function scheduleClose() {
+    clearCloseTimer();
+    closeT.current = setTimeout(() => setOpen(false), 180);
+  }
+
+  function openMenu() {
+    clearCloseTimer();
+    setOpen(true);
+  }
+
+  const active =
+    pathname === "/destinations" ||
+    pathname?.startsWith("/destinations/");
+
+  const items = destinations ?? [];
+  const showSpinner = destinations === undefined;
+
+  return (
+    <div
+      ref={wrapRef}
+      className="relative"
+      onMouseEnter={() => {
+        if (prefersHoverFinePointer()) openMenu();
+      }}
+      onMouseLeave={() => {
+        if (prefersHoverFinePointer()) scheduleClose();
+      }}
+    >
+      <Link
+        href="/destinations"
+        className={cn(
+          "flex items-center gap-1 text-sm font-semibold text-white/90 transition-colors hover:text-havezic-primary",
+          active && "text-havezic-primary",
+          open && "text-havezic-primary",
+        )}
+        aria-expanded={open}
+        aria-haspopup="true"
+        onFocus={() => openMenu()}
+      >
+        Destinations
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 opacity-90 transition-transform duration-200",
+            open && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </Link>
+
+      <AnimatePresence>
+        {open ? (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.18 }}
+            className="absolute left-1/2 top-full z-[80] w-[min(calc(100vw-2rem),720px)] -translate-x-1/2 pt-2"
+            onMouseEnter={() => {
+              if (prefersHoverFinePointer()) clearCloseTimer();
+            }}
+            onMouseLeave={() => {
+              if (prefersHoverFinePointer()) scheduleClose();
+            }}
+          >
+            <div
+              className="overflow-hidden rounded-2xl border border-border bg-background shadow-[0_22px_56px_rgba(0,0,0,0.14)]"
+              role="menu"
+              aria-label="Destinations"
+            >
+              <div className="border-b border-border bg-havezic-background-light px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-havezic-primary">
+                  Explore
+                </p>
+                <p className="mt-1 text-lg font-semibold text-foreground">
+                  Destinations
+                </p>
+                <p className="mt-1 text-sm text-muted">
+                  Pick a region — each page lists matching tours and tips.
+                </p>
+              </div>
+
+              <div className="max-h-[min(70vh,420px)] overflow-y-auto p-4">
+                {showSpinner ? (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="flex gap-3 rounded-xl border border-border bg-havezic-background-light/80 p-2 animate-pulse"
+                      >
+                        <div className="h-16 w-20 shrink-0 rounded-lg bg-black/10" />
+                        <div className="flex flex-1 flex-col gap-2 pt-1">
+                          <div className="h-3 w-24 rounded bg-black/10" />
+                          <div className="h-2 w-full rounded bg-black/5" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : items.length === 0 ? (
+                  <p className="py-6 text-center text-sm text-muted">
+                    No destinations yet.
+                  </p>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {items.map((d) => (
+                      <Link
+                        key={d.slug}
+                        href={`/destinations/${d.slug}`}
+                        role="menuitem"
+                        className="group flex gap-3 rounded-xl border border-border bg-background p-2.5 text-left transition hover:border-havezic-primary/45 hover:bg-havezic-background-light hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)]"
+                        onClick={() => setOpen(false)}
+                      >
+                        <div className="relative h-[4.5rem] w-[5.25rem] shrink-0 overflow-hidden rounded-lg bg-havezic-background-light">
+                          <Image
+                            src={d.heroUrl}
+                            alt=""
+                            fill
+                            sizes="120px"
+                            className="object-cover transition duration-300 group-hover:scale-105"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1 py-0.5">
+                          <p className="font-semibold leading-snug text-foreground">
+                            {d.name}
+                          </p>
+                          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted">
+                            {d.line}
+                          </p>
+                          <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-havezic-primary">
+                            {d.tourCount}{" "}
+                            {d.tourCount === 1 ? "tour" : "tours"}
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-border bg-havezic-background-light px-4 py-3">
+                <Link
+                  href="/destinations"
+                  className="flex items-center justify-center gap-2 rounded-xl bg-havezic-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-havezic-primary-hover"
+                  onClick={() => setOpen(false)}
+                >
+                  View all destinations
+                  <ChevronDown className="h-4 w-4 -rotate-90" aria-hidden />
+                </Link>
+              </div>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function MobileDestinationsAccordion({
+  pathname,
+  destinations,
+  expanded,
+  onToggle,
+  onPick,
+}: {
+  pathname: string | null;
+  destinations: DestinationIndexRow[] | undefined;
+  expanded: boolean;
+  onToggle: () => void;
+  onPick: () => void;
+}) {
+  const active =
+    pathname === "/destinations" ||
+    pathname?.startsWith("/destinations/");
+
+  const items = destinations ?? [];
+  const loading = destinations === undefined;
+
+  return (
+    <div className="rounded-xl border border-white/15 bg-white/5">
+      <button
+        type="button"
+        className={cn(
+          "flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-semibold text-white",
+          active && "text-havezic-primary",
+        )}
+        aria-expanded={expanded}
+        onClick={onToggle}
+      >
+        <span className="flex items-center gap-2">
+          <MapPin className="h-4 w-4 text-havezic-primary/90" aria-hidden />
+          Destinations
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 shrink-0 transition-transform duration-200",
+            expanded && "rotate-180",
+          )}
+          aria-hidden
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {expanded ? (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden border-t border-white/10"
+          >
+            <div className="flex max-h-[50vh] flex-col gap-1 overflow-y-auto px-2 pb-2 pt-1">
+              <Link
+                href="/destinations"
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-white/95 hover:bg-white/10"
+                onClick={onPick}
+              >
+                All destinations
+              </Link>
+              {loading ? (
+                <p className="px-3 py-2 text-xs text-white/60">Loading…</p>
+              ) : (
+                items.map((d) => (
+                  <Link
+                    key={d.slug}
+                    href={`/destinations/${d.slug}`}
+                    className="rounded-lg px-3 py-2 text-sm text-white/90 hover:bg-white/10"
+                    onClick={onPick}
+                  >
+                    {d.name}
+                  </Link>
+                ))
+              )}
             </div>
           </motion.div>
         ) : null}
@@ -183,11 +462,21 @@ export function SiteHeaderNav({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [mobileDestOpen, setMobileDestOpen] = useState(false);
   const [liveSession, setLiveSession] = useState<SessionInfo>(initialSession);
+
+  const indexDestinations = useQuery(
+    api.destinations.listForIndex,
+    {},
+  ) as DestinationIndexRow[] | undefined;
 
   useEffect(() => {
     setLiveSession(initialSession);
   }, [initialSession]);
+
+  useEffect(() => {
+    if (!open) setMobileDestOpen(false);
+  }, [open]);
 
   useEffect(() => {
     let cancelled = false;
@@ -229,28 +518,25 @@ export function SiteHeaderNav({
     };
   }, [pathname, initialSession]);
 
-  const links = [
-    { href: "/tours", label: "Tours", icon: Compass },
-    { href: "/destinations", label: "Destinations", icon: MapPin },
-    { href: "/blog", label: "Guides", icon: BookOpen },
-    { href: "/contact", label: "Contact", icon: PhoneCall },
-  ];
+  const links = useMemo(
+    () => [
+      { href: "/blog", label: "Guides", icon: BookOpen },
+      { href: "/contact", label: "Contact", icon: PhoneCall },
+    ],
+    [],
+  );
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-panel shadow-sm backdrop-blur-xl relative">
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand-cta/60 to-transparent dark:via-brand-cta/70"
-        aria-hidden
-      />
-      <PageContainer className="!px-4 py-3 md:!px-8 lg:!px-12">
-        <div className="flex items-center justify-between gap-3">
+    <header className="sticky top-0 z-50 bg-brand-primary text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
+      <PageContainer className="py-0">
+        <div className="flex items-center gap-6">
           <Link
             href="/"
-            className="group flex items-center gap-2.5 shrink-0"
+            className="group flex items-center gap-3 shrink-0 py-5"
             aria-label="JunketTours"
             title="JunketTours"
           >
-            <span className="relative h-10 w-10 overflow-hidden rounded-full bg-black/5 ring-1 ring-border transition hover:bg-black/10 dark:bg-white/10 dark:ring-white/15 dark:hover:bg-white/15">
+            <span className="relative h-12 w-12 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/20">
               <Image
                 src="/images-removebg-preview.png"
                 alt=""
@@ -259,47 +545,87 @@ export function SiteHeaderNav({
                 priority
               />
             </span>
-            <span className="font-display text-lg font-semibold tracking-tight text-foreground drop-shadow-sm transition group-hover:text-brand-sun sm:text-xl">
-              JunketTours
+            <span className="hidden sm:block leading-tight">
+              <span className="block text-lg font-semibold text-white">
+                Junket Tours
+              </span>
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-white/65">
+                Destination Management Company
+              </span>
             </span>
           </Link>
 
-          <nav
-            className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-0.5 md:flex"
-            aria-label="Primary"
-          >
-            {links.map(({ href, label, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="group flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-              >
-                <Icon
-                  className="h-4 w-4 text-brand-sun/90 transition-colors group-hover:text-brand-forest"
-                  aria-hidden
-                />
-                {label}
-              </Link>
-            ))}
+          <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
+            <Link
+              href="/tours"
+              className={cn(
+                "text-sm font-semibold text-white/90 transition-colors hover:text-havezic-primary",
+                pathname === "/tours" ||
+                  pathname?.startsWith("/tours/")
+                  ? "text-havezic-primary"
+                  : undefined,
+              )}
+            >
+              Tours
+            </Link>
+            <DestinationsMegaDropdown
+              pathname={pathname}
+              destinations={indexDestinations}
+            />
+            {links.map(({ href, label }) => {
+              const active =
+                pathname === href || pathname?.startsWith(href + "/");
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(
+                    "text-sm font-semibold text-white/90 transition-colors hover:text-havezic-primary",
+                    active && "text-havezic-primary",
+                  )}
+                >
+                  {label}
+                </Link>
+              );
+            })}
           </nav>
 
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
-            <Link
-              href="/ai-planner"
-              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-cta px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:brightness-110 sm:text-sm"
-            >
-              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
-              AI Planner
-            </Link>
+          <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
+            <div className="hidden items-center gap-2 md:flex">
+              <Link
+                href="/tours"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/90 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
+                aria-label="Search"
+                title="Search"
+              >
+                <Search className="h-5 w-5" aria-hidden />
+              </Link>
+              <button
+                type="button"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/90 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
+                aria-label="Wishlist"
+                title="Wishlist"
+              >
+                <Heart className="h-5 w-5" aria-hidden />
+              </button>
+              <Link
+                href={liveSession ? "/dashboard" : "/login"}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/90 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
+                aria-label="Account"
+                title="Account"
+              >
+                <User className="h-5 w-5" aria-hidden />
+              </Link>
+            </div>
             {whatsappUrl ? (
               <a
                 href={whatsappUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hidden rounded-xl p-2 text-[#25D366] transition hover:bg-white/10 sm:inline-flex"
-                aria-label="Chat on WhatsApp"
+                className="hidden items-center gap-2 rounded-full bg-havezic-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-havezic-primary-hover sm:inline-flex"
               >
-                <WhatsAppBrandIcon className="h-6 w-6" />
+                <WhatsAppBrandIcon className="h-5 w-5 shrink-0" />
+                WhatsApp
               </a>
             ) : null}
             {liveSession ? (
@@ -307,7 +633,7 @@ export function SiteHeaderNav({
             ) : (
               <Link
                 href="/login"
-                className="text-sm font-semibold text-foreground transition hover:text-brand-sun"
+                className="text-sm font-semibold text-white transition hover:text-havezic-primary"
               >
                 Log in
               </Link>
@@ -315,7 +641,7 @@ export function SiteHeaderNav({
 
             <button
               type="button"
-              className="rounded-xl p-2 text-foreground transition hover:bg-black/5 dark:hover:bg-white/10 md:hidden"
+              className="rounded-full border border-white/20 bg-white/5 p-2 text-white shadow-sm transition hover:border-white/35 md:hidden"
               aria-expanded={open}
               aria-label={open ? "Close menu" : "Open menu"}
               onClick={() => setOpen((o) => !o)}
@@ -340,11 +666,29 @@ export function SiteHeaderNav({
               aria-label="Mobile primary"
             >
               <div className="mt-3 flex flex-col gap-1 border-t border-white/20 pt-3 pb-1">
+                <Link
+                  href="/tours"
+                  className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
+                  onClick={() => setOpen(false)}
+                >
+                  <Compass className="h-4 w-4 text-brand-sun transition-colors group-hover:text-brand-forest" />
+                  Tours
+                </Link>
+                <MobileDestinationsAccordion
+                  pathname={pathname}
+                  destinations={indexDestinations}
+                  expanded={mobileDestOpen}
+                  onToggle={() => setMobileDestOpen((o) => !o)}
+                  onPick={() => {
+                    setOpen(false);
+                    setMobileDestOpen(false);
+                  }}
+                />
                 {links.map(({ href, label, icon: Icon }) => (
                   <Link
                     key={href}
                     href={href}
-                    className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-100 hover:bg-white/10"
+                    className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
                     onClick={() => setOpen(false)}
                   >
                     <Icon className="h-4 w-4 text-brand-sun transition-colors group-hover:text-brand-forest" />

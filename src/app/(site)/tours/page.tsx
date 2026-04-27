@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   description: "Filter and book northern Pakistan tours — Hunza, Skardu, Swat, and more.",
 };
 
-type Search = { type?: string; max?: string; min?: string };
+type Search = { type?: string; max?: string; min?: string; location?: string; from?: string; guests?: string };
 
 export default async function ToursPage({
   searchParams,
@@ -65,6 +65,7 @@ export default async function ToursPage({
         initialType={searchParams.type}
         initialMax={searchParams.max}
         initialMin={searchParams.min}
+        initialLocation={searchParams.location}
       />
     </main>
   );
