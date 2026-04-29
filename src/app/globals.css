@@ -46,6 +46,13 @@
     transition: background-color 9999s ease-out;
   }
 
+  /* Native select dropdowns: force readable option colors. */
+  select option,
+  select optgroup {
+    color: #0f172a;
+    background-color: #ffffff;
+  }
+
   body {
     color: var(--foreground);
     background-color: var(--background);

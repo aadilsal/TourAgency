@@ -16,10 +16,35 @@ import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { toAbsoluteUrl } from "@/lib/absoluteUrl";
 import { cn } from "@/lib/cn";
 import { PopoverMenu } from "@/components/ui/PopoverMenu";
+import {
+  alignHotelsToRows,
+  tiersToPackagesForPdf,
+  type PackageTier,
+} from "@/lib/itineraryPackageMatrix";
+
+function pickMapFallbackImage(input: string) {
+  const v = input.toLowerCase();
+  if (v.includes("hunza")) return "hunza.jpg";
+  if (v.includes("gilgit")) return "gilgit.jpg";
+  if (v.includes("khunjerab") || v.includes("khunerjab")) return "Khunerjab.jpg";
+  if (v.includes("islamabad")) return "islamabad.jpg";
+  if (v.includes("lahore")) return "lahore.jpg";
+  if (v.includes("karachi")) return "karachi.jpg";
+  return "hunza.jpg";
+}
 
 type ActivityIcon = "flight" | "hotel" | "food" | "sightseeing";
 type ItineraryDoc = {
   _id: Id<"itineraries">;
+  layoutVariant?: "simple" | "advanced";
+  atGlanceDays?: Array<{
+    dayNumber: number;
+    title: string;
+    detail: string;
+    overnight?: string;
+  }>;
+  packageStayRows?: Array<{ location: string }>;
+  packageTiers?: PackageTier[];
   headline: string;
   variantLabel: string;
   coverSubtitle: string;
@@ -107,6 +132,11 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
 
   const publicSettings = useQuery(api.siteSettings.getPublicSiteSettings, {});
 
+  const adminSettings = useQuery(
+    api.siteSettings.getAdminSiteSettings,
+    canQuery ? { sessionToken } : "skip",
+  );
+
   const urlCursor = useMemo(() => {
     const ids = itin
       ? ([
@@ -127,7 +157,66 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
     if (!itin) return null;
     const safeDays = Math.max(1, itin.days || 1);
     const nights = Math.max(0, safeDays - 1);
+    const isSimple = itin.layoutVariant === "simple";
+    const mapFallback = pickMapFallbackImage(
+      [itin.title, itin.pickupDropoff].filter(Boolean).join(" "),
+    );
+
+    if (isSimple) {
+      if (!adminSettings) return null;
+      const rows =
+        itin.packageStayRows && itin.packageStayRows.length > 0
+          ? itin.packageStayRows
+          : [{ location: "" }];
+      const rawTiers = itin.packageTiers ?? [];
+      const tiers = rawTiers.length
+        ? alignHotelsToRows(rawTiers, rows.length)
+        : [];
+      const packages = tiers.length ? tiersToPackagesForPdf(rows, tiers) : [];
+
+      return {
+        layoutVariant: "simple",
+        includeEmptySections: true,
+        headline: itin.headline,
+        variantLabel: itin.variantLabel,
+        tripTitle: itin.title,
+        coverSubtitle: itin.coverSubtitle || undefined,
+        clientName: itin.clientName ?? "",
+        dateRangeLabel: isoDateRangeLabel(itin.startDate, itin.endDate),
+        nightsLabel: `${nights}-Night`,
+        daysLabel: `${safeDays}-Day`,
+        pickupDropoff: itin.pickupDropoff || undefined,
+        complianceLine: itin.complianceLine || undefined,
+        licenceNumber:
+          (adminSettings as { governmentLicenseNo?: string }).governmentLicenseNo?.trim() ||
+          itin.licenceNumber?.trim() ||
+          undefined,
+        companyName: "JunketTours",
+        contact: {
+          phone: adminSettings.whatsappPhone?.trim() || undefined,
+          email: adminSettings.contactEmail?.trim() || undefined,
+          website: (adminSettings as { website?: string }).website?.trim() || undefined,
+          officeAddress: adminSettings.officeAddress?.trim() || undefined,
+        },
+        coverImageUrl: itin.coverImageStorageId
+          ? toAbsoluteUrl(urlCursor.get(String(itin.coverImageStorageId)) ?? null)
+          : toAbsoluteUrl(`/maps/${mapFallback}`),
+        logoUrl: itin.logoStorageId
+          ? toAbsoluteUrl(urlCursor.get(String(itin.logoStorageId)) ?? null)
+          : toAbsoluteUrl("/images-removebg-preview.png"),
+        atGlanceDays: itin.atGlanceDays ?? [],
+        dayPlans: [],
+        included: itin.included ?? [],
+        notIncluded: itin.notIncluded ?? [],
+        packages,
+        paymentTerms: adminSettings.paymentTerms ?? [],
+        bankDetails: adminSettings.bankDetails,
+        termsBlocks: adminSettings.termsBlocks ?? [],
+      };
+    }
+
     return {
+      layoutVariant: "advanced",
       headline: itin.headline,
       variantLabel: itin.variantLabel,
       tripTitle: itin.title,
@@ -183,7 +272,7 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
       bankDetails: itin.bankDetails,
       termsBlocks: itin.termsBlocks ?? [],
     };
-  }, [itin, urlCursor, publicSettings]);
+  }, [itin, urlCursor, publicSettings, adminSettings]);
 
   if (!canQuery) {
     return (

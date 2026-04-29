@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import { CheckCircle2, Download, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
@@ -163,6 +164,12 @@ export function AdminItinerariesTable() {
                       },
                     },
                     {
+                      label: "Download PDF",
+                      onClick: () => {
+                        window.open(`/admin/itineraries/${r._id}/download`, "_blank");
+                      },
+                    },
+                    {
                       label: "Delete",
                       tone: "danger",
                       onClick: () => {
@@ -233,13 +240,30 @@ export function AdminItinerariesTable() {
                   <div className="inline-flex items-center gap-2">
                     <Link
                       href={`/admin/itineraries/${r._id}`}
-                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-brand-cta hover:bg-panel-elevated"
+                      className="inline-flex items-center justify-center rounded-lg border border-border bg-panel p-2 text-brand-cta hover:bg-panel-elevated"
+                      aria-label="Edit"
+                      title="Edit"
                     >
-                      Edit
+                      <Pencil className="h-4 w-4" aria-hidden />
                     </Link>
+
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-panel-elevated"
+                      className="inline-flex items-center justify-center rounded-lg border border-border bg-panel p-2 text-foreground hover:bg-panel-elevated"
+                      aria-label="Download PDF"
+                      title="Download PDF"
+                      onClick={() =>
+                        window.open(`/admin/itineraries/${r._id}/download`, "_blank")
+                      }
+                    >
+                      <Download className="h-4 w-4" aria-hidden />
+                    </button>
+
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-lg border border-border bg-panel p-2 text-foreground hover:bg-panel-elevated"
+                      aria-label={r.status === "final" ? "Mark draft" : "Mark final"}
+                      title={r.status === "final" ? "Mark draft" : "Mark final"}
                       onClick={() => {
                         if (!canQuery) return;
                         setMsg(null);
@@ -262,11 +286,18 @@ export function AdminItinerariesTable() {
                         })();
                       }}
                     >
-                      {r.status === "final" ? "Mark draft" : "Mark final"}
+                      {r.status === "final" ? (
+                        <RotateCcw className="h-4 w-4" aria-hidden />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4" aria-hidden />
+                      )}
                     </button>
+
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-panel-elevated"
+                      className="inline-flex items-center justify-center rounded-lg border border-border bg-panel p-2 text-red-500 hover:bg-panel-elevated"
+                      aria-label="Delete"
+                      title="Delete"
                       onClick={() => {
                         if (!canQuery) return;
                         const ok = window.confirm(
@@ -286,7 +317,7 @@ export function AdminItinerariesTable() {
                         })();
                       }}
                     >
-                      Delete
+                      <Trash2 className="h-4 w-4" aria-hidden />
                     </button>
                   </div>
                 </td>

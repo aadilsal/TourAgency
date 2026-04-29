@@ -64,6 +64,11 @@ export function AdminSidebar({
         label: "Documents",
         links: [
           { href: "/admin/itineraries", label: "Itineraries", icon: FileText },
+          {
+            href: "/admin/itinerary-template",
+            label: "Itinerary constants",
+            icon: FileText,
+          },
           { href: "/admin/invoices", label: "Invoices", icon: FileText },
         ],
       },

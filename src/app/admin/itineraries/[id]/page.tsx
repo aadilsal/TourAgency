@@ -1,4 +1,4 @@
-import { AdminItineraryWizard } from "@/components/admin/AdminItineraryWizard";
+import { AdminItineraryEditorGate } from "@/components/admin/AdminItineraryEditorGate";
 
 export default function AdminItineraryDetailPage({
   params,
@@ -7,7 +7,7 @@ export default function AdminItineraryDetailPage({
 }) {
   return (
     <main>
-      <AdminItineraryWizard itineraryId={params.id} />
+      <AdminItineraryEditorGate itineraryId={params.id} />
     </main>
   );
 }

@@ -68,6 +68,30 @@ const termsBlockValidator = v.object({
   body: v.string(),
 });
 
+const atGlanceDayValidator = v.object({
+  dayNumber: v.number(),
+  title: v.string(),
+  detail: v.string(),
+  overnight: v.optional(v.string()),
+});
+
+const packageStayRowValidator = v.object({
+  location: v.string(),
+});
+
+const packageTierValidator = v.object({
+  name: v.string(),
+  pricePkr: v.optional(v.number()),
+  vehicle: v.optional(v.string()),
+  note: v.optional(v.string()),
+  hotels: v.array(
+    v.object({
+      hotel: v.string(),
+      nights: v.number(),
+    }),
+  ),
+});
+
 export const createDraft = mutation({
   args: {
     sessionToken: v.string(),
@@ -88,6 +112,13 @@ export const createDraft = mutation({
     assertAdminFromSession(user);
 
     const now = Date.now();
+    const safeDays = Math.max(1, Math.min(60, Math.floor(args.days)));
+    const atGlanceDays = Array.from({ length: safeDays }, (_, i) => ({
+      dayNumber: i + 1,
+      title: `Day ${i + 1}`,
+      detail: "",
+    }));
+
     const id = await ctx.db.insert("itineraries", {
       headline: "Your Dream Trip Awaits —",
       variantLabel: "Customised",
@@ -100,58 +131,20 @@ export const createDraft = mutation({
       clientName: args.clientName.trim(),
       startDate: args.startDate.trim(),
       endDate: args.endDate.trim(),
-      days: args.days,
+      days: safeDays,
       theme: args.theme,
       status: "draft",
       coverImageStorageId: args.coverImageStorageId,
       affiliationsStorageIds: [],
       destinations: [],
       dayPlans: [],
+      layoutVariant: "simple",
+      atGlanceDays,
+      packageStayRows: [],
+      packageTiers: [],
       included: [],
       notIncluded: [],
       packages: [],
-      paymentTerms: [
-        {
-          percent: 50,
-          title: "On Registration",
-          description: "Advance payment at time of booking",
-        },
-        {
-          percent: 30,
-          title: "Before Tour",
-          description: "Due before trip commencement",
-        },
-        { percent: 20, title: "Cash to Driver", description: "Payable on trip day" },
-      ],
-      bankDetails: {
-        bankName: "Bank Alfalah",
-        accountTitle: "Junket Tours",
-        accountNumber: "",
-        iban: "",
-        instruction: "",
-      },
-      termsBlocks: [
-        {
-          title: "ID Requirements",
-          body: "Pakistani nationals must carry valid CNIC. Foreign nationals must carry passport + visa.",
-        },
-        {
-          title: "Code of Conduct",
-          body: "Guests must maintain respectful behaviour. Misconduct may result in termination of services without refund.",
-        },
-        {
-          title: "Plan Alterations",
-          body: "Itinerary may change due to weather, road closures, or other situations. Safety and comfort come first.",
-        },
-        {
-          title: "Liability Disclaimer",
-          body: "The company is not liable for losses or delays arising from factors beyond its control. Travel insurance is recommended.",
-        },
-        {
-          title: "Prohibited Items",
-          body: "Weapons, firearms, explosives, hazardous materials, and illegal substances are strictly prohibited.",
-        },
-      ],
       createdAt: now,
       updatedAt: now,
     });
@@ -213,6 +206,13 @@ export const patchDraft = mutation({
     paymentTerms: v.optional(v.array(paymentTermValidator)),
     bankDetails: v.optional(bankDetailsValidator),
     termsBlocks: v.optional(v.array(termsBlockValidator)),
+
+    layoutVariant: v.optional(
+      v.union(v.literal("simple"), v.literal("advanced")),
+    ),
+    atGlanceDays: v.optional(v.array(atGlanceDayValidator)),
+    packageStayRows: v.optional(v.array(packageStayRowValidator)),
+    packageTiers: v.optional(v.array(packageTierValidator)),
   },
   handler: async (ctx, { sessionToken, itineraryId, ...patch }) => {
     const user = await requireUserFromSession(ctx, sessionToken);
@@ -255,6 +255,60 @@ export const patchDraft = mutation({
       }
       if ((k === "included" || k === "notIncluded") && Array.isArray(val)) {
         next[k] = val.map((s) => String(s).trim()).filter(Boolean);
+        continue;
+      }
+      if (k === "atGlanceDays" && Array.isArray(val)) {
+        next[k] = (val as unknown[]).map((item) => {
+          const d = item as Record<string, unknown>;
+          return {
+            dayNumber:
+              typeof d.dayNumber === "number"
+                ? d.dayNumber
+                : Number(d.dayNumber) || 0,
+            title: String(d.title ?? "").trim(),
+            detail: String(d.detail ?? "").trim(),
+            overnight:
+              typeof d.overnight === "string" && d.overnight.trim()
+                ? d.overnight.trim()
+                : undefined,
+          };
+        });
+        continue;
+      }
+      if (k === "packageStayRows" && Array.isArray(val)) {
+        next[k] = (val as unknown[]).map((item) => {
+          const r = item as Record<string, unknown>;
+          return { location: String(r.location ?? "").trim() };
+        });
+        continue;
+      }
+      if (k === "packageTiers" && Array.isArray(val)) {
+        next[k] = (val as unknown[]).map((item) => {
+          const t = item as Record<string, unknown>;
+          const hotels = Array.isArray(t.hotels) ? t.hotels : [];
+          return {
+            name: String(t.name ?? "").trim(),
+            pricePkr:
+              typeof t.pricePkr === "number" && Number.isFinite(t.pricePkr)
+                ? t.pricePkr
+                : undefined,
+            vehicle:
+              typeof t.vehicle === "string" && t.vehicle.trim()
+                ? t.vehicle.trim()
+                : undefined,
+            note:
+              typeof t.note === "string" && t.note.trim()
+                ? t.note.trim()
+                : undefined,
+            hotels: (hotels as unknown[]).map((h) => {
+              const row = h as Record<string, unknown>;
+              return {
+                hotel: String(row.hotel ?? "").trim(),
+                nights: Math.max(1, Math.floor(Number(row.nights) || 1)),
+              };
+            }),
+          };
+        });
         continue;
       }
       next[k] = val;

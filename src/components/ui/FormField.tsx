@@ -18,7 +18,7 @@ export function FieldLabel({
   return (
     <label
       htmlFor={htmlFor}
-      className={cn("block text-sm font-medium text-foreground/90", className)}
+      className={cn("block text-sm font-medium text-black", className)}
     >
       {children}
       {required ? <span className="text-brand-cta"> *</span> : null}
@@ -59,7 +59,7 @@ export function TextInput({ className, icon, error, ...props }: InputProps) {
         </span>
       ) : null}
       <input
-        className="min-w-0 flex-1 bg-transparent text-brand-ink outline-none placeholder:text-slate-400 text-base sm:text-sm"
+        className="min-w-0 flex-1 bg-transparent text-black caret-black outline-none placeholder:text-slate-500 text-base sm:text-sm"
         {...props}
       />
     </div>
@@ -87,7 +87,7 @@ export function SelectField({ className, error, children, ...props }: SelectProp
   return (
     <select
       className={cn(
-        "mt-1 w-full cursor-pointer appearance-none rounded-xl border border-slate-200/90 bg-white/95 bg-[length:1rem] bg-[right_0.75rem_center] bg-no-repeat px-3 py-2.5 pr-10 text-base sm:text-sm text-brand-ink shadow-sm transition-[box-shadow,border-color] focus:border-brand-accent/50 focus:outline-none focus:ring-2 focus:ring-brand-accent/20",
+        "mt-1 w-full cursor-pointer appearance-none rounded-xl border border-slate-200/90 bg-white/95 bg-[length:1rem] bg-[right_0.75rem_center] bg-no-repeat px-3 py-2.5 pr-10 text-base sm:text-sm text-black shadow-sm transition-[box-shadow,border-color] focus:border-brand-accent/50 focus:outline-none focus:ring-2 focus:ring-brand-accent/20",
         error && "border-red-300 focus:ring-red-200",
         className,
       )}

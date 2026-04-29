@@ -163,6 +163,35 @@ export default defineSchema({
     website: v.optional(v.string()),
     governmentLicenseNo: v.optional(v.string()),
     mapsEmbedUrl: v.optional(v.string()),
+    /** Global itinerary PDF boilerplate (same on every proposal). */
+    paymentTerms: v.optional(
+      v.array(
+        v.object({
+          percent: v.number(),
+          title: v.string(),
+          description: v.optional(v.string()),
+        }),
+      ),
+    ),
+    bankDetails: v.optional(
+      v.object({
+        bankName: v.optional(v.string()),
+        accountTitle: v.optional(v.string()),
+        accountNumber: v.optional(v.string()),
+        iban: v.optional(v.string()),
+        instruction: v.optional(v.string()),
+      }),
+    ),
+    termsBlocks: v.optional(
+      v.array(
+        v.object({
+          title: v.string(),
+          body: v.string(),
+        }),
+      ),
+    ),
+    defaultIncluded: v.optional(v.array(v.string())),
+    defaultNotIncluded: v.optional(v.array(v.string())),
     updatedAt: v.number(),
     updatedBy: v.optional(v.id("users")),
   }).index("by_key", ["key"]),
@@ -400,6 +429,47 @@ export default defineSchema({
         v.object({
           title: v.string(),
           body: v.string(),
+        }),
+      ),
+    ),
+
+    /** "simple" = new canvas builder + template constants from site settings; "advanced" = legacy wizard. */
+    layoutVariant: v.optional(
+      v.union(v.literal("simple"), v.literal("advanced")),
+    ),
+    /** Straight-down itinerary at a glance (simple layout). */
+    atGlanceDays: v.optional(
+      v.array(
+        v.object({
+          dayNumber: v.number(),
+          title: v.string(),
+          detail: v.string(),
+          overnight: v.optional(v.string()),
+        }),
+      ),
+    ),
+    /** Shared stay rows (locations) for package matrix in simple layout. */
+    packageStayRows: v.optional(
+      v.array(
+        v.object({
+          location: v.string(),
+        }),
+      ),
+    ),
+    /** Package tiers; hotels array aligns by index with packageStayRows. */
+    packageTiers: v.optional(
+      v.array(
+        v.object({
+          name: v.string(),
+          pricePkr: v.optional(v.number()),
+          vehicle: v.optional(v.string()),
+          note: v.optional(v.string()),
+          hotels: v.array(
+            v.object({
+              hotel: v.string(),
+              nights: v.number(),
+            }),
+          ),
         }),
       ),
     ),

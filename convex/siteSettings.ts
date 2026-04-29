@@ -32,6 +32,89 @@ function envDefaults() {
   };
 }
 
+/** Defaults when DB has no itinerary template fields yet (matches legacy itinerary draft defaults). */
+export function itineraryTemplateDefaults() {
+  return {
+    paymentTerms: [
+      {
+        percent: 50,
+        title: "On Registration",
+        description: "Advance payment at time of booking",
+      },
+      {
+        percent: 30,
+        title: "Before Tour",
+        description: "Due before trip commencement",
+      },
+      {
+        percent: 20,
+        title: "Cash to Driver",
+        description: "Payable on trip day",
+      },
+    ] as const,
+    bankDetails: {
+      bankName: "Bank Alfalah",
+      accountTitle: "Junket Tours",
+      accountNumber: "",
+      iban: "",
+      instruction: "",
+    },
+    termsBlocks: [
+      {
+        title: "ID Requirements",
+        body: "Pakistani nationals must carry valid CNIC. Foreign nationals must carry passport + visa.",
+      },
+      {
+        title: "Code of Conduct",
+        body: "Guests must maintain respectful behaviour. Misconduct may result in termination of services without refund.",
+      },
+      {
+        title: "Plan Alterations",
+        body: "Itinerary may change due to weather, road closures, or other situations. Safety and comfort come first.",
+      },
+      {
+        title: "Liability Disclaimer",
+        body: "The company is not liable for losses or delays arising from factors beyond its control. Travel insurance is recommended.",
+      },
+      {
+        title: "Prohibited Items",
+        body: "Weapons, firearms, explosives, hazardous materials, and illegal substances are strictly prohibited.",
+      },
+    ] as const,
+    defaultIncluded: [] as string[],
+    defaultNotIncluded: [] as string[],
+  };
+}
+
+type SiteDoc = {
+  paymentTerms?: Array<{ percent: number; title: string; description?: string }>;
+  bankDetails?: {
+    bankName?: string;
+    accountTitle?: string;
+    accountNumber?: string;
+    iban?: string;
+    instruction?: string;
+  };
+  termsBlocks?: Array<{ title: string; body: string }>;
+  defaultIncluded?: string[];
+  defaultNotIncluded?: string[];
+};
+
+/** Merge stored site settings with env + itinerary template fallbacks (admin PDF builder). */
+function mergeAdminSiteSettings(doc: SiteDoc | null | undefined) {
+  const env = envDefaults();
+  const tmpl = itineraryTemplateDefaults();
+  const base = { ...env, ...doc };
+  return {
+    ...base,
+    paymentTerms: base.paymentTerms ?? [...tmpl.paymentTerms],
+    bankDetails: base.bankDetails ?? { ...tmpl.bankDetails },
+    termsBlocks: base.termsBlocks ?? [...tmpl.termsBlocks],
+    defaultIncluded: base.defaultIncluded ?? [...tmpl.defaultIncluded],
+    defaultNotIncluded: base.defaultNotIncluded ?? [...tmpl.defaultNotIncluded],
+  };
+}
+
 export const getPublicSiteSettings = query({
   args: {},
   handler: async (ctx) => {
@@ -55,11 +138,27 @@ export const getAdminSiteSettings = query({
       .query("siteSettings")
       .withIndex("by_key", (q) => q.eq("key", GLOBAL_SETTINGS_KEY))
       .unique();
-    return {
-      ...envDefaults(),
-      ...doc,
-    };
+    return mergeAdminSiteSettings(doc ?? undefined);
   },
+});
+
+const paymentTermValidator = v.object({
+  percent: v.number(),
+  title: v.string(),
+  description: v.optional(v.string()),
+});
+
+const bankDetailsValidator = v.object({
+  bankName: v.optional(v.string()),
+  accountTitle: v.optional(v.string()),
+  accountNumber: v.optional(v.string()),
+  iban: v.optional(v.string()),
+  instruction: v.optional(v.string()),
+});
+
+const termsBlockValidator = v.object({
+  title: v.string(),
+  body: v.string(),
 });
 
 export const upsertAdminSiteSettings = mutation({
@@ -71,6 +170,11 @@ export const upsertAdminSiteSettings = mutation({
     website: v.optional(v.string()),
     governmentLicenseNo: v.optional(v.string()),
     mapsEmbedUrl: v.optional(v.string()),
+    paymentTerms: v.optional(v.array(paymentTermValidator)),
+    bankDetails: v.optional(bankDetailsValidator),
+    termsBlocks: v.optional(v.array(termsBlockValidator)),
+    defaultIncluded: v.optional(v.array(v.string())),
+    defaultNotIncluded: v.optional(v.array(v.string())),
   },
   handler: async (ctx, { sessionToken, ...args }) => {
     const user = await requireUserFromSession(ctx, sessionToken);
@@ -81,7 +185,7 @@ export const upsertAdminSiteSettings = mutation({
       .withIndex("by_key", (q) => q.eq("key", GLOBAL_SETTINGS_KEY))
       .unique();
 
-    const patch = {
+    const patch: Record<string, unknown> = {
       officeAddress: args.officeAddress?.trim() || undefined,
       whatsappPhone: args.whatsappPhone?.trim() || undefined,
       contactEmail: args.contactEmail?.trim() || undefined,
@@ -95,6 +199,22 @@ export const upsertAdminSiteSettings = mutation({
       updatedBy: user._id,
     };
 
+    if (args.paymentTerms !== undefined) {
+      patch.paymentTerms = args.paymentTerms;
+    }
+    if (args.bankDetails !== undefined) {
+      patch.bankDetails = args.bankDetails;
+    }
+    if (args.termsBlocks !== undefined) {
+      patch.termsBlocks = args.termsBlocks;
+    }
+    if (args.defaultIncluded !== undefined) {
+      patch.defaultIncluded = args.defaultIncluded.map((s) => s.trim()).filter(Boolean);
+    }
+    if (args.defaultNotIncluded !== undefined) {
+      patch.defaultNotIncluded = args.defaultNotIncluded.map((s) => s.trim()).filter(Boolean);
+    }
+
     if (existing) {
       await ctx.db.patch(existing._id, patch);
       return existing._id;
@@ -102,7 +222,9 @@ export const upsertAdminSiteSettings = mutation({
 
     return await ctx.db.insert("siteSettings", {
       key: GLOBAL_SETTINGS_KEY,
-      ...patch,
+      ...(patch as Record<string, unknown>),
+      updatedAt: now,
+      updatedBy: user._id,
     });
   },
 });

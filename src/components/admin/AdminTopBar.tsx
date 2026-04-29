@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Menu, X } from "lucide-react";
+import { ArrowLeft, Menu, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -15,6 +15,7 @@ type Props = {
 };
 
 export function AdminTopBar({ email, role, showManageAdmins }: Props) {
+  const router = useRouter();
   const roleLabel = role.replace("_", " ");
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -27,6 +28,8 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
     const parent = pathname.slice(0, -"/new".length) || "/admin";
     return parent === "/admin" ? "/admin" : parent;
   }, [pathname]);
+
+  const showBack = pathname.startsWith("/admin") && pathname !== "/admin";
 
   const items = useMemo(() => {
     return [
@@ -119,6 +122,16 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
     <header className="sticky top-0 z-[90] border-b border-border bg-panel shadow-sm backdrop-blur-xl">
       <PageContainer className="flex flex-wrap items-center justify-between gap-3 py-3.5 md:py-4">
         <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
+          {showBack ? (
+            <button
+              type="button"
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-panel-elevated p-2 text-foreground shadow-sm hover:bg-black/5"
+              aria-label="Back"
+              onClick={() => router.back()}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          ) : null}
           <button
             type="button"
             className="inline-flex items-center justify-center rounded-xl border border-border bg-panel-elevated p-2 text-foreground shadow-sm hover:bg-black/5 md:hidden"
