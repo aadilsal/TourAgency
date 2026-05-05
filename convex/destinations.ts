@@ -458,8 +458,10 @@ export const listForIndex = query({
   handler: async (ctx) => {
     const dests = await ctx.db.query("destinations").collect();
     if (dests.length === 0) return [];
-    const tours = await ctx.db.query("tours").collect();
-    const active = tours.filter((t) => t.isActive);
+    const active = await ctx.db
+      .query("tours")
+      .withIndex("by_isActive", (q) => q.eq("isActive", true))
+      .take(500);
     const sorted = dests.sort(
       (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name),
     );

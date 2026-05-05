@@ -66,7 +66,8 @@ html.theme-havezic {
   --border: var(--havezic-border);
   --border-strong: rgba(251, 91, 50, 0.55);
 
-  --shadow-panel: 0 8px 26px rgba(0, 0, 0, 0.08);
+  /* Theme uses subtle, soft shadows (e.g. dropdown: 0 0 30px rgba(0,0,0,0.05)) */
+  --shadow-panel: 0 0 30px rgba(0, 0, 0, 0.05);
   --shadow-panel-strong: 0 14px 40px rgba(0, 0, 0, 0.12);
 
   /* Disable mesh background in Havezic mode (the WP theme is clean/light) */
@@ -81,6 +82,18 @@ html.theme-havezic {
 }
 
 @layer base {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  /* Prevent long strings / code / URLs from forcing horizontal scroll. */
+  * {
+    overflow-wrap: anywhere;
+  }
+
   /* Readable text on light inputs (body foreground is light; cards use white fields). */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
@@ -100,6 +113,8 @@ html.theme-havezic {
   body {
     color: var(--foreground);
     background-color: var(--background);
+    font-size: 16px;
+    line-height: 1.625;
     background-image:
       radial-gradient(ellipse 110% 80% at 50% -20%, var(--mesh-1), transparent),
       radial-gradient(ellipse 70% 55% at 100% 10%, var(--mesh-2), transparent),
@@ -117,7 +132,7 @@ html.theme-havezic {
   }
 
   .font-display {
-    font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+    font-family: var(--font-inter), system-ui, sans-serif;
   }
 
   .glass-panel {

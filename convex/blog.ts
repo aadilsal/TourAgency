@@ -3,6 +3,8 @@ import { mutation, query } from "./_generated/server.js";
 import { resolveUserFromSessionToken, requireAdmin } from "./lib/authHelpers.js";
 import type { Doc } from "./_generated/dataModel.js";
 
+const MAX_PUBLIC_POSTS = 200;
+
 const SAMPLE_POSTS = [
   {
     title: "Hunza Trip Cost Guide",
@@ -42,25 +44,56 @@ export const getPosts = query({
     sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, { includeDrafts, sessionToken }) => {
-    const posts = await ctx.db.query("blogPosts").collect();
-    const sorted = posts.sort((a, b) => b.createdAt - a.createdAt);
     if (includeDrafts) {
       const user = await resolveUserFromSessionToken(ctx, sessionToken);
       if (user?.role === "admin" || user?.role === "super_admin") {
-        return sorted;
+        return await ctx.db
+          .query("blogPosts")
+          .withIndex("by_createdAt")
+          .order("desc")
+          .take(MAX_PUBLIC_POSTS);
       }
     }
-    return sorted.filter((p) => p.published);
+    return await ctx.db
+      .query("blogPosts")
+      .withIndex("by_published_and_createdAt", (q) => q.eq("published", true))
+      .order("desc")
+      .take(MAX_PUBLIC_POSTS);
   },
 });
 
 export const listPublicPosts = query({
   args: {},
   handler: async (ctx) => {
-    const posts = await ctx.db.query("blogPosts").collect();
-    return posts
-      .filter((p) => p.published)
-      .sort((a, b) => b.createdAt - a.createdAt);
+    return await ctx.db
+      .query("blogPosts")
+      .withIndex("by_published_and_createdAt", (q) => q.eq("published", true))
+      .order("desc")
+      .take(MAX_PUBLIC_POSTS);
+  },
+});
+
+export const listSlugsPublic = query({
+  args: {},
+  handler: async (ctx) => {
+    const posts = await ctx.db
+      .query("blogPosts")
+      .withIndex("by_published_and_createdAt", (q) => q.eq("published", true))
+      .order("desc")
+      .take(MAX_PUBLIC_POSTS);
+    return posts.map((p) => p.slug);
+  },
+});
+
+export const listRelatedPublic = query({
+  args: { slug: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, { slug, limit }) => {
+    const posts = await ctx.db
+      .query("blogPosts")
+      .withIndex("by_published_and_createdAt", (q) => q.eq("published", true))
+      .order("desc")
+      .take(MAX_PUBLIC_POSTS);
+    return posts.filter((p) => p.slug !== slug).slice(0, Math.max(1, limit ?? 3));
   },
 });
 

@@ -48,12 +48,12 @@ export function TourCard({ tour, badge, className }: Props) {
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="flex h-full items-center justify-center bg-gradient-to-br from-brand-primary/25 to-brand-cta/15 text-sm text-white/70">
+          <div className="flex h-full items-center justify-center bg-gradient-to-br from-black/20 to-havezic-primary/15 text-sm text-white/70">
             Photo soon
           </div>
         )}
         {badge ? (
-          <span className="absolute left-3 top-3 rounded-full bg-brand-cta px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
+          <span className="absolute left-3 top-3 rounded-full bg-havezic-primary px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
             {badge}
           </span>
         ) : null}
@@ -62,7 +62,7 @@ export function TourCard({ tour, badge, className }: Props) {
         <h3 className="line-clamp-2 text-lg font-semibold text-foreground">
           {tour.title}
         </h3>
-        <p className="mt-2 text-sm font-semibold text-brand-sun">
+        <p className="mt-2 text-sm font-semibold text-havezic-primary">
           {formatMoney(unitPrice, currency)} · {tour.durationDays} days
         </p>
         <p className="mt-1 line-clamp-2 text-sm text-muted">{tour.location}</p>
@@ -108,14 +108,14 @@ export function TourCardCompact({ tour }: { tour: TourCardData }) {
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="flex h-full items-center justify-center bg-gradient-to-br from-brand-primary/15 to-brand-cta/15 text-xs text-white/70">
+          <div className="flex h-full items-center justify-center bg-gradient-to-br from-black/15 to-havezic-primary/15 text-xs text-white/70">
             Photo soon
           </div>
         )}
       </div>
       <div className="p-4 text-left">
         <p className="font-semibold text-foreground">{tour.title}</p>
-        <p className="mt-1 text-sm font-medium text-brand-sun">
+        <p className="mt-1 text-sm font-medium text-havezic-primary">
           {formatMoney(unitPrice, currency)} · {tour.durationDays}d
         </p>
       </div>

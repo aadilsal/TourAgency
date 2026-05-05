@@ -159,12 +159,12 @@ export default function RegisterPage() {
             onChange={(e) => setConfirm(e.target.value)}
           />
         </div>
-        <label className="flex items-center gap-2 text-xs text-slate-600">
+        <label className="flex items-center gap-2 text-xs text-havezic-text">
           <input
             type="checkbox"
             checked={showPw}
             onChange={(e) => setShowPw(e.target.checked)}
-            className="rounded border-slate-300"
+            className="rounded border-border"
           />
           Show passwords
         </label>
@@ -185,9 +185,9 @@ export default function RegisterPage() {
       {isNavPending ? (
         <NavigationBlockingOverlay label="Redirecting…" variant="dark" />
       ) : null}
-      <p className="mt-4 text-center text-sm text-slate-500">
+      <p className="mt-4 text-center text-sm text-havezic-text">
         Already have an account?{" "}
-        <Link href="/login" className="font-semibold text-brand-accent hover:underline">
+        <Link href="/login" className="font-semibold text-havezic-primary hover:underline">
           Log in
         </Link>
       </p>

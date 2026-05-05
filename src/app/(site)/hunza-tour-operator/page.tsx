@@ -56,13 +56,13 @@ export default function HunzaTourOperatorPage() {
       />
       <PageContainer className="max-w-4xl">
         <header>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-accent">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-havezic-primary">
             Hunza Valley
           </p>
           <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
             Hunza tour operator (how to choose + book with JunketTours)
           </h1>
-          <p className="mt-4 text-base leading-relaxed text-slate-300 md:text-lg">
+          <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">
             A good Hunza tour operator gives you a realistic route, clear costs, dependable hotels,
             and support when conditions change. Use this guide to compare options, then browse Hunza
             tours or message us to plan your dates.
@@ -83,8 +83,8 @@ export default function HunzaTourOperatorPage() {
 
         <section className="mt-12 grid gap-6 md:grid-cols-2">
           <Card className="p-6 md:p-8">
-            <h2 className="text-lg font-bold text-brand-ink">What to ask before booking</h2>
-            <ul className="mt-4 list-inside list-disc space-y-2 text-sm leading-relaxed text-brand-muted">
+            <h2 className="text-lg font-bold text-foreground">What to ask before booking</h2>
+            <ul className="mt-4 list-inside list-disc space-y-2 text-sm leading-relaxed text-muted">
               <li>Exact day-by-day itinerary and drive-time expectations</li>
               <li>Hotel category and location (central vs remote)</li>
               <li>Transport type and contingency plans for road conditions</li>
@@ -93,8 +93,8 @@ export default function HunzaTourOperatorPage() {
             </ul>
           </Card>
           <Card className="p-6 md:p-8">
-            <h2 className="text-lg font-bold text-brand-ink">Start with a destination guide</h2>
-            <p className="mt-4 text-sm leading-relaxed text-brand-muted">
+            <h2 className="text-lg font-bold text-foreground">Start with a destination guide</h2>
+            <p className="mt-4 text-sm leading-relaxed text-muted">
               If you’re still deciding, begin with the Hunza destination overview and then choose a
               tour package that matches your days and budget.
             </p>
@@ -102,7 +102,7 @@ export default function HunzaTourOperatorPage() {
               <ButtonLink
                 href="/destinations/hunza"
                 variant="secondary"
-                className="border-slate-200/70 bg-white py-2.5 text-brand-primary hover:bg-slate-50"
+                className="border-border bg-white py-2.5 text-foreground hover:bg-havezic-background-light"
               >
                 Hunza destination guide
               </ButtonLink>
@@ -123,25 +123,25 @@ export default function HunzaTourOperatorPage() {
           </h2>
           <div className="mt-6 grid gap-4">
             <Card className="p-6 md:p-8">
-              <h3 className="text-base font-bold text-brand-ink">Tour packages</h3>
-              <p className="mt-2 text-sm leading-relaxed text-brand-muted">
+              <h3 className="text-base font-bold text-foreground">Tour packages</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
                 Best when you want predictable pricing and a proven route. Browse our tours and pick
                 the duration that fits your schedule.
               </p>
               <p className="mt-4 text-sm">
-                <Link href="/tours" className="font-semibold text-brand-accent underline">
+                <Link href="/tours" className="font-semibold text-havezic-primary underline">
                   Browse all tours
                 </Link>
               </p>
             </Card>
             <Card className="p-6 md:p-8">
-              <h3 className="text-base font-bold text-brand-ink">Custom planning</h3>
-              <p className="mt-2 text-sm leading-relaxed text-brand-muted">
+              <h3 className="text-base font-bold text-foreground">Custom planning</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
                 Best when you have specific dates, hotel preferences, or want to adjust pace. Use
                 the AI planner for an outline, then send it to us for refinement.
               </p>
               <p className="mt-4 text-sm">
-                <Link href="/contact" className="font-semibold text-brand-accent underline">
+                <Link href="/contact" className="font-semibold text-havezic-primary underline">
                   Contact JunketTours
                 </Link>
               </p>
@@ -154,8 +154,8 @@ export default function HunzaTourOperatorPage() {
           <div className="mt-6 grid gap-4">
             {faqs.map((f) => (
               <Card key={f.q} className="p-6 md:p-8">
-                <h3 className="text-base font-bold text-brand-ink">{f.q}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-brand-muted">{f.a}</p>
+                <h3 className="text-base font-bold text-foreground">{f.q}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{f.a}</p>
               </Card>
             ))}
           </div>

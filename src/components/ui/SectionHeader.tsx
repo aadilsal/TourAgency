@@ -39,7 +39,8 @@ export function SectionHeader({
       ) : null}
       <h2
         className={cn(
-          "mt-3 whitespace-pre-line text-3xl font-semibold tracking-tight text-foreground md:text-5xl",
+          // Havezic h2: 48px / 1.125 on desktop; scale down for mobile.
+          "mt-3 whitespace-pre-line text-[32px] font-semibold leading-[1.18] tracking-tight text-foreground sm:text-[40px] sm:leading-[1.14] lg:text-[48px] lg:leading-[1.125]",
         )}
       >
         {title}

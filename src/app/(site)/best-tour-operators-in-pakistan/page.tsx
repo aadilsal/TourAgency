@@ -56,13 +56,13 @@ export default function BestTourOperatorsPakistanPage() {
       />
       <PageContainer className="max-w-4xl">
         <header>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-accent">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-havezic-primary">
             Booking guide
           </p>
           <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
             Best tour operators in Pakistan (questions, red flags, and booking tips)
           </h1>
-          <p className="mt-4 text-base leading-relaxed text-slate-300 md:text-lg">
+          <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">
             “Best tour operator” should mean you get a realistic itinerary, predictable costs, and
             dependable support during the trip. Use this checklist to compare operators — then
             browse ready-to-book tours on JunketTours.
@@ -83,8 +83,8 @@ export default function BestTourOperatorsPakistanPage() {
 
         <section className="mt-12 grid gap-6 md:grid-cols-2">
           <Card className="p-6 md:p-8">
-            <h2 className="text-lg font-bold text-brand-ink">The 5 things to compare</h2>
-            <ol className="mt-4 list-inside list-decimal space-y-2 text-sm leading-relaxed text-brand-muted">
+            <h2 className="text-lg font-bold text-foreground">The 5 things to compare</h2>
+            <ol className="mt-4 list-inside list-decimal space-y-2 text-sm leading-relaxed text-muted">
               <li>Itinerary clarity (day-by-day, travel times, stay locations)</li>
               <li>Pricing transparency (what’s included vs extra)</li>
               <li>Accommodation + transport standards</li>
@@ -93,19 +93,19 @@ export default function BestTourOperatorsPakistanPage() {
             </ol>
           </Card>
           <Card className="p-6 md:p-8">
-            <h2 className="text-lg font-bold text-brand-ink">How JunketTours operates</h2>
-            <p className="mt-4 text-sm leading-relaxed text-brand-muted">
+            <h2 className="text-lg font-bold text-foreground">How JunketTours operates</h2>
+            <p className="mt-4 text-sm leading-relaxed text-muted">
               We focus on northern Pakistan tours (Hunza, Skardu, Swat and more) with a catalog you
               can browse and book. If you’re unsure what fits, message us — we’ll recommend the best
               option for your dates and budget.
             </p>
-            <p className="mt-4 text-sm text-brand-muted">
+            <p className="mt-4 text-sm text-muted">
               Start with destinations like{" "}
-              <Link href="/destinations/hunza" className="font-semibold text-brand-accent underline">
+              <Link href="/destinations/hunza" className="font-semibold text-havezic-primary underline">
                 Hunza
               </Link>{" "}
               and{" "}
-              <Link href="/destinations/skardu" className="font-semibold text-brand-accent underline">
+              <Link href="/destinations/skardu" className="font-semibold text-havezic-primary underline">
                 Skardu
               </Link>
               .
@@ -119,22 +119,22 @@ export default function BestTourOperatorsPakistanPage() {
           </h2>
           <div className="mt-6 grid gap-4">
             <Card className="p-6 md:p-8">
-              <h3 className="text-base font-bold text-brand-ink">Vague itineraries</h3>
-              <p className="mt-2 text-sm leading-relaxed text-brand-muted">
+              <h3 className="text-base font-bold text-foreground">Vague itineraries</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
                 If the plan is just “visit places”, you don’t know what you’re paying for. Ask for
                 distances, routes, and where you stay each night.
               </p>
             </Card>
             <Card className="p-6 md:p-8">
-              <h3 className="text-base font-bold text-brand-ink">Unclear inclusions/exclusions</h3>
-              <p className="mt-2 text-sm leading-relaxed text-brand-muted">
+              <h3 className="text-base font-bold text-foreground">Unclear inclusions/exclusions</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
                 Many disputes happen because costs weren’t scoped. Make sure meals, tickets, hotel
                 type, and transport are clearly listed.
               </p>
             </Card>
             <Card className="p-6 md:p-8">
-              <h3 className="text-base font-bold text-brand-ink">No support plan</h3>
-              <p className="mt-2 text-sm leading-relaxed text-brand-muted">
+              <h3 className="text-base font-bold text-foreground">No support plan</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
                 In mountain regions, delays happen. Good operators communicate and adapt without
                 breaking the trip’s core experience.
               </p>
@@ -169,8 +169,8 @@ export default function BestTourOperatorsPakistanPage() {
           <div className="mt-6 grid gap-4">
             {faqs.map((f) => (
               <Card key={f.q} className="p-6 md:p-8">
-                <h3 className="text-base font-bold text-brand-ink">{f.q}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-brand-muted">{f.a}</p>
+                <h3 className="text-base font-bold text-foreground">{f.q}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{f.a}</p>
               </Card>
             ))}
           </div>

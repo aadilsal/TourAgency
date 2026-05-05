@@ -61,13 +61,13 @@ export default function BestTravelAgencyPakistanPage() {
       />
       <PageContainer className="max-w-4xl">
         <header>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-brand-accent">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-havezic-primary">
             Pakistan travel planning
           </p>
           <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
             Best travel agency in Pakistan (how to choose + why JunketTours)
           </h1>
-          <p className="mt-4 text-base leading-relaxed text-slate-300 md:text-lg">
+          <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">
             If you’re comparing travel agencies in Pakistan, you want more than a catchy package
             name — you want a clear itinerary, predictable costs, and a team that stays responsive
             when roads or weather change. This guide shows you what to look for and how we run trips
@@ -89,8 +89,8 @@ export default function BestTravelAgencyPakistanPage() {
 
         <section className="mt-12 grid gap-6 md:grid-cols-2">
           <Card className="p-6 md:p-8">
-            <h2 className="text-lg font-bold text-brand-ink">What “best” really means</h2>
-            <ul className="mt-4 list-inside list-disc space-y-2 text-sm leading-relaxed text-brand-muted">
+            <h2 className="text-lg font-bold text-foreground">What “best” really means</h2>
+            <ul className="mt-4 list-inside list-disc space-y-2 text-sm leading-relaxed text-muted">
               <li>Transparent pricing and clear inclusions/exclusions</li>
               <li>Realistic day-by-day itinerary (not vague bullet points)</li>
               <li>Safety-first routing and flexibility for weather/road closures</li>
@@ -99,15 +99,15 @@ export default function BestTravelAgencyPakistanPage() {
             </ul>
           </Card>
           <Card className="p-6 md:p-8">
-            <h2 className="text-lg font-bold text-brand-ink">Why travelers pick JunketTours</h2>
-            <p className="mt-4 text-sm leading-relaxed text-brand-muted">
+            <h2 className="text-lg font-bold text-foreground">Why travelers pick JunketTours</h2>
+            <p className="mt-4 text-sm leading-relaxed text-muted">
               We focus on northern Pakistan with a catalog you can browse and book — plus custom
               planning when you want something specific. If you message us, we’ll suggest the right
               tour based on dates, budget, and travel style.
             </p>
-            <p className="mt-4 text-sm text-brand-muted">
+            <p className="mt-4 text-sm text-muted">
               Office: Johar Town, Lahore. Phone/WhatsApp support is available through{" "}
-              <Link href="/contact" className="font-semibold text-brand-accent underline">
+              <Link href="/contact" className="font-semibold text-havezic-primary underline">
                 our contact page
               </Link>
               .
@@ -121,22 +121,22 @@ export default function BestTravelAgencyPakistanPage() {
           </h2>
           <div className="mt-6 grid gap-6">
             <Card className="p-6 md:p-8">
-              <h3 className="text-base font-bold text-brand-ink">1) Ask for the exact itinerary</h3>
-              <p className="mt-2 text-sm leading-relaxed text-brand-muted">
+              <h3 className="text-base font-bold text-foreground">1) Ask for the exact itinerary</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
                 You should receive a day-by-day plan with travel times, stay locations, and what’s
                 included. If the plan is vague, you’ll likely face surprises later.
               </p>
             </Card>
             <Card className="p-6 md:p-8">
-              <h3 className="text-base font-bold text-brand-ink">2) Confirm inclusions + exclusions</h3>
-              <p className="mt-2 text-sm leading-relaxed text-brand-muted">
+              <h3 className="text-base font-bold text-foreground">2) Confirm inclusions + exclusions</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
                 Confirm hotel category, transport type, meals, and what’s excluded (entry tickets,
                 personal expenses, optional activities). Clear scope prevents conflict.
               </p>
             </Card>
             <Card className="p-6 md:p-8">
-              <h3 className="text-base font-bold text-brand-ink">3) Verify support and escalation</h3>
-              <p className="mt-2 text-sm leading-relaxed text-brand-muted">
+              <h3 className="text-base font-bold text-foreground">3) Verify support and escalation</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
                 In northern Pakistan, conditions can change. You want an operator who stays
                 responsive and can adjust routes without ruining your trip.
               </p>
@@ -177,8 +177,8 @@ export default function BestTravelAgencyPakistanPage() {
           <div className="mt-6 grid gap-4">
             {faqs.map((f) => (
               <Card key={f.q} className="p-6 md:p-8">
-                <h3 className="text-base font-bold text-brand-ink">{f.q}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-brand-muted">{f.a}</p>
+                <h3 className="text-base font-bold text-foreground">{f.q}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{f.a}</p>
               </Card>
             ))}
           </div>

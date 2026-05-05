@@ -121,7 +121,7 @@ function AccountDropdown({
       <button
         type="button"
         className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-havezic-background text-xs font-bold uppercase tracking-wide text-foreground ring-1 ring-border transition hover:ring-havezic-primary/40",
+          "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-havezic-background text-xs font-bold uppercase tracking-wide text-foreground ring-1 ring-border transition hover:ring-havezic-primary/40",
           align === "full" && "h-10 w-10",
         )}
         aria-expanded={open}
@@ -531,14 +531,14 @@ export function SiteHeaderNav({
   return (
     <header className="sticky top-0 z-50 bg-brand-primary text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
       <PageContainer className="py-0">
-        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-6">
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 sm:gap-4 md:gap-6">
           <Link
             href="/"
-            className="group flex items-center gap-3 shrink-0 py-5"
+            className="group flex items-center gap-3 shrink-0 py-3 sm:py-5"
             aria-label="JunketTours"
             title="JunketTours"
           >
-            <span className="relative h-12 w-12 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/20">
+            <span className="relative h-10 w-10 sm:h-12 sm:w-12 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/20">
               <Image
                 src="/images-removebg-preview.png"
                 alt=""
@@ -558,7 +558,7 @@ export function SiteHeaderNav({
           </Link>
 
           <nav
-            className="hidden items-center justify-center gap-8 md:flex"
+            className="hidden min-w-0 items-center justify-center gap-8 md:flex"
             aria-label="Primary"
           >
             <Link
@@ -633,7 +633,7 @@ export function SiteHeaderNav({
 
             <button
               type="button"
-              className="rounded-full border border-white/20 bg-white/5 p-2 text-white shadow-sm transition hover:border-white/35 md:hidden"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white shadow-sm transition hover:border-white/35 md:hidden"
               aria-expanded={open}
               aria-label={open ? "Close menu" : "Open menu"}
               onClick={() => setOpen((o) => !o)}

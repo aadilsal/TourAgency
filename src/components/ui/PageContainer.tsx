@@ -10,7 +10,8 @@ export function PageContainer({
   return (
     <div
       className={cn(
-        "mx-auto w-full max-w-content px-6 md:px-12 lg:px-20",
+        // Mobile-first gutters; scale up smoothly to desktop.
+        "mx-auto w-full max-w-havezic px-4 sm:px-6 lg:px-8",
         className,
       )}
     >

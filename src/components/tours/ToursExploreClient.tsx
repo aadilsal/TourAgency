@@ -51,7 +51,7 @@ type Props = {
 };
 
 const fieldClass =
-  "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-brand-ink focus:ring-2 focus:ring-brand-accent/30";
+  "mt-1 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm font-medium text-havezic-accent shadow-sm focus:outline-none focus:ring-2 focus:ring-havezic-primary/25";
 
 type FilterFormProps = {
   location: string;
@@ -94,13 +94,13 @@ function TourFiltersForm({
   const currency = useCurrency();
   return (
     <div className="space-y-5">
-      <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-brand-primary">
+      <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-havezic-primary">
         <SlidersHorizontal className="h-4 w-4" aria-hidden />
         Filters
       </p>
 
       <label className="block text-sm">
-        <span className="font-medium text-brand-muted">Location</span>
+        <span className="font-medium text-havezic-text">Location</span>
         <select
           className={fieldClass}
           value={location}
@@ -119,12 +119,12 @@ function TourFiltersForm({
       </label>
 
       <div>
-        <span className="text-sm font-medium text-brand-muted">
+        <span className="text-sm font-medium text-havezic-text">
           Price range ({currency})
         </span>
         <div className="mt-1 grid grid-cols-2 gap-3">
           <label className="block text-sm">
-            <span className="text-xs text-brand-muted">Min</span>
+            <span className="text-xs text-havezic-text-light">Min</span>
             <input
               className={fieldClass}
               inputMode="numeric"
@@ -137,7 +137,7 @@ function TourFiltersForm({
             />
           </label>
           <label className="block text-sm">
-            <span className="text-xs text-brand-muted">Max</span>
+            <span className="text-xs text-havezic-text-light">Max</span>
             <input
               className={fieldClass}
               inputMode="numeric"
@@ -153,10 +153,10 @@ function TourFiltersForm({
       </div>
 
       <div>
-        <span className="text-sm font-medium text-brand-muted">Duration (days)</span>
+        <span className="text-sm font-medium text-havezic-text">Duration (days)</span>
         <div className="mt-1 grid grid-cols-2 gap-3">
           <label className="block text-sm">
-            <span className="text-xs text-brand-muted">Min</span>
+            <span className="text-xs text-havezic-text-light">Min</span>
             <input
               className={fieldClass}
               inputMode="numeric"
@@ -169,7 +169,7 @@ function TourFiltersForm({
             />
           </label>
           <label className="block text-sm">
-            <span className="text-xs text-brand-muted">Max</span>
+            <span className="text-xs text-havezic-text-light">Max</span>
             <input
               className={fieldClass}
               inputMode="numeric"
@@ -185,7 +185,7 @@ function TourFiltersForm({
       </div>
 
       <label className="block text-sm">
-        <span className="font-medium text-brand-muted">Type</span>
+        <span className="font-medium text-havezic-text">Type</span>
         <select
           className={fieldClass}
           value={type}
@@ -441,7 +441,7 @@ export function ToursExploreClient({
         <PageContainer className="relative pb-10 pt-14 md:pb-14 md:pt-20 lg:pb-16">
           <MotionSection>
             <header className="max-w-3xl">
-              <p className="text-xs font-bold uppercase tracking-widest text-brand-accent">
+              <p className="text-xs font-bold uppercase tracking-widest text-white/85">
                 Northern Pakistan
               </p>
               <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-white md:text-5xl">
@@ -470,15 +470,15 @@ export function ToursExploreClient({
             <SlidersHorizontal className="h-4 w-4" />
             Filters
             {activeFilterCount > 0 ? (
-              <span className="rounded-full bg-brand-primary px-2 py-0.5 text-xs font-bold text-white">
+              <span className="rounded-full bg-havezic-primary px-2 py-0.5 text-xs font-bold text-white">
                 {activeFilterCount}
               </span>
             ) : null}
           </Button>
           <label className="flex w-full items-center gap-2 text-sm sm:w-auto sm:min-w-[200px]">
-            <span className="shrink-0 text-brand-muted">Sort</span>
+            <span className="shrink-0 text-havezic-text">Sort</span>
             <select
-              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-brand-ink shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/30"
+              className="min-w-0 flex-1 rounded-xl border border-border bg-white px-3 py-2.5 text-sm font-medium text-havezic-accent shadow-sm focus:outline-none focus:ring-2 focus:ring-havezic-primary/25"
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
             >
@@ -494,19 +494,19 @@ export function ToursExploreClient({
         <div className="mt-8 grid gap-8 lg:mt-10 lg:grid-cols-[300px_1fr] lg:gap-10 xl:gap-12">
           {/* Desktop sticky sidebar */}
           <aside className="hidden lg:block">
-            <div className="sticky top-24 max-h-[calc(100dvh-6.5rem)] space-y-6 overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-6 shadow-sm pb-8">
+            <div className="sticky top-24 max-h-[calc(100dvh-6.5rem)] space-y-6 overflow-y-auto overscroll-contain rounded-2xl border border-border bg-white p-6 shadow-sm pb-8">
               <TourFiltersForm {...filterFormProps} />
             </div>
           </aside>
 
           <div className="min-w-0">
             <div className="hidden items-center justify-between gap-4 lg:flex">
-              <p className="text-sm text-brand-muted">
+              <p className="text-sm text-havezic-text">
                 {convexTours === undefined && initialTours.length === 0 ? (
                   <>Loading tours…</>
                 ) : (
                   <>
-                    <span className="font-semibold text-brand-ink">
+                    <span className="font-semibold text-havezic-accent">
                       {filtered.length}
                     </span>{" "}
                     tour{filtered.length !== 1 ? "s" : ""} match
@@ -521,9 +521,9 @@ export function ToursExploreClient({
                 )}
               </p>
               <label className="flex items-center gap-2 text-sm">
-                <span className="text-brand-muted">Sort by</span>
+                <span className="text-havezic-text">Sort by</span>
                 <select
-                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-brand-ink shadow-sm focus:ring-2 focus:ring-brand-accent/30"
+                  className="rounded-xl border border-border bg-white px-3 py-2 text-sm font-medium text-havezic-accent shadow-sm focus:ring-2 focus:ring-havezic-primary/25"
                   value={sort}
                   onChange={(e) => setSort(e.target.value as SortKey)}
                 >
@@ -537,12 +537,12 @@ export function ToursExploreClient({
             </div>
 
             {/* Mobile count line */}
-            <p className="mt-2 text-sm text-brand-muted lg:hidden">
+            <p className="mt-2 text-sm text-havezic-text lg:hidden">
               {convexTours === undefined && initialTours.length === 0 ? (
                 <>Loading tours…</>
               ) : (
                 <>
-                  <span className="font-semibold text-brand-ink">
+                  <span className="font-semibold text-havezic-accent">
                     {filtered.length}
                   </span>{" "}
                   tour{filtered.length !== 1 ? "s" : ""} match
@@ -551,12 +551,12 @@ export function ToursExploreClient({
             </p>
 
             {slice.length === 0 ? (
-              <div className="mt-10 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
+              <div className="mt-10 rounded-2xl border border-dashed border-border bg-havezic-background-light p-10 text-center">
                 <MapPinOff
                   className="mx-auto h-12 w-12 text-slate-400"
                   aria-hidden
                 />
-                <p className="mt-4 text-brand-muted">
+                <p className="mt-4 text-havezic-text">
                   {convexTours === undefined ? (
                     <>Loading tours…</>
                   ) : !hasDefaultFilters ? (
@@ -564,7 +564,7 @@ export function ToursExploreClient({
                       No tours match these filters.{" "}
                       <button
                         type="button"
-                        className="font-semibold text-brand-accent underline"
+                        className="font-semibold text-havezic-primary underline"
                         onClick={() => {
                           resetFilters();
                           setFilterDrawerOpen(false);
@@ -575,7 +575,7 @@ export function ToursExploreClient({
                       {" · "}
                       <Link
                         href="/tours"
-                        className="font-semibold text-brand-accent underline"
+                        className="font-semibold text-havezic-primary underline"
                       >
                         View all tours
                       </Link>
@@ -629,8 +629,8 @@ export function ToursExploreClient({
                           onClick={() => setPage(p)}
                           className={
                             p === currentPage
-                              ? "min-w-[2.25rem] rounded-lg bg-brand-primary px-2 py-1.5 text-sm font-bold text-white"
-                              : "min-w-[2.25rem] rounded-lg px-2 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                              ? "min-w-[2.25rem] rounded-lg bg-havezic-primary px-2 py-1.5 text-sm font-bold text-white"
+                              : "min-w-[2.25rem] rounded-lg px-2 py-1.5 text-sm font-medium text-havezic-text hover:bg-havezic-background-light"
                           }
                           aria-current={p === currentPage ? "page" : undefined}
                         >
@@ -683,8 +683,8 @@ export function ToursExploreClient({
                 exit={{ x: "-100%" }}
                 transition={{ type: "spring", damping: 28, stiffness: 320 }}
               >
-                <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                  <h2 className="font-display text-lg font-semibold text-brand-ink">
+                <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                  <h2 className="font-display text-lg font-semibold text-havezic-accent">
                     Filters
                   </h2>
                   <button

@@ -57,11 +57,11 @@ export function TestimonialsCarousel() {
                   alt=""
                   className="absolute inset-0 h-full w-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-brand-ink via-brand-ink/75 to-brand-ink/20" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/20" />
                 <blockquote className="relative flex h-full min-h-[280px] flex-col justify-end p-6 md:p-8">
                   <div className="flex items-center gap-3">
                     <div
-                      className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-accent text-base font-bold text-white"
+                      className="flex h-12 w-12 items-center justify-center rounded-full bg-havezic-primary text-base font-bold text-white"
                       aria-hidden
                     >
                       {t.name.slice(0, 1)}

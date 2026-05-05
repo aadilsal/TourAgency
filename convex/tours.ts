@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server.js";
+import { paginationOptsValidator } from "convex/server";
 import { internal } from "./_generated/api.js";
 import { resolveUserFromSessionToken, requireAdmin } from "./lib/authHelpers.js";
 import type { Doc } from "./_generated/dataModel.js";
@@ -9,23 +10,27 @@ import {
   syncTourImageAssetIndex,
 } from "./lib/syncTourImageAssets.js";
 
+const MAX_TOURS_RETURNED = 500;
+
 export const getTours = query({
   args: {
     includeInactive: v.optional(v.boolean()),
     sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, { includeInactive, sessionToken }) => {
-    const all = await ctx.db.query("tours").collect();
     const user = await resolveUserFromSessionToken(ctx, sessionToken);
     const isAdmin =
       user?.role === "admin" || user?.role === "super_admin";
 
-    let list = all;
-    if (!includeInactive || !isAdmin) {
-      list = all.filter((t) => t.isActive);
-    }
+    const wantsAll = Boolean(includeInactive) && isAdmin;
+    const list = wantsAll
+      ? await ctx.db.query("tours").take(MAX_TOURS_RETURNED)
+      : await ctx.db
+          .query("tours")
+          .withIndex("by_isActive", (q) => q.eq("isActive", true))
+          .take(MAX_TOURS_RETURNED);
 
-    if (includeInactive && isAdmin) {
+    if (wantsAll) {
       return list;
     }
 
@@ -38,12 +43,86 @@ export const getTours = query({
   },
 });
 
+export const listActiveToursForExplore = query({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("tours")
+      .withIndex("by_isActive_and_createdAt", (q) => q.eq("isActive", true))
+      .order("desc")
+      .take(MAX_TOURS_RETURNED);
+
+    return Promise.all(
+      rows.map(async (t) => ({
+        _id: t._id,
+        slug: t.slug,
+        title: t.title,
+        description: t.description,
+        types: t.types ?? [],
+        price: t.price,
+        pricePkr: (t as { pricePkr?: number }).pricePkr,
+        priceUsd: (t as { priceUsd?: number }).priceUsd,
+        durationDays: t.durationDays,
+        location: t.location,
+        isActive: t.isActive,
+        images: await resolveTourImageUrls(ctx, t.images),
+      })),
+    );
+  },
+});
+
+export const listActiveToursPaginated = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    return await ctx.db
+      .query("tours")
+      .withIndex("by_isActive_and_createdAt", (q) => q.eq("isActive", true))
+      .order("desc")
+      .paginate(paginationOpts);
+  },
+});
+
+export const listRelatedTours = query({
+  args: {
+    excludeTourId: v.id("tours"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { excludeTourId, limit }) => {
+    const rows = await ctx.db
+      .query("tours")
+      .withIndex("by_isActive_and_createdAt", (q) => q.eq("isActive", true))
+      .order("desc")
+      .take(Math.min(MAX_TOURS_RETURNED, Math.max(1, limit ?? 12)));
+
+    const filtered = rows.filter((t) => t._id !== excludeTourId);
+    return Promise.all(
+      filtered.map(async (t) => ({
+        ...t,
+        images: await resolveTourImageUrls(ctx, t.images),
+      })),
+    );
+  },
+});
+
+export const listSlugsActive = query({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("tours")
+      .withIndex("by_isActive", (q) => q.eq("isActive", true))
+      .take(MAX_TOURS_RETURNED);
+    return rows.map((t) => t.slug);
+  },
+});
+
 export const listToursForAi = internalQuery({
   args: {},
   handler: async (ctx) => {
-    const tours = await ctx.db.query("tours").collect();
+    const tours = await ctx.db
+      .query("tours")
+      .withIndex("by_isActive", (q) => q.eq("isActive", true))
+      .take(MAX_TOURS_RETURNED);
     return tours
-      .filter((t) => t.isActive)
       .map((t) => ({
         title: t.title,
         slug: t.slug,

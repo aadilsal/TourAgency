@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import { getConvexServer } from "@/lib/convex-server";
 import { api } from "@convex/_generated/api";
 import type { Metadata } from "next";
 import nextDynamic from "next/dynamic";
@@ -18,6 +17,9 @@ import { TourCalendarPrices } from "@/components/tours/TourCalendarPrices";
 import { cookies } from "next/headers";
 import { formatMoney, type CurrencyCode } from "@/lib/money";
 import { getTourUnitPrice } from "@/lib/tourPricing";
+import { loadTourBySlug } from "@/lib/tours-server";
+import { getConvexServer } from "@/lib/convex-server";
+import Image from "next/image";
 
 function lazyBlock(label: string, minH: string) {
   function LoadingBlock() {
@@ -90,10 +92,7 @@ type Props = { params: { slug: string } };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
-    const client = getConvexServer();
-    const tour = await client.query(api.tours.getTourBySlug, {
-      slug: params.slug,
-    });
+    const tour = await loadTourBySlug(params.slug);
     if (!tour || !tour.isActive) {
       return { title: "Tour" };
     }
@@ -124,12 +123,12 @@ export default async function TourDetailPage({ params }: Props) {
   let relatedRaw: TourDetail[] = [];
   try {
     const client = getConvexServer();
-    tour = (await client.query(api.tours.getTourBySlug, {
-      slug: params.slug,
-    })) as TourDetail | null;
+    tour = (await loadTourBySlug(params.slug)) as TourDetail | null;
     if (tour?.isActive) {
-      const all = (await client.query(api.tours.getTours, {})) as TourDetail[];
-      relatedRaw = all.filter((t) => t._id !== tour!._id && t.isActive);
+      relatedRaw = (await client.query(api.tours.listRelatedTours, {
+        excludeTourId: tour._id,
+        limit: 24,
+      })) as TourDetail[];
     }
   } catch {
     tour = null;
@@ -236,20 +235,20 @@ export default async function TourDetailPage({ params }: Props) {
                       className="group flex items-center gap-3 rounded-2xl border border-border bg-panel-elevated p-3 transition hover:bg-panel"
                     >
                       <div className="h-12 w-12 overflow-hidden rounded-xl bg-slate-200 ring-1 ring-border">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <Image
                           src={t.images?.[0] || "/placeholder.jpg"}
                           alt=""
+                          width={48}
+                          height={48}
+                          sizes="48px"
                           className="h-full w-full object-cover"
-                          loading="lazy"
-                          decoding="async"
                         />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground group-hover:text-brand-cta">
+                        <p className="truncate text-sm font-semibold text-foreground group-hover:text-havezic-primary">
                           {t.title}
                         </p>
-                        <p className="mt-0.5 text-xs font-bold text-brand-cta">
+                        <p className="mt-0.5 text-xs font-bold text-havezic-primary">
                           PKR {Number(t.price).toLocaleString()}
                         </p>
                       </div>
@@ -281,7 +280,7 @@ export default async function TourDetailPage({ params }: Props) {
                     ].map((x) => (
                       <li key={x} className="flex gap-2">
                         <span
-                          className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-cta/15 text-brand-cta"
+                          className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-havezic-primary/15 text-havezic-primary"
                           aria-hidden
                         >
                           ✓
@@ -329,15 +328,15 @@ export default async function TourDetailPage({ params }: Props) {
                 Day-by-day flow — timings may shift slightly with weather and road
                 conditions.
               </p>
-              <ol className="relative mt-8 space-y-0 border-l-2 border-brand-accent/35 pl-6 md:pl-8">
+              <ol className="relative mt-8 space-y-0 border-l-2 border-border pl-6 md:pl-8">
                 {tour.itinerary.map((d) => (
                   <li key={d.day} className="relative pb-10 last:pb-0">
                     <span
-                      className="absolute -left-[calc(0.75rem+2px)] top-1.5 flex h-3.5 w-3.5 -translate-x-1/2 items-center justify-center rounded-full border-2 border-white bg-brand-cta shadow-sm ring-2 ring-brand-accent/25 md:-left-[calc(1rem+2px)]"
+                      className="absolute -left-[calc(0.75rem+2px)] top-1.5 flex h-3.5 w-3.5 -translate-x-1/2 items-center justify-center rounded-full border-2 border-white bg-havezic-primary shadow-sm ring-2 ring-havezic-primary/20 md:-left-[calc(1rem+2px)]"
                       aria-hidden
                     />
                     <Card className="rounded-2xl p-5 md:p-6">
-                      <p className="text-xs font-bold uppercase tracking-wider text-brand-sun">
+                      <p className="text-xs font-bold uppercase tracking-wider text-havezic-text">
                         Day {d.day}
                       </p>
                       <p className="mt-1.5 text-lg font-semibold text-foreground">

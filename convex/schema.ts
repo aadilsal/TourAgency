@@ -131,7 +131,10 @@ export default defineSchema({
     ),
     isActive: v.boolean(),
     createdAt: v.number(),
-  }).index("by_slug", ["slug"]),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_isActive", ["isActive"])
+    .index("by_isActive_and_createdAt", ["isActive", "createdAt"]),
 
   /** Indexes Convex `_storage` ids under a logical folder per tour (see `imageFolderKey`). */
   tourImageAssets: defineTable({
@@ -265,7 +268,10 @@ export default defineSchema({
     metaDescription: v.optional(v.string()),
     published: v.boolean(),
     createdAt: v.number(),
-  }).index("by_slug", ["slug"]),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_createdAt", ["createdAt"])
+    .index("by_published_and_createdAt", ["published", "createdAt"]),
 
   adminLogs: defineTable({
     action: v.string(),

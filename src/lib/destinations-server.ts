@@ -44,11 +44,11 @@ export async function loadDestinationIndexRows(): Promise<DestinationIndexRow[]>
   }> = [];
   try {
     const client = getConvexServer();
-    tours = (await client.query(api.tours.getTours, {})) as typeof tours;
+    tours = (await client.query(api.tours.listActiveToursForExplore, {})) as typeof tours;
   } catch {
     tours = [];
   }
-  const active = tours.filter((t) => t.isActive);
+  const active = tours;
 
   return DESTINATIONS_INDEX.map((dest) => {
     const matched = active.filter((t) =>
@@ -129,7 +129,7 @@ export async function loadDestinationDetailPageData(
   let related: DestinationDetailPageData["related"] = [];
   try {
     const client = getConvexServer();
-    const tours = (await client.query(api.tours.getTours, {})) as Array<{
+    const tours = (await client.query(api.tours.listActiveToursForExplore, {})) as Array<{
       slug: string;
       title: string;
       description: string;
@@ -139,12 +139,9 @@ export async function loadDestinationDetailPageData(
       durationDays: number;
       location: string;
       images: string[];
-      isActive: boolean;
     }>;
     related = tours
-      .filter(
-        (t) => t.isActive && tourMatchesDestination(t.location, staticD),
-      )
+      .filter((t) => tourMatchesDestination(t.location, staticD))
       .slice(0, 12)
       .map((t) => ({
         slug: t.slug,

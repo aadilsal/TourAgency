@@ -13,6 +13,9 @@ type Props = {
   gapClassName?: string;
   showArrows?: boolean;
   autoplayMs?: number;
+  loop?: boolean;
+  arrowsClassName?: string;
+  arrowButtonClassName?: string;
 };
 
 export function EmblaRow({
@@ -21,12 +24,15 @@ export function EmblaRow({
   className,
   gapClassName = "pl-4 md:pl-5",
   showArrows = true,
-  autoplayMs = 2000,
+  autoplayMs = 0,
+  loop = false,
+  arrowsClassName,
+  arrowButtonClassName,
 }: Props) {
   const reduce = useReducedMotion();
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
-    loop: false,
+    loop,
     dragFree: false,
     slidesToScroll: 1,
     watchDrag: true,
@@ -95,13 +101,16 @@ export function EmblaRow({
         </div>
       </div>
       {showArrows ? (
-        <div className="mt-6 flex justify-end gap-2">
+        <div className={cn("mt-6 flex justify-end gap-2", arrowsClassName)}>
           <button
             type="button"
             aria-label="Previous"
             disabled={prevDisabled}
             onClick={scrollPrev}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-brand-primary shadow-sm transition hover:bg-brand-surface disabled:opacity-40"
+            className={cn(
+              "rounded-xl border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-havezic-background-light disabled:opacity-40",
+              arrowButtonClassName,
+            )}
           >
             ←
           </button>
@@ -110,7 +119,10 @@ export function EmblaRow({
             aria-label="Next"
             disabled={nextDisabled}
             onClick={scrollNext}
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-brand-primary shadow-sm transition hover:bg-brand-surface disabled:opacity-40"
+            className={cn(
+              "rounded-xl border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-havezic-background-light disabled:opacity-40",
+              arrowButtonClassName,
+            )}
           >
             →
           </button>

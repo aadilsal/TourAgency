@@ -21,7 +21,7 @@ async function HomePageDeferred() {
 
   try {
     const client = getConvexServer();
-    const raw = (await client.query(api.tours.getTours, {})) as Array<{
+    const raw = (await client.query(api.tours.listActiveToursForExplore, {})) as Array<{
       _id: string;
       slug: string;
       title: string;
@@ -35,9 +35,7 @@ async function HomePageDeferred() {
       images: string[];
       isActive: boolean;
     }>;
-    tours = raw
-      .filter((t) => t.isActive)
-      .map((t) => ({
+    tours = raw.map((t) => ({
         _id: t._id,
         slug: t.slug,
         title: t.title,

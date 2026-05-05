@@ -60,7 +60,7 @@ export default function LandingPage({ params }: Props) {
 
         <PageContainer className="relative py-14 md:py-20">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-brand-accent">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-havezic-primary">
               {topic}
             </p>
             <h1 className="mt-4 text-balance font-display text-3xl font-semibold text-white md:text-5xl">
@@ -87,8 +87,8 @@ export default function LandingPage({ params }: Props) {
           <article>
             <div className="grid gap-6">
               <Card className="p-6 md:p-8">
-                <h2 className="text-lg font-bold text-brand-ink">Quick overview</h2>
-                <ul className="mt-4 list-inside list-disc space-y-2 text-sm leading-relaxed text-brand-muted">
+                <h2 className="text-lg font-bold text-foreground">Quick overview</h2>
+                <ul className="mt-4 list-inside list-disc space-y-2 text-sm leading-relaxed text-muted">
                   <li>What this covers: {topic}</li>
                   <li>Options: private or group · budget to luxury</li>
                   <li>Next step: compare packages or request a custom quote</li>
@@ -96,8 +96,8 @@ export default function LandingPage({ params }: Props) {
               </Card>
 
               <Card className="p-6 md:p-8">
-                <h2 className="text-lg font-bold text-brand-ink">Costs (what changes the price)</h2>
-                <p className="mt-3 text-sm leading-relaxed text-brand-muted">
+                <h2 className="text-lg font-bold text-foreground">Costs (what changes the price)</h2>
+                <p className="mt-3 text-sm leading-relaxed text-muted">
                   Prices usually shift with seasonality, transport (road vs flight where applicable),
                   hotel category, and group size. Always confirm inclusions/exclusions and the exact
                   day-by-day route before you pay.
@@ -113,8 +113,8 @@ export default function LandingPage({ params }: Props) {
               </Card>
 
               <Card className="p-6 md:p-8">
-                <h2 className="text-lg font-bold text-brand-ink">Suggested trip structure</h2>
-                <p className="mt-3 text-sm leading-relaxed text-brand-muted">
+                <h2 className="text-lg font-bold text-foreground">Suggested trip structure</h2>
+                <p className="mt-3 text-sm leading-relaxed text-muted">
                   A strong itinerary balances drive times, rest days, and must-see viewpoints. If you
                   want a plan fast, use our AI planner, then we’ll match it to tours from our catalog.
                 </p>
@@ -147,20 +147,20 @@ export default function LandingPage({ params }: Props) {
             </div>
 
             <Card className="mt-6 p-6 md:p-7">
-              <h2 className="text-lg font-bold text-brand-ink">Pick your style</h2>
-              <p className="mt-2 text-sm leading-relaxed text-brand-muted">
+              <h2 className="text-lg font-bold text-foreground">Pick your style</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted">
                 Luxury or budget. Private or group. Same routes — tuned to your comfort and dates.
               </p>
               <div className="mt-5 grid gap-3">
-                <div className="rounded-2xl border border-black/5 bg-slate-50 px-4 py-3">
-                  <p className="text-sm font-bold text-brand-ink">Luxury</p>
-                  <p className="mt-1 text-sm text-brand-muted">
+                <div className="rounded-2xl border border-border bg-havezic-background-light px-4 py-3">
+                  <p className="text-sm font-bold text-foreground">Luxury</p>
+                  <p className="mt-1 text-sm text-muted">
                     Boutique stays, private transfers, slow mornings.
                   </p>
                 </div>
-                <div className="rounded-2xl border border-black/5 bg-slate-50 px-4 py-3">
-                  <p className="text-sm font-bold text-brand-ink">Budget</p>
-                  <p className="mt-1 text-sm text-brand-muted">
+                <div className="rounded-2xl border border-border bg-havezic-background-light px-4 py-3">
+                  <p className="text-sm font-bold text-foreground">Budget</p>
+                  <p className="mt-1 text-sm text-muted">
                     Great value, smart routes, comfort-first planning.
                   </p>
                 </div>
@@ -172,8 +172,8 @@ export default function LandingPage({ params }: Props) {
           </aside>
         </div>
 
-        <p className="mt-10 text-center text-sm text-slate-500">
-          <Link href="/" className="text-brand-accent hover:underline">
+        <p className="mt-10 text-center text-sm text-havezic-text">
+          <Link href="/" className="text-havezic-primary hover:underline">
             ← Back to home
           </Link>
         </p>

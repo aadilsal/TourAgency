@@ -75,8 +75,8 @@ export default function ContactPage() {
 
         <div className="mt-12 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <Card className="p-6 md:p-8">
-            <h2 className="text-xl font-bold text-brand-ink">Send an inquiry</h2>
-            <p className="mt-2 text-sm text-brand-muted">
+            <h2 className="text-xl font-bold text-foreground">Send an inquiry</h2>
+            <p className="mt-2 text-sm text-muted">
               This goes into our leads table so the team can follow up even if you
               leave the site.
             </p>
@@ -141,13 +141,13 @@ export default function ContactPage() {
           <div className="space-y-4">
             <Card className="p-6">
               <div className="flex items-center gap-3">
-                <PhoneCall className="h-5 w-5 text-brand-accent" aria-hidden />
-                <h2 className="text-lg font-bold text-brand-ink">Call or WhatsApp</h2>
+                <PhoneCall className="h-5 w-5 text-havezic-primary" aria-hidden />
+                <h2 className="text-lg font-bold text-foreground">Call or WhatsApp</h2>
               </div>
-              <p className="mt-2 text-sm text-brand-muted">Fastest way to book or ask about availability.</p>
+              <p className="mt-2 text-sm text-muted">Fastest way to book or ask about availability.</p>
               <a
                 href={`tel:${resolvedPhone.replace(/\s/g, "")}`}
-                className="mt-4 block text-sm font-semibold text-brand-primary hover:underline"
+                className="mt-4 block text-sm font-semibold text-havezic-primary hover:underline"
               >
                 {resolvedPhone}
               </a>
@@ -164,14 +164,14 @@ export default function ContactPage() {
 
             <Card className="p-6">
               <div className="flex items-center gap-3">
-                <MapPin className="h-5 w-5 text-brand-accent" aria-hidden />
-                <h2 className="text-lg font-bold text-brand-ink">Office</h2>
+                <MapPin className="h-5 w-5 text-havezic-primary" aria-hidden />
+                <h2 className="text-lg font-bold text-foreground">Office</h2>
               </div>
-              <p className="mt-2 text-sm leading-relaxed text-brand-muted">
+              <p className="mt-2 text-sm leading-relaxed text-muted">
                 {resolvedOfficeAddress || "Address not set yet. Add it in admin contact settings."}
               </p>
               {resolvedMapEmbedUrl ? (
-                <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                <div className="mt-4 overflow-hidden rounded-xl border border-border bg-havezic-background-light">
                   <iframe
                     title="Office location"
                     src={resolvedMapEmbedUrl}
@@ -186,28 +186,28 @@ export default function ContactPage() {
 
             <Card className="p-6">
               <div className="flex items-center gap-3">
-                <Mail className="h-5 w-5 text-brand-accent" aria-hidden />
-                <h2 className="text-lg font-bold text-brand-ink">Email</h2>
+                <Mail className="h-5 w-5 text-havezic-primary" aria-hidden />
+                <h2 className="text-lg font-bold text-foreground">Email</h2>
               </div>
-              <p className="mt-2 text-sm text-brand-muted">
+              <p className="mt-2 text-sm text-muted">
                 Use the public email configured in your environment.
               </p>
-              <p className="mt-4 text-sm font-semibold text-brand-primary">
+              <p className="mt-4 text-sm font-semibold text-havezic-primary">
                 {resolvedEmail || "Add contact email in admin contact settings."}
               </p>
             </Card>
 
             {sessionToken === undefined ? (
-              <p className="text-xs text-slate-500">Preparing contact session…</p>
+              <p className="text-xs text-havezic-text-light">Preparing contact session…</p>
             ) : null}
 
-            <p className="text-sm text-brand-muted">
+            <p className="text-sm text-muted">
               Prefer browsing first? Visit the{" "}
-              <Link href="/tours" className="font-semibold text-brand-accent hover:underline">
+              <Link href="/tours" className="font-semibold text-havezic-primary hover:underline">
                 tours page
               </Link>{" "}
               or our{" "}
-              <Link href="/blog" className="font-semibold text-brand-accent hover:underline">
+              <Link href="/blog" className="font-semibold text-havezic-primary hover:underline">
                 travel guides
               </Link>
               .

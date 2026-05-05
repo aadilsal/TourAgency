@@ -17,7 +17,7 @@ export default async function FaqsPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-havezic-primary">
             Help center
           </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight text-brand-ink sm:text-4xl">
+          <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
             FAQs
           </h1>
           <p className="mt-3 text-sm leading-relaxed text-muted">
@@ -37,7 +37,7 @@ export default async function FaqsPage() {
                   className="rounded-2xl border border-border bg-background shadow-sm"
                 >
                   <div className="border-b border-border bg-havezic-background-light px-5 py-4">
-                    <h2 className="text-sm font-semibold text-brand-ink">{cat}</h2>
+                    <h2 className="text-sm font-semibold text-foreground">{cat}</h2>
                   </div>
                   <div className="divide-y divide-border">
                     {faqs
