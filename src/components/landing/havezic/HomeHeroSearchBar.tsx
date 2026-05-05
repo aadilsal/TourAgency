@@ -2,10 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useQuery } from "convex/react";
-import { api } from "@convex/_generated/api";
 import { CalendarDays, MapPin, Users, Search } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { DESTINATIONS_INDEX } from "@/lib/destinations-data";
 
 function FieldShell({
   icon: Icon,
@@ -36,15 +35,9 @@ export function HomeHeroSearchBar() {
   const [dateFrom, setDateFrom] = useState("");
   const [guests, setGuests] = useState("2");
 
-  const destinations =
-    useQuery(api.destinations.listForIndex, {}) as
-      | Array<{ slug: string; name: string }>
-      | undefined;
-
   const destinationOptions = useMemo(() => {
-    if (!destinations) return [];
-    return destinations.map((d) => ({ slug: d.slug, name: d.name }));
-  }, [destinations]);
+    return DESTINATIONS_INDEX.map((d) => ({ slug: d.slug, name: d.name }));
+  }, []);
 
   const typeOptions = useMemo(
     () => [
@@ -74,7 +67,7 @@ export function HomeHeroSearchBar() {
       }}
       aria-label="Search tours"
     >
-      <div className="overflow-hidden rounded-full bg-white shadow-[0_18px_48px_rgba(0,0,0,0.18)] ring-1 ring-black/10">
+      <div className="overflow-hidden rounded-[32px] bg-white shadow-[0_18px_48px_rgba(0,0,0,0.18)] ring-1 ring-black/10 md:rounded-full">
         <div className="grid items-stretch md:grid-cols-[1.15fr_1fr_1fr_0.9fr_auto]">
           <FieldShell icon={MapPin} className="border-b border-black/10 md:border-b-0 md:border-r md:border-black/10">
             <label className="block">

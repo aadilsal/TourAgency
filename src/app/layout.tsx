@@ -33,6 +33,11 @@ export const metadata: Metadata = {
   },
   description:
     "Personalized AI itineraries, verified northern Pakistan tours, and instant booking. Hunza, Skardu, Swat & more.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
   alternates: {
     canonical: "/",
   },
