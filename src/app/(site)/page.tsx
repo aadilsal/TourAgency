@@ -28,6 +28,8 @@ async function HomePageDeferred() {
       description: string;
       types?: string[];
       price: number;
+      pricePkr?: number;
+      priceUsd?: number;
       durationDays: number;
       location: string;
       images: string[];
@@ -42,6 +44,8 @@ async function HomePageDeferred() {
         description: t.description,
         types: t.types ?? [],
         price: t.price,
+        pricePkr: t.pricePkr,
+        priceUsd: t.priceUsd,
         durationDays: t.durationDays,
         location: t.location,
         images: t.images ?? [],

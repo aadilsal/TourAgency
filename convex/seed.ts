@@ -344,6 +344,11 @@ export const seedSampleTours = mutation({
         .filter((id): id is NonNullable<typeof id> => Boolean(id));
       await ctx.db.insert("tours", {
         ...t,
+        pricePkr: (t as any).pricePkr ?? t.price,
+        // Approx seed-only conversion so USD isn't blank in UI.
+        priceUsd:
+          (t as any).priceUsd ??
+          Math.max(1, Math.round(t.price / 280)),
         destinationIds: destinationIds.length > 0 ? destinationIds : undefined,
         destinationId: destinationIds[0],
         createdAt: now,

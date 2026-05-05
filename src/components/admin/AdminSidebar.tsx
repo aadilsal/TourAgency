@@ -16,6 +16,7 @@ import {
   LineChart,
   FileText,
   Settings,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -77,7 +78,9 @@ export function AdminSidebar({
         label: "More",
         links: [
           { href: "/admin/users", label: "Users", icon: Users },
+          { href: "/admin/about", label: "About / Team", icon: Users },
           { href: "/admin/blog", label: "Blog", icon: Newspaper },
+          { href: "/admin/faqs", label: "FAQs", icon: HelpCircle },
           { href: "/admin/analytics", label: "Analytics", icon: LineChart },
           { href: "/admin/settings", label: "Settings", icon: Settings },
           ...(showManageAdmins ? [adminOnly] : []),

@@ -181,3 +181,72 @@ export const seedSamplePosts = mutation({
     return { inserted, skipped: false as const };
   },
 });
+
+export const bulkUpsert = mutation({
+  args: {
+    rows: v.array(
+      v.object({
+        title: v.string(),
+        slug: v.string(),
+        content: v.string(),
+        metaTitle: v.optional(v.string()),
+        metaDescription: v.optional(v.string()),
+        published: v.boolean(),
+        createdAt: v.optional(v.number()),
+      }),
+    ),
+  },
+  handler: async (ctx, { rows }) => {
+    const admin = await requireAdmin(ctx);
+    const now = Date.now();
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    const errors: Array<{ index: number; message: string }> = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]!;
+      try {
+        const slug = row.slug.trim().toLowerCase().replace(/\s+/g, "-");
+        if (!slug) throw new Error("slug is required");
+        const existing = await ctx.db
+          .query("blogPosts")
+          .withIndex("by_slug", (q) => q.eq("slug", slug))
+          .unique();
+        const payload = {
+          title: row.title.trim(),
+          slug,
+          content: row.content,
+          metaTitle: row.metaTitle?.trim() || undefined,
+          metaDescription: row.metaDescription?.trim() || undefined,
+          published: row.published,
+        };
+        if (!payload.title) throw new Error("title is required");
+        if (!payload.content) throw new Error("content is required");
+
+        if (existing) {
+          await ctx.db.patch(existing._id, payload);
+          updated++;
+        } else {
+          await ctx.db.insert("blogPosts", {
+            ...payload,
+            createdAt: row.createdAt ?? now + i,
+          });
+          created++;
+        }
+      } catch (e) {
+        errors.push({ index: i, message: e instanceof Error ? e.message : String(e) });
+        skipped++;
+      }
+    }
+
+    await ctx.db.insert("adminLogs", {
+      action: "bulk_upsert_blog_posts",
+      performedBy: admin._id,
+      timestamp: Date.now(),
+      details: `processed=${rows.length} created=${created} updated=${updated} skipped=${skipped}`,
+    });
+
+    return { processed: rows.length, created, updated, skipped, errors };
+  },
+});

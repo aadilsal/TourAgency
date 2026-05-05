@@ -5,6 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
+import { formatMoney, type CurrencyCode } from "@/lib/money";
 
 const statuses = ["pending", "confirmed", "cancelled"] as const;
 
@@ -27,6 +28,8 @@ type UnifiedRow =
       tourTitle: string;
       peopleCount: number;
       status: (typeof statuses)[number];
+      currency?: CurrencyCode;
+      totalPrice?: number;
     } & TripFields)
   | ({
       kind: "user";
@@ -37,6 +40,7 @@ type UnifiedRow =
       peopleCount: number;
       totalPrice: number;
       status: (typeof statuses)[number];
+      currency?: CurrencyCode;
     } & TripFields);
 
 type StatusFilter = "all" | "pending" | "confirmed";
@@ -162,8 +166,8 @@ export function AdminBookingsTable() {
                   <span className="mt-1 block text-xs text-slate-500">
                     {r.peopleCount}{" "}
                     {r.peopleCount === 1 ? "person" : "people"}
-                    {r.kind === "user"
-                      ? ` · PKR ${r.totalPrice.toLocaleString()}`
+                    {typeof r.totalPrice === "number"
+                      ? ` · ${formatMoney(r.totalPrice, r.currency === "PKR" ? "PKR" : "USD")}`
                       : null}
                     {tripSummary(r) !== "—" ? ` · ${tripSummary(r)}` : null}
                   </span>

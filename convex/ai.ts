@@ -9,9 +9,11 @@ const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 type TourForAi = {
   title: string;
   slug: string;
+  types: string[];
   location: string;
   durationDays: number;
-  price: number;
+  pricePkr: number;
+  priceUsd: number | null;
   description: string;
 };
 
@@ -56,7 +58,7 @@ export const generateTrip = action({
     const catalog = tours
       .map(
         (t: TourForAi) =>
-          `- ${t.title} (${t.location}, ${t.durationDays}d, PKR ${t.price}): ${t.description.slice(0, 200)}…`,
+          `- ${t.title} (${t.location}, ${t.durationDays}d, PKR ${t.pricePkr}): ${t.description.slice(0, 200)}…`,
       )
       .join("\n");
     const system = `You are a Pakistan adventure travel planner for JunketTours. 
@@ -177,7 +179,7 @@ export const plannerChat = action({
     const catalog = tours
       .map(
         (t: TourForAi) =>
-          `- slug: ${t.slug} | ${t.title} | ${t.location} | ${t.durationDays}d | PKR ${t.price} | ${t.description.slice(0, 160)}…`,
+          `- slug: ${t.slug} | ${t.title} | ${t.location} | ${t.durationDays}d | PKR ${t.pricePkr} | ${t.description.slice(0, 160)}…`,
       )
       .join("\n");
 

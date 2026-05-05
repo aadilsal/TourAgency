@@ -11,11 +11,11 @@ import {
   MapPin,
   BookOpen,
   Compass,
+  HelpCircle,
   PhoneCall,
   LayoutDashboard,
   Shield,
   LogIn,
-  Search,
   Heart,
   User,
   ChevronDown,
@@ -520,8 +520,10 @@ export function SiteHeaderNav({
 
   const links = useMemo(
     () => [
-      { href: "/blog", label: "Guides", icon: BookOpen },
+      { href: "/about", label: "About Us", icon: Compass },
+      { href: "/faqs", label: "FAQs", icon: HelpCircle },
       { href: "/contact", label: "Contact", icon: PhoneCall },
+      { href: "/blog", label: "Guides", icon: BookOpen },
     ],
     [],
   );
@@ -529,7 +531,7 @@ export function SiteHeaderNav({
   return (
     <header className="sticky top-0 z-50 bg-brand-primary text-white shadow-[0_10px_30px_rgba(0,0,0,0.25)]">
       <PageContainer className="py-0">
-        <div className="flex items-center gap-6">
+        <div className="grid grid-cols-[auto_1fr_auto] items-center gap-6">
           <Link
             href="/"
             className="group flex items-center gap-3 shrink-0 py-5"
@@ -555,13 +557,15 @@ export function SiteHeaderNav({
             </span>
           </Link>
 
-          <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
+          <nav
+            className="hidden items-center justify-center gap-8 md:flex"
+            aria-label="Primary"
+          >
             <Link
               href="/tours"
               className={cn(
                 "text-sm font-semibold text-white/90 transition-colors hover:text-havezic-primary",
-                pathname === "/tours" ||
-                  pathname?.startsWith("/tours/")
+                pathname === "/tours" || pathname?.startsWith("/tours/")
                   ? "text-havezic-primary"
                   : undefined,
               )}
@@ -573,8 +577,7 @@ export function SiteHeaderNav({
               destinations={indexDestinations}
             />
             {links.map(({ href, label }) => {
-              const active =
-                pathname === href || pathname?.startsWith(href + "/");
+              const active = pathname === href || pathname?.startsWith(href + "/");
               return (
                 <Link
                   key={href}
@@ -590,16 +593,8 @@ export function SiteHeaderNav({
             })}
           </nav>
 
-          <div className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
+          <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
             <div className="hidden items-center gap-2 md:flex">
-              <Link
-                href="/tours"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/90 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
-                aria-label="Search"
-                title="Search"
-              >
-                <Search className="h-5 w-5" aria-hidden />
-              </Link>
               <button
                 type="button"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/90 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
@@ -608,36 +603,33 @@ export function SiteHeaderNav({
               >
                 <Heart className="h-5 w-5" aria-hidden />
               </button>
-              <Link
-                href={liveSession ? "/dashboard" : "/login"}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/90 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
-                aria-label="Account"
-                title="Account"
-              >
-                <User className="h-5 w-5" aria-hidden />
-              </Link>
+
+              {liveSession ? (
+                <AccountDropdown session={liveSession} align="right" />
+              ) : (
+                <Link
+                  href="/login"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/90 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
+                  aria-label="Profile"
+                  title="Profile"
+                >
+                  <User className="h-5 w-5" aria-hidden />
+                </Link>
+              )}
+
+              {whatsappUrl ? (
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm ring-1 ring-white/15 transition hover:brightness-110"
+                  aria-label="Chat on WhatsApp"
+                  title="WhatsApp"
+                >
+                  <WhatsAppBrandIcon className="h-5 w-5" />
+                </a>
+              ) : null}
             </div>
-            {whatsappUrl ? (
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hidden items-center gap-2 rounded-full bg-havezic-primary px-5 py-2 text-sm font-semibold text-white transition hover:bg-havezic-primary-hover sm:inline-flex"
-              >
-                <WhatsAppBrandIcon className="h-5 w-5 shrink-0" />
-                WhatsApp
-              </a>
-            ) : null}
-            {liveSession ? (
-              <AccountDropdown session={liveSession} align="right" />
-            ) : (
-              <Link
-                href="/login"
-                className="text-sm font-semibold text-white transition hover:text-havezic-primary"
-              >
-                Log in
-              </Link>
-            )}
 
             <button
               type="button"
@@ -646,11 +638,7 @@ export function SiteHeaderNav({
               aria-label={open ? "Close menu" : "Open menu"}
               onClick={() => setOpen((o) => !o)}
             >
-              {open ? (
-                <X className="h-6 w-6" />
-              ) : (
-                <Menu className="h-6 w-6" />
-              )}
+              {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>

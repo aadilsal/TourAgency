@@ -17,12 +17,8 @@ import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { cn } from "@/lib/cn";
 import { PDFDownloadLink, PDFViewer, pdf } from "@react-pdf/renderer";
 import { ItineraryPdf, type ItineraryPdfModel } from "@/documents/itinerary/ItineraryPdf";
-import {
-  alignHotelsToRows,
-  tiersToPackagesForPdf,
-  type PackageStayRow,
-  type PackageTier,
-} from "@/lib/itineraryPackageMatrix";
+import { alignHotelsToRows, tiersToPackagesForPdf } from "@/lib/itineraryPackageMatrix";
+import type { PackageStayRow, PackageTier } from "@/lib/itineraryPackageMatrix";
 
 type Theme = "luxury" | "minimal" | "adventure";
 
@@ -355,7 +351,7 @@ export function AdminItinerarySimpleBuilder({
       return;
     }
 
-    const patch: Record<string, unknown> = { layoutVariant: "simple" };
+    const patch: Record<string, unknown> = {};
 
     if (needsAtGlance && existing.dayPlans?.length) {
       const next = syncAtGlanceToDayCount(
@@ -459,7 +455,7 @@ export function AdminItinerarySimpleBuilder({
     setPackageTiers((prevTiers) =>
       prevTiers.map((tier) => ({
         ...tier,
-        hotels: tier.hotels.map((h) => ({
+        hotels: tier.hotels.map((h: { hotel: string; nights: number }) => ({
           ...h,
           nights: h.nights === prev ? next : h.nights,
         })),
@@ -577,7 +573,6 @@ export function AdminItinerarySimpleBuilder({
         .split("\n")
         .map((s) => s.trim())
         .filter(Boolean),
-      layoutVariant: "simple",
     });
   }, [
     itineraryId,
@@ -625,7 +620,6 @@ export function AdminItinerarySimpleBuilder({
         coverSubtitle,
         complianceLine,
         pickupDropoff,
-        layoutVariant: "simple",
       });
     } catch (e) {
       setMsg(toUserFacingErrorMessage(e));
@@ -1019,7 +1013,10 @@ export function AdminItinerarySimpleBuilder({
                                 pricePkr: src.pricePkr,
                                 vehicle: src.vehicle,
                                 note: src.note,
-                                hotels: src.hotels.map((h) => ({ hotel: h.hotel, nights: h.nights })),
+                                hotels: src.hotels.map((h: { hotel: string; nights: number }) => ({
+                                  hotel: h.hotel,
+                                  nights: h.nights,
+                                })),
                               };
                               const next = [...prev];
                               next.splice(tIdx + 1, 0, clone);

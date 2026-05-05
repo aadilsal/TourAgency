@@ -40,6 +40,8 @@ export default async function ToursPage({
     description: string;
     types?: string[];
     price: number;
+    pricePkr?: number;
+    priceUsd?: number;
     durationDays: number;
     location: string;
     images: string[];

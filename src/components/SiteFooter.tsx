@@ -48,6 +48,15 @@ export function SiteFooter({
             <ul className="mt-4 space-y-2 text-sm">
               <li>
                 <Link
+                  href="/about"
+                  className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
+                >
+                  <Compass className="h-4 w-4 shrink-0 opacity-80" />
+                  About us
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/tours"
                   className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
                 >

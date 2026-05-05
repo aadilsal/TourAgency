@@ -28,6 +28,8 @@ import { TourCard, type TourCardData } from "@/components/shared/TourCard";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Button } from "@/components/ui/Button";
 import { MotionSection } from "@/components/ui/MotionSection";
+import { useCurrency } from "@/hooks/useCurrency";
+import { getTourUnitPrice } from "@/lib/tourPricing";
 
 const PAGE_SIZE = 9;
 
@@ -89,6 +91,7 @@ function TourFiltersForm({
   onReset,
   footer,
 }: FilterFormProps) {
+  const currency = useCurrency();
   return (
     <div className="space-y-5">
       <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-brand-primary">
@@ -117,7 +120,7 @@ function TourFiltersForm({
 
       <div>
         <span className="text-sm font-medium text-brand-muted">
-          Price range (PKR)
+          Price range ({currency})
         </span>
         <div className="mt-1 grid grid-cols-2 gap-3">
           <label className="block text-sm">
@@ -241,6 +244,7 @@ export function ToursExploreClient({
   initialMin,
   initialLocation,
 }: Props) {
+  const currency = useCurrency();
   const [location, setLocation] = useState(initialLocation ?? "");
   const [priceMin, setPriceMin] = useState(initialMin ?? "");
   const [priceMax, setPriceMax] = useState(initialMax ?? "");
@@ -295,6 +299,7 @@ export function ToursExploreClient({
 
   const filtered = useMemo(() => {
     let list = [...catalog];
+    const unitPrice = (t: TourRow) => getTourUnitPrice(t, currency);
     if (location) {
       list = list.filter((t) =>
         t.location.toLowerCase().includes(location.toLowerCase()),
@@ -307,10 +312,10 @@ export function ToursExploreClient({
       ? Number(priceMax.replace(/\D/g, ""))
       : null;
     if (minP !== null && !Number.isNaN(minP)) {
-      list = list.filter((t) => t.price >= minP);
+      list = list.filter((t) => unitPrice(t) >= minP);
     }
     if (maxP !== null && !Number.isNaN(maxP)) {
-      list = list.filter((t) => t.price <= maxP);
+      list = list.filter((t) => unitPrice(t) <= maxP);
     }
     const minD = durMin.trim() ? Number(durMin) : null;
     const maxD = durMax.trim() ? Number(durMax) : null;
@@ -330,14 +335,15 @@ export function ToursExploreClient({
         if (tb !== ta) return tb - ta;
         return a.title.localeCompare(b.title);
       }
-      if (sort === "price-asc") return a.price - b.price;
-      if (sort === "price-desc") return b.price - a.price;
+      if (sort === "price-asc") return unitPrice(a) - unitPrice(b);
+      if (sort === "price-desc") return unitPrice(b) - unitPrice(a);
       if (sort === "dur-asc") return a.durationDays - b.durationDays;
       return b.durationDays - a.durationDays;
     });
     return list;
   }, [
     catalog,
+    currency,
     location,
     priceMin,
     priceMax,
@@ -406,278 +412,310 @@ export function ToursExploreClient({
     return slots;
   }, [totalPages, currentPage]);
 
+  const heroImage = useMemo(() => {
+    const withImage = catalog.find((t) => Boolean(t.images?.[0]));
+    return withImage?.images?.[0] ?? "";
+  }, [catalog]);
+
   return (
-    <PageContainer className="pb-20 pt-12 md:pt-16 lg:pt-20">
-      <MotionSection>
-        <header className="max-w-3xl">
-          <p className="text-xs font-bold uppercase tracking-widest text-brand-accent">
-            Northern Pakistan
-          </p>
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
-            Explore Tours
-          </h1>
-          <p className="mt-3 text-base leading-relaxed text-slate-300 md:text-lg">
-            Filter by location, trip length, budget, and travel style — then
-            sort to match how you like to plan. Sticky filters on desktop; on
-            your phone, open the filter drawer anytime.
-          </p>
-        </header>
-      </MotionSection>
+    <>
+      {/* Hero */}
+      <section className="relative overflow-hidden bg-slate-950">
+        <div className="absolute inset-0">
+          {heroImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={heroImage}
+              alt=""
+              className="h-full w-full object-cover opacity-70"
+              loading="eager"
+              decoding="async"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="h-full w-full bg-[radial-gradient(900px_circle_at_20%_10%,rgba(255,255,255,0.18),transparent_55%),linear-gradient(to_bottom_right,rgba(5,150,105,0.35),rgba(249,115,22,0.25),rgba(2,132,199,0.25))]" />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/30 via-slate-950/60 to-slate-950" />
+        </div>
 
-      {/* Mobile: filters trigger + sort */}
-      <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:hidden">
-        <Button
-          type="button"
-          variant="secondary"
-          className="w-full justify-center gap-2 py-3 sm:w-auto"
-          onClick={() => setFilterDrawerOpen(true)}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          Filters
-          {activeFilterCount > 0 ? (
-            <span className="rounded-full bg-brand-primary px-2 py-0.5 text-xs font-bold text-white">
-              {activeFilterCount}
-            </span>
-          ) : null}
-        </Button>
-        <label className="flex w-full items-center gap-2 text-sm sm:w-auto sm:min-w-[200px]">
-          <span className="shrink-0 text-slate-400">Sort</span>
-          <select
-            className="min-w-0 flex-1 rounded-xl border border-white/20 bg-white/10 px-3 py-2.5 text-sm font-medium text-white backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/40 [&>option]:text-brand-ink"
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortKey)}
+        <PageContainer className="relative pb-10 pt-14 md:pb-14 md:pt-20 lg:pb-16">
+          <MotionSection>
+            <header className="max-w-3xl">
+              <p className="text-xs font-bold uppercase tracking-widest text-brand-accent">
+                Northern Pakistan
+              </p>
+              <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-white md:text-5xl">
+                Explore Tours
+              </h1>
+              <p className="mt-3 text-base leading-relaxed text-white/80 md:text-lg">
+                A curated set of experiences across Hunza, Skardu, Swat &amp;
+                beyond. Filter by location, days, budget, and travel style — then
+                sort to match how you like to plan.
+              </p>
+            </header>
+          </MotionSection>
+        </PageContainer>
+      </section>
+
+      {/* Content */}
+      <PageContainer className="pb-20 pt-8 md:pt-10 lg:pt-12">
+        {/* Mobile: filters trigger + sort */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between lg:hidden">
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full justify-center gap-2 py-3 sm:w-auto"
+            onClick={() => setFilterDrawerOpen(true)}
           >
-            <option value="popular">Popularity (newest)</option>
-            <option value="price-asc">Price: low to high</option>
-            <option value="price-desc">Price: high to low</option>
-            <option value="dur-asc">Duration: shortest</option>
-            <option value="dur-desc">Duration: longest</option>
-          </select>
-        </label>
-      </div>
+            <SlidersHorizontal className="h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 ? (
+              <span className="rounded-full bg-brand-primary px-2 py-0.5 text-xs font-bold text-white">
+                {activeFilterCount}
+              </span>
+            ) : null}
+          </Button>
+          <label className="flex w-full items-center gap-2 text-sm sm:w-auto sm:min-w-[200px]">
+            <span className="shrink-0 text-brand-muted">Sort</span>
+            <select
+              className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-brand-ink shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-accent/30"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+            >
+              <option value="popular">Popularity (newest)</option>
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
+              <option value="dur-asc">Duration: shortest</option>
+              <option value="dur-desc">Duration: longest</option>
+            </select>
+          </label>
+        </div>
 
-      <div className="mt-8 grid gap-8 lg:mt-12 lg:grid-cols-[300px_1fr] lg:gap-10 xl:gap-12">
-        {/* Desktop sticky sidebar */}
-        <aside className="hidden lg:block">
-          <div className="sticky top-24 max-h-[calc(100dvh-6.5rem)] space-y-6 overflow-y-auto overscroll-contain rounded-2xl border border-white/20 bg-white/90 p-6 shadow-glass backdrop-blur-glass pb-8">
-            <TourFiltersForm {...filterFormProps} />
-          </div>
-        </aside>
+        <div className="mt-8 grid gap-8 lg:mt-10 lg:grid-cols-[300px_1fr] lg:gap-10 xl:gap-12">
+          {/* Desktop sticky sidebar */}
+          <aside className="hidden lg:block">
+            <div className="sticky top-24 max-h-[calc(100dvh-6.5rem)] space-y-6 overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white p-6 shadow-sm pb-8">
+              <TourFiltersForm {...filterFormProps} />
+            </div>
+          </aside>
 
-        <div className="min-w-0">
-          <div className="hidden items-center justify-between gap-4 lg:flex">
-            <p className="text-sm text-slate-400">
+          <div className="min-w-0">
+            <div className="hidden items-center justify-between gap-4 lg:flex">
+              <p className="text-sm text-brand-muted">
+                {convexTours === undefined && initialTours.length === 0 ? (
+                  <>Loading tours…</>
+                ) : (
+                  <>
+                    <span className="font-semibold text-brand-ink">
+                      {filtered.length}
+                    </span>{" "}
+                    tour{filtered.length !== 1 ? "s" : ""} match
+                    {activeFilterCount > 0 ? (
+                      <span className="text-slate-400">
+                        {" "}
+                        · {activeFilterCount} filter
+                        {activeFilterCount !== 1 ? "s" : ""} active
+                      </span>
+                    ) : null}
+                  </>
+                )}
+              </p>
+              <label className="flex items-center gap-2 text-sm">
+                <span className="text-brand-muted">Sort by</span>
+                <select
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-brand-ink shadow-sm focus:ring-2 focus:ring-brand-accent/30"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as SortKey)}
+                >
+                  <option value="popular">Popularity (newest)</option>
+                  <option value="price-asc">Price: low to high</option>
+                  <option value="price-desc">Price: high to low</option>
+                  <option value="dur-asc">Duration: shortest</option>
+                  <option value="dur-desc">Duration: longest</option>
+                </select>
+              </label>
+            </div>
+
+            {/* Mobile count line */}
+            <p className="mt-2 text-sm text-brand-muted lg:hidden">
               {convexTours === undefined && initialTours.length === 0 ? (
                 <>Loading tours…</>
               ) : (
                 <>
-                  <span className="font-medium text-slate-200">
+                  <span className="font-semibold text-brand-ink">
                     {filtered.length}
                   </span>{" "}
                   tour{filtered.length !== 1 ? "s" : ""} match
-                  {activeFilterCount > 0 ? (
-                    <span className="text-slate-500">
-                      {" "}
-                      · {activeFilterCount} filter
-                      {activeFilterCount !== 1 ? "s" : ""} active
-                    </span>
-                  ) : null}
                 </>
               )}
             </p>
-            <label className="flex items-center gap-2 text-sm">
-              <span className="text-slate-400">Sort by</span>
-              <select
-                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-brand-ink shadow-sm focus:ring-2 focus:ring-brand-accent/30"
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SortKey)}
-              >
-                <option value="popular">Popularity (newest)</option>
-                <option value="price-asc">Price: low to high</option>
-                <option value="price-desc">Price: high to low</option>
-                <option value="dur-asc">Duration: shortest</option>
-                <option value="dur-desc">Duration: longest</option>
-              </select>
-            </label>
-          </div>
 
-          {/* Mobile count line */}
-          <p className="mt-2 text-sm text-slate-400 lg:hidden">
-            {convexTours === undefined && initialTours.length === 0 ? (
-              <>Loading tours…</>
-            ) : (
-              <>
-                <span className="font-medium text-slate-200">
-                  {filtered.length}
-                </span>{" "}
-                tour{filtered.length !== 1 ? "s" : ""} match
-              </>
-            )}
-          </p>
-
-          {slice.length === 0 ? (
-            <div className="mt-10 rounded-2xl border border-dashed border-white/25 bg-white/5 p-12 text-center backdrop-blur-sm">
-              <MapPinOff
-                className="mx-auto h-12 w-12 text-slate-500"
-                aria-hidden
-              />
-              <p className="mt-4 text-slate-400">
-                {convexTours === undefined ? (
-                  <>Loading tours…</>
-                ) : !hasDefaultFilters ? (
-                  <>
-                    No tours match these filters.{" "}
-                    <button
-                      type="button"
-                      className="font-semibold text-brand-accent underline"
-                      onClick={() => {
-                        resetFilters();
-                        setFilterDrawerOpen(false);
-                      }}
-                    >
-                      Clear filters
-                    </button>
-                    {" · "}
-                    <Link
-                      href="/tours"
-                      className="font-semibold text-brand-accent underline"
-                    >
-                      View all tours
-                    </Link>
-                  </>
-                ) : catalog.length === 0 ? (
-                  <>
-                    No active tours in the catalog yet. Check back soon or
-                    contact us for a custom trip.
-                  </>
-                ) : (
-                  <>Couldn&apos;t display results. Try refreshing the page.</>
-                )}
-              </p>
-            </div>
-          ) : (
-            <ul className="mt-8 grid gap-6 sm:grid-cols-2 sm:gap-8 xl:grid-cols-3">
-              {slice.map((t) => (
-                <li key={t._id} className="h-full">
-                  <TourCard tour={t} />
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {totalPages > 1 ? (
-            <nav
-              className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:flex-wrap sm:justify-center"
-              aria-label="Pagination"
-            >
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={currentPage <= 1}
-                  className="gap-1 px-3 py-2"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  Previous
-                </Button>
-                <div className="hidden items-center gap-1 sm:flex">
-                  {pageSlots.map((p, idx) =>
-                    p === "gap" ? (
-                      <span
-                        key={`gap-${idx}`}
-                        className="px-1 text-slate-500"
-                      >
-                        …
-                      </span>
-                    ) : (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setPage(p)}
-                        className={
-                          p === currentPage
-                            ? "min-w-[2.25rem] rounded-lg bg-brand-primary px-2 py-1.5 text-sm font-bold text-white"
-                            : "min-w-[2.25rem] rounded-lg px-2 py-1.5 text-sm font-medium text-slate-300 hover:bg-white/10"
-                        }
-                        aria-current={p === currentPage ? "page" : undefined}
-                      >
-                        {p}
-                      </button>
-                    ),
-                  )}
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  disabled={currentPage >= totalPages}
-                  className="gap-1 px-3 py-2"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                >
-                  Next
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-              <span className="text-sm text-slate-500">
-                Page {currentPage} of {totalPages}
-              </span>
-            </nav>
-          ) : null}
-        </div>
-      </div>
-
-      {/* Mobile filter drawer */}
-      <AnimatePresence>
-        {filterDrawerOpen ? (
-          <div className="fixed inset-0 z-[65] lg:hidden" role="dialog" aria-modal="true" aria-label="Tour filters">
-            <motion.button
-              type="button"
-              aria-label="Close filters"
-              className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setFilterDrawerOpen(false)}
-            />
-            <motion.aside
-              className="absolute left-0 top-0 flex h-full w-full max-w-sm flex-col bg-white shadow-2xl"
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
-              transition={{ type: "spring", damping: 28, stiffness: 320 }}
-            >
-              <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
-                <h2 className="font-display text-lg font-semibold text-brand-ink">
-                  Filters
-                </h2>
-                <button
-                  type="button"
-                  className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
-                  onClick={() => setFilterDrawerOpen(false)}
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto px-5 py-5">
-                <TourFiltersForm
-                  {...filterFormProps}
-                  footer={
-                    <Button
-                      type="button"
-                      variant="primary"
-                      className="mt-4 w-full py-3"
-                      onClick={() => setFilterDrawerOpen(false)}
-                    >
-                      Show {filtered.length} result
-                      {filtered.length !== 1 ? "s" : ""}
-                    </Button>
-                  }
+            {slice.length === 0 ? (
+              <div className="mt-10 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-10 text-center">
+                <MapPinOff
+                  className="mx-auto h-12 w-12 text-slate-400"
+                  aria-hidden
                 />
+                <p className="mt-4 text-brand-muted">
+                  {convexTours === undefined ? (
+                    <>Loading tours…</>
+                  ) : !hasDefaultFilters ? (
+                    <>
+                      No tours match these filters.{" "}
+                      <button
+                        type="button"
+                        className="font-semibold text-brand-accent underline"
+                        onClick={() => {
+                          resetFilters();
+                          setFilterDrawerOpen(false);
+                        }}
+                      >
+                        Clear filters
+                      </button>
+                      {" · "}
+                      <Link
+                        href="/tours"
+                        className="font-semibold text-brand-accent underline"
+                      >
+                        View all tours
+                      </Link>
+                    </>
+                  ) : catalog.length === 0 ? (
+                    <>
+                      No active tours in the catalog yet. Check back soon or
+                      contact us for a custom trip.
+                    </>
+                  ) : (
+                    <>Couldn&apos;t display results. Try refreshing the page.</>
+                  )}
+                </p>
               </div>
-            </motion.aside>
+            ) : (
+              <ul className="mt-8 grid gap-6 sm:grid-cols-2 sm:gap-8 xl:grid-cols-3">
+                {slice.map((t) => (
+                  <li key={t._id} className="h-full">
+                    <TourCard tour={t} />
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {totalPages > 1 ? (
+              <nav
+                className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:flex-wrap sm:justify-center"
+                aria-label="Pagination"
+              >
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={currentPage <= 1}
+                    className="gap-1 px-3 py-2"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Previous
+                  </Button>
+                  <div className="hidden items-center gap-1 sm:flex">
+                    {pageSlots.map((p, idx) =>
+                      p === "gap" ? (
+                        <span key={`gap-${idx}`} className="px-1 text-slate-400">
+                          …
+                        </span>
+                      ) : (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setPage(p)}
+                          className={
+                            p === currentPage
+                              ? "min-w-[2.25rem] rounded-lg bg-brand-primary px-2 py-1.5 text-sm font-bold text-white"
+                              : "min-w-[2.25rem] rounded-lg px-2 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100"
+                          }
+                          aria-current={p === currentPage ? "page" : undefined}
+                        >
+                          {p}
+                        </button>
+                      ),
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={currentPage >= totalPages}
+                    className="gap-1 px-3 py-2"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <span className="text-sm text-slate-500">
+                  Page {currentPage} of {totalPages}
+                </span>
+              </nav>
+            ) : null}
           </div>
-        ) : null}
-      </AnimatePresence>
-    </PageContainer>
+        </div>
+
+        {/* Mobile filter drawer */}
+        <AnimatePresence>
+          {filterDrawerOpen ? (
+            <div
+              className="fixed inset-0 z-[65] lg:hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Tour filters"
+            >
+              <motion.button
+                type="button"
+                aria-label="Close filters"
+                className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setFilterDrawerOpen(false)}
+              />
+              <motion.aside
+                className="absolute left-0 top-0 flex h-full w-full max-w-sm flex-col bg-white shadow-2xl"
+                initial={{ x: "-100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "-100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}
+              >
+                <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                  <h2 className="font-display text-lg font-semibold text-brand-ink">
+                    Filters
+                  </h2>
+                  <button
+                    type="button"
+                    className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+                    onClick={() => setFilterDrawerOpen(false)}
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-5 py-5">
+                  <TourFiltersForm
+                    {...filterFormProps}
+                    footer={
+                      <Button
+                        type="button"
+                        variant="primary"
+                        className="mt-4 w-full py-3"
+                        onClick={() => setFilterDrawerOpen(false)}
+                      >
+                        Show {filtered.length} result
+                        {filtered.length !== 1 ? "s" : ""}
+                      </Button>
+                    }
+                  />
+                </div>
+              </motion.aside>
+            </div>
+          ) : null}
+        </AnimatePresence>
+      </PageContainer>
+    </>
   );
 }

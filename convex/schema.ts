@@ -35,6 +35,8 @@ export default defineSchema({
     email: v.optional(v.string()),
     tourId: v.id("tours"),
     peopleCount: v.number(),
+    currency: v.optional(v.union(v.literal("PKR"), v.literal("USD"))),
+    unitPrice: v.optional(v.number()),
     notes: v.optional(v.string()),
     preferredStart: v.optional(v.string()),
     preferredEnd: v.optional(v.string()),
@@ -59,6 +61,8 @@ export default defineSchema({
     userId: v.id("users"),
     tourId: v.id("tours"),
     peopleCount: v.number(),
+    currency: v.optional(v.union(v.literal("PKR"), v.literal("USD"))),
+    unitPrice: v.optional(v.number()),
     totalPrice: v.number(),
     status: v.union(
       v.literal("pending"),
@@ -88,8 +92,16 @@ export default defineSchema({
     /** Legacy single destination fallback kept for existing records. */
     destinationId: v.optional(v.id("destinations")),
     price: v.number(),
+    pricePkr: v.optional(v.number()),
+    priceUsd: v.optional(v.number()),
     durationDays: v.number(),
     location: v.string(),
+    /** ThemeForest-style facts row fields (optional for safe migration). */
+    maxPeople: v.optional(v.number()),
+    minAge: v.optional(v.number()),
+    tourTypeLabel: v.optional(v.string()),
+    ratingAvg: v.optional(v.number()),
+    reviewsCount: v.optional(v.number()),
     office: v.optional(v.string()),
     email: v.optional(v.string()),
     /** Convex `_storage` ids and/or `https?://` or `/` paths (resolved at read time). */
@@ -102,6 +114,20 @@ export default defineSchema({
         title: v.string(),
         description: v.string(),
       }),
+    ),
+    /** ThemeForest-like content blocks (optional). */
+    highlights: v.optional(v.array(v.string())),
+    included: v.optional(v.array(v.string())),
+    excluded: v.optional(v.array(v.string())),
+    /** Booking-form fields (optional). */
+    timeSlots: v.optional(v.array(v.string())),
+    ticketGroups: v.optional(
+      v.array(
+        v.object({
+          label: v.string(),
+          ageRange: v.optional(v.string()),
+        }),
+      ),
     ),
     isActive: v.boolean(),
     createdAt: v.number(),
@@ -528,4 +554,71 @@ export default defineSchema({
     nextSeq: v.number(),
     updatedAt: v.number(),
   }).index("by_fiscal_year", ["fiscalYearKey"]),
+
+  /** About page team carousel (admin-managed). */
+  teamMembers: defineTable({
+    name: v.string(),
+    role: v.string(),
+    imageStorageId: v.optional(v.id("_storage")),
+    sortOrder: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_sort_order", ["sortOrder"])
+    .index("by_active_and_sort_order", ["isActive", "sortOrder"]),
+
+  faqs: defineTable({
+    question: v.string(),
+    answer: v.string(),
+    category: v.string(),
+    sortOrder: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_sort_order", ["sortOrder"])
+    .index("by_active_and_sort_order", ["isActive", "sortOrder"])
+    .index("by_category_and_sort_order", ["category", "sortOrder"])
+    .index("by_active_and_category_and_sort_order", [
+      "isActive",
+      "category",
+      "sortOrder",
+    ]),
+
+  /** About page editable content (tabs + stats + partner logos). */
+  aboutPageSettings: defineTable({
+    key: v.string(),
+
+    eyebrow: v.string(),
+    heading: v.string(),
+
+    exploreTitle: v.string(),
+    exploreBody: v.array(v.string()),
+    exploreImage: v.string(),
+
+    missionTitle: v.string(),
+    missionBody: v.array(v.string()),
+    missionImage: v.string(),
+
+    visionTitle: v.string(),
+    visionBody: v.array(v.string()),
+    visionImage: v.string(),
+
+    stats: v.array(
+      v.object({
+        value: v.string(),
+        label: v.string(),
+      }),
+    ),
+    partners: v.array(
+      v.object({
+        name: v.string(),
+        logoStorageId: v.optional(v.id("_storage")),
+        logoExternalUrl: v.optional(v.string()),
+      }),
+    ),
+
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 });

@@ -59,6 +59,8 @@ export async function loadDestinationIndexRows(): Promise<DestinationIndexRow[]>
       slug: t.slug,
       title: t.title,
       price: t.price,
+      pricePkr: (t as unknown as { pricePkr?: number }).pricePkr,
+      priceUsd: (t as unknown as { priceUsd?: number }).priceUsd,
       images: t.images,
     }));
     return {
@@ -132,6 +134,8 @@ export async function loadDestinationDetailPageData(
       title: string;
       description: string;
       price: number;
+      pricePkr?: number;
+      priceUsd?: number;
       durationDays: number;
       location: string;
       images: string[];
@@ -147,6 +151,8 @@ export async function loadDestinationDetailPageData(
         title: t.title,
         description: t.description,
         price: t.price,
+        pricePkr: t.pricePkr,
+        priceUsd: t.priceUsd,
         durationDays: t.durationDays,
         location: t.location,
         images: t.images,

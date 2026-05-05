@@ -9,11 +9,13 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
+import { formatMoney, type CurrencyCode } from "@/lib/money";
 
 type BookingRow = {
   source: "member" | "guest";
   _id: string;
   peopleCount: number;
+  currency?: CurrencyCode;
   totalPrice: number;
   status: string;
   createdAt: number;
@@ -114,8 +116,8 @@ export function DashboardBookings() {
                       </p>
                     ) : null}
                     <p className="mt-1 text-sm text-brand-muted">
-                      {b.peopleCount} travelers · PKR{" "}
-                      {b.totalPrice.toLocaleString()}
+                      {b.peopleCount} travelers ·{" "}
+                      {formatMoney(b.totalPrice, b.currency === "PKR" ? "PKR" : "USD")}
                     </p>
                     {(b.preferredStart || b.preferredEnd || b.departureCity) && (
                       <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-brand-muted">
@@ -174,7 +176,7 @@ export function DashboardBookings() {
                     {b.peopleCount}
                   </td>
                   <td className="px-4 py-3 text-brand-muted">
-                    PKR {b.totalPrice.toLocaleString()}
+                    {formatMoney(b.totalPrice, b.currency === "PKR" ? "PKR" : "USD")}
                   </td>
                   <td className="px-4 py-3 text-brand-muted">
                     {new Date(b.createdAt).toLocaleDateString(undefined, {

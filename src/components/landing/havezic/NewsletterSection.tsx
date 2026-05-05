@@ -217,6 +217,7 @@ export function NewsletterSection({ className }: { className?: string }) {
                 <PhoneMock>
                   <div className="absolute inset-0 bg-gradient-to-b from-white via-white to-[#F4F6FF]" />
 
+                  <div className="relative h-full overflow-y-auto pb-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                   {/* top mini app header */}
                   <div className="relative flex items-center justify-between px-5 pt-10">
                     <div className="flex items-center gap-2">
@@ -231,6 +232,26 @@ export function NewsletterSection({ className }: { className?: string }) {
                     <span className="rounded-full bg-black/5 px-3 py-1 text-[11px] font-semibold text-muted">
                       Deals
                     </span>
+                  </div>
+
+                  {/* quick actions */}
+                  <div className="relative mt-4 px-5">
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { label: "Budget", hint: "Under 40k" },
+                        { label: "Weekend", hint: "2–3 days" },
+                        { label: "Family", hint: "Kids friendly" },
+                        { label: "Honeymoon", hint: "Romantic" },
+                      ].map((x) => (
+                        <span
+                          key={x.label}
+                          className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/80 px-3 py-1 text-[11px] font-semibold text-foreground shadow-sm"
+                        >
+                          {x.label}
+                          <span className="text-[10px] font-medium text-muted">{x.hint}</span>
+                        </span>
+                      ))}
+                    </div>
                   </div>
 
                   {/* hero hook */}
@@ -267,8 +288,38 @@ export function NewsletterSection({ className }: { className?: string }) {
                     </div>
                   </div>
 
+                  {/* recommended */}
+                  <div className="relative mt-4 px-5">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-muted">
+                        Recommended
+                      </p>
+                      <span className="text-[11px] font-semibold text-havezic-primary">View all</span>
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      {[
+                        { title: "Skardu Stargaze", meta: "4D • from 58k", tag: "Popular" },
+                        { title: "Hunza Blossom", meta: "3D • from 42k", tag: "Limited" },
+                        { title: "Naran Escape", meta: "2D • from 28k", tag: "New" },
+                      ].map((x) => (
+                        <div
+                          key={x.title}
+                          className="flex items-center justify-between rounded-2xl border border-black/10 bg-white/80 px-3 py-2 shadow-sm"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold text-foreground">{x.title}</p>
+                            <p className="mt-0.5 text-[11px] text-muted">{x.meta}</p>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-havezic-secondary px-2 py-0.5 text-[10px] font-bold text-white">
+                            {x.tag}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* carousel INSIDE phone screen */}
-                  <div className="absolute inset-x-0 bottom-0 px-4 pb-6">
+                  <div className="relative mt-4 px-4 pb-6">
                     <p className="text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-muted">
                       Top destinations
                     </p>
@@ -286,6 +337,7 @@ export function NewsletterSection({ className }: { className?: string }) {
                         />
                       ))}
                     </div>
+                  </div>
                   </div>
                 </PhoneMock>
               </div>

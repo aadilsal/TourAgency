@@ -2,13 +2,18 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
+import { useCurrency } from "@/hooks/useCurrency";
+import { formatMoney } from "@/lib/money";
+import { getTourUnitPrice } from "@/lib/tourPricing";
 
 export type TourCardData = {
   slug: string;
   title: string;
   description: string;
   types?: string[];
-  price: number;
+  price: number; // legacy PKR
+  pricePkr?: number;
+  priceUsd?: number;
   durationDays: number;
   location: string;
   images: string[];
@@ -21,6 +26,8 @@ type Props = {
 };
 
 export function TourCard({ tour, badge, className }: Props) {
+  const currency = useCurrency();
+  const unitPrice = getTourUnitPrice(tour, currency);
   return (
     <Card
       hover
@@ -56,7 +63,7 @@ export function TourCard({ tour, badge, className }: Props) {
           {tour.title}
         </h3>
         <p className="mt-2 text-sm font-semibold text-brand-sun">
-          PKR {tour.price.toLocaleString()} · {tour.durationDays} days
+          {formatMoney(unitPrice, currency)} · {tour.durationDays} days
         </p>
         <p className="mt-1 line-clamp-2 text-sm text-muted">{tour.location}</p>
         <div className="mt-auto flex gap-2 pt-5">
@@ -82,6 +89,8 @@ export function TourCard({ tour, badge, className }: Props) {
 
 /** Compact card for destination / related tour strips */
 export function TourCardCompact({ tour }: { tour: TourCardData }) {
+  const currency = useCurrency();
+  const unitPrice = getTourUnitPrice(tour, currency);
   return (
     <Link
       href={`/tours/${tour.slug}`}
@@ -107,7 +116,7 @@ export function TourCardCompact({ tour }: { tour: TourCardData }) {
       <div className="p-4 text-left">
         <p className="font-semibold text-foreground">{tour.title}</p>
         <p className="mt-1 text-sm font-medium text-brand-sun">
-          PKR {tour.price.toLocaleString()} · {tour.durationDays}d
+          {formatMoney(unitPrice, currency)} · {tour.durationDays}d
         </p>
       </div>
     </Link>

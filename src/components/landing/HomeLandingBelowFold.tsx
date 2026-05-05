@@ -1,5 +1,12 @@
 import Link from "next/link";
-import { Sparkles, ShieldCheck, Users, Zap } from "lucide-react";
+import {
+  Sparkles,
+  ShieldCheck,
+  Users,
+  Zap,
+  BadgePercent,
+  Headset,
+} from "lucide-react";
 import {
   FeaturedToursCarousel,
   type FeaturedTour,
@@ -156,41 +163,67 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
       <SceneCut />
       <MotionSection className="py-10 md:py-14">
         <PageContainer>
-          <SectionHeader
-            align="center"
-            title="Why choose JunketTours"
-            description="Built for travelers who want clarity, speed, and real local expertise."
-          />
-          <div className="mt-14 grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 md:grid-cols-[1fr_1.1fr] md:items-start">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.28em] text-havezic-primary">
+                Why choose us
+              </p>
+              <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
+                Why Junkettours?
+              </h2>
+            </div>
+            <p className="text-sm leading-relaxed text-muted md:pt-1 md:text-base">
+              For over a few years, as the top name in small group adventure travel,
+              we&apos;ve reimagined how travelers experience the world. Explore how
+              we&apos;re paving the way for the future of travel.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 icon: Sparkles,
-                title: "AI-powered trip planning",
-                text: "Structured matching to real tours — not generic blog fluff.",
+                title: "Unlock your potential",
+                text: "Nearly 500,000 attractions, hotels, and more — your journey to joy starts here.",
               },
               {
                 icon: ShieldCheck,
-                title: "Verified tour experiences",
-                text: "Curated itineraries with clear pricing and inclusions.",
+                title: "Exclusive savings and pleasures",
+                text: "Top activities, unbeatable prices, and Junket discounts for even more savings.",
               },
               {
                 icon: Users,
-                title: "Local travel experts",
-                text: "On-the-ground knowledge for roads, seasons, and stays.",
+                title: "Explore without limits",
+                text: "Make travel easy, book last-minute, avoid queues, and cancel without worry.",
               },
               {
                 icon: Zap,
-                title: "Fast booking & support",
-                text: "Guest checkout and quick responses on WhatsApp.",
+                title: "Where trust meets travel",
+                text: "Get insights from reviews and rely on top-notch support — we&apos;re here at every step.",
+              },
+              {
+                icon: BadgePercent,
+                title: "Every departure 100% assured",
+                text: "Pack your bags and breathe easy because we confidently guarantee every single one.",
+              },
+              {
+                icon: Headset,
+                title: "Create your own path",
+                text: "No matter your travel style, we combine thoughtful itineraries with plenty of flexibility.",
               },
             ].map((item) => {
               const Icon = item.icon;
               return (
-                <Card key={item.title} className="p-6 text-center sm:text-left" hover>
-                  <div className="flex justify-center text-havezic-primary sm:justify-start">
-                    <Icon className="h-8 w-8" strokeWidth={1.5} />
+                <Card
+                  key={item.title}
+                  className="rounded-2xl border-border bg-white p-7 shadow-[0_14px_38px_rgba(0,0,0,0.08)] transition-shadow hover:shadow-[0_18px_46px_rgba(0,0,0,0.10)]"
+                >
+                  <div className="flex justify-start">
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-havezic-background-light text-havezic-primary ring-1 ring-border">
+                      <Icon className="h-6 w-6" strokeWidth={1.6} aria-hidden />
+                    </span>
                   </div>
-                  <h3 className="mt-4 font-bold text-foreground">{item.title}</h3>
+                  <h3 className="mt-5 text-base font-bold text-foreground">{item.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-muted">{item.text}</p>
                 </Card>
               );

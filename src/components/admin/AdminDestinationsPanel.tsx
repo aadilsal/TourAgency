@@ -8,6 +8,9 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
+import { asNumber, asString, asStringArray } from "@/lib/bulkUpload/coerce";
+import { importInBatches } from "@/lib/bulkUpload/importInBatches";
 
 type DestinationRow = {
   _id: Id<"destinations">;
@@ -43,6 +46,7 @@ export function AdminDestinationsPanel() {
   const createDestination = useMutation(api.destinations.createDestination);
   const updateDestination = useMutation(api.destinations.updateDestination);
   const deleteDestination = useMutation(api.destinations.deleteDestination);
+  const bulkUpsert = useMutation(api.destinations.bulkUpsert);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<Id<"destinations"> | null>(null);
@@ -61,6 +65,7 @@ export function AdminDestinationsPanel() {
 
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const list = useMemo(() => (rows ?? []) as DestinationRow[], [rows]);
 
@@ -147,6 +152,9 @@ export function AdminDestinationsPanel() {
         <Button type="button" variant="primary" onClick={openNew}>
           <Plus className="h-4 w-4" aria-hidden />
           Add destination
+        </Button>
+        <Button type="button" variant="secondary" onClick={() => setBulkOpen(true)}>
+          Bulk upload
         </Button>
         <Button type="button" variant="secondary" onClick={() => void seedDestinations({})}>
           Seed sample destinations
@@ -357,6 +365,66 @@ export function AdminDestinationsPanel() {
           </div>
         </form>
       </Modal>
+
+      <BulkUploadModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        title="Bulk upload destinations"
+        description="Upload a .json or .xlsx file. Rows are upserted by slug (or slugified from name)."
+        templateHint={
+          <div className="space-y-1">
+            <p className="font-semibold">Columns / keys</p>
+            <p className="font-mono text-xs">
+              slug, name, line, description, heroExternalUrl, matchTerms, bestTime, tips, costEstimate, bullets, sortOrder
+            </p>
+            <p className="text-xs text-slate-600">
+              For XLSX, you can put multi-values as newline or comma-separated text.
+            </p>
+          </div>
+        }
+        transformRow={(row) => {
+          const name = asString(row.name);
+          const line = asString(row.line);
+          const description = asString(row.description);
+          const bestTime = asString(row.bestTime);
+          const costEstimate = asString(row.costEstimate);
+          const matchTerms = asStringArray(row.matchTerms) ?? [];
+          const tips = asStringArray(row.tips) ?? [];
+          const bullets = asStringArray(row.bullets) ?? [];
+          if (!name) throw new Error("Missing name");
+          if (!line) throw new Error("Missing line");
+          if (!description) throw new Error("Missing description");
+          if (!bestTime) throw new Error("Missing bestTime");
+          if (!costEstimate) throw new Error("Missing costEstimate");
+          return {
+            slug: asString(row.slug),
+            name,
+            line,
+            description,
+            heroExternalUrl: asString(row.heroExternalUrl),
+            matchTerms,
+            bestTime,
+            tips,
+            costEstimate,
+            bullets,
+            sortOrder: asNumber(row.sortOrder),
+          };
+        }}
+        onImport={async (rows) => {
+          return await importInBatches({
+            rows,
+            batchSize: 25,
+            importBatch: async (batch) => bulkUpsert({ rows: batch }),
+            merge: (a, b) => ({
+              processed: a.processed + b.processed,
+              created: (a.created ?? 0) + (b.created ?? 0),
+              updated: (a.updated ?? 0) + (b.updated ?? 0),
+              skipped: (a.skipped ?? 0) + (b.skipped ?? 0),
+              errors: [...(a.errors ?? []), ...(b.errors ?? [])],
+            }),
+          });
+        }}
+      />
     </div>
   );
 }

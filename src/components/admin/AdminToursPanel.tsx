@@ -14,6 +14,32 @@ import {
   type TourTypeFilter,
 } from "@/lib/tour-filters";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
+import { asBoolean, asJson, asNumber, asString, asStringArray } from "@/lib/bulkUpload/coerce";
+import { importInBatches } from "@/lib/bulkUpload/importInBatches";
+
+type TourTicketGroup = {
+  label: string;
+  ageRange?: string;
+};
+
+type TourThemeFields = {
+  maxPeople?: number;
+  minAge?: number;
+  tourTypeLabel?: string;
+  ratingAvg?: number;
+  reviewsCount?: number;
+  /** Legacy/optional multi-currency fields (some datasets still include these). */
+  pricePkr?: number;
+  priceUsd?: number;
+  highlights?: string[];
+  included?: string[];
+  excluded?: string[];
+  timeSlots?: string[];
+  ticketGroups?: TourTicketGroup[];
+};
+
+type TourDoc = Doc<"tours"> & TourThemeFields;
 
 const defaultItinerary: Doc<"tours">["itinerary"] = [
   {
@@ -123,6 +149,8 @@ export function AdminToursPanel() {
   const createTour = useMutation(api.tours.createTour);
   const deleteTour = useMutation(api.tours.deleteTour);
   const updateTour = useMutation(api.tours.updateTour);
+  const bulkUpsert = useMutation(api.tours.bulkUpsert);
+  const backfillTourUsdPrices = useMutation(api.migrations.backfillTourUsdPrices);
   const generateUploadUrl = useMutation(api.media.generateTourImageUploadUrl);
   const ingestRemote = useAction(api.mediaActions.ingestImageFromUrl);
 
@@ -133,9 +161,15 @@ export function AdminToursPanel() {
   const [description, setDescription] = useState("");
   const [types, setTypes] = useState<TourTypeFilter[]>([]);
   const [destinationIds, setDestinationIds] = useState<Id<"destinations">[]>([]);
-  const [price, setPrice] = useState(150000);
+  const [pricePkr, setPricePkr] = useState(150000);
+  const [priceUsd, setPriceUsd] = useState(599);
   const [durationDays, setDurationDays] = useState(5);
   const [location, setLocation] = useState("Gilgit-Baltistan");
+  const [maxPeople, setMaxPeople] = useState<number | "">("");
+  const [minAge, setMinAge] = useState<number | "">("");
+  const [tourTypeLabel, setTourTypeLabel] = useState("");
+  const [ratingAvg, setRatingAvg] = useState<number | "">("");
+  const [reviewsCount, setReviewsCount] = useState<number | "">("");
   const [office, setOffice] = useState(fallbackOffice);
   const [email, setEmail] = useState(() => fallbackEmail("new-tour"));
   const [imageRefs, setImageRefs] = useState<string[]>([]);
@@ -146,9 +180,17 @@ export function AdminToursPanel() {
   const [itineraryJson, setItineraryJson] = useState(
     () => JSON.stringify(defaultItinerary, null, 2),
   );
+  const [highlightsInput, setHighlightsInput] = useState("");
+  const [includedInput, setIncludedInput] = useState("");
+  const [excludedInput, setExcludedInput] = useState("");
+  const [timeSlotsInput, setTimeSlotsInput] = useState("");
+  const [ticketGroupsInput, setTicketGroupsInput] = useState(
+    "Adult (18+)\nYouth (13-17)\nChildren (0-12)",
+  );
   const [isActive, setIsActive] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   /** `blob:` URLs for files being uploaded (key = temporary ref in `imageRefs`). */
   const [pendingFilePreviews, setPendingFilePreviews] = useState<
     Record<string, string>
@@ -200,21 +242,32 @@ export function AdminToursPanel() {
     setDescription("");
     setTypes([]);
     setDestinationIds([]);
-    setPrice(150000);
+    setPricePkr(150000);
+    setPriceUsd(599);
     setDurationDays(5);
     setLocation("Gilgit-Baltistan");
+    setMaxPeople("");
+    setMinAge("");
+    setTourTypeLabel("Honeymoon tours");
+    setRatingAvg("");
+    setReviewsCount("");
     setOffice(fallbackOffice());
     setEmail(fallbackEmail("new-tour"));
     setImageRefs([]);
     setUrlIngestInput("");
     setPathsInput("");
     setItineraryJson(JSON.stringify(defaultItinerary, null, 2));
+    setHighlightsInput("Discover scenic viewpoints\nLocal culture & food\nComfortable private transport");
+    setIncludedInput("24/7 Expert assistance\nProfessional driver\nFuel & tolls\nHotel pickup & drop off");
+    setExcludedInput("Flights\nPersonal expenses\nTips");
+    setTimeSlotsInput("08:00\n10:00\n12:00");
+    setTicketGroupsInput("Adult (18+)\nYouth (13-17)\nChildren (0-12)");
     setIsActive(true);
     setMsg(null);
     setModalOpen(true);
   }
 
-  function openEdit(t: Doc<"tours">) {
+  function openEdit(t: TourDoc) {
     clearAllPendingPreviews();
     setEditingId(t._id);
     setTitle(t.title);
@@ -232,15 +285,43 @@ export function AdminToursPanel() {
           TOUR_TYPE_OPTIONS.some((opt) => opt.value === x),
       ),
     );
-    setPrice(t.price);
+    setPricePkr(t.pricePkr ?? t.price);
+    setPriceUsd(t.priceUsd ?? 0);
     setDurationDays(t.durationDays);
     setLocation(t.location);
+    setMaxPeople(typeof t.maxPeople === "number" ? t.maxPeople : "");
+    setMinAge(typeof t.minAge === "number" ? t.minAge : "");
+    setTourTypeLabel(typeof t.tourTypeLabel === "string" ? t.tourTypeLabel : "");
+    setRatingAvg(typeof t.ratingAvg === "number" ? t.ratingAvg : "");
+    setReviewsCount(typeof t.reviewsCount === "number" ? t.reviewsCount : "");
     setOffice(t.office ?? fallbackOffice());
     setEmail(t.email ?? fallbackEmail(t.slug || t.title));
     setImageRefs([...t.images]);
     setUrlIngestInput("");
     setPathsInput("");
     setItineraryJson(JSON.stringify(t.itinerary, null, 2));
+    setHighlightsInput(
+      Array.isArray(t.highlights) ? t.highlights.join("\n") : "",
+    );
+    setIncludedInput(
+      Array.isArray(t.included) ? t.included.join("\n") : "",
+    );
+    setExcludedInput(
+      Array.isArray(t.excluded) ? t.excluded.join("\n") : "",
+    );
+    setTimeSlotsInput(
+      Array.isArray(t.timeSlots) ? t.timeSlots.join("\n") : "",
+    );
+    setTicketGroupsInput(
+      Array.isArray(t.ticketGroups)
+        ? t.ticketGroups
+            .map((g) =>
+              g.ageRange ? `${g.label} (${g.ageRange})` : String(g.label),
+            )
+            .filter((x) => x.trim().length > 0)
+            .join("\n")
+        : "",
+    );
     setIsActive(t.isActive);
     setMsg(null);
     setModalOpen(true);
@@ -253,6 +334,16 @@ export function AdminToursPanel() {
       setMsg(
         r.skipped ? "Tours already exist." : `Inserted ${r.inserted} tours.`,
       );
+    } catch (e) {
+      setMsg(toUserFacingErrorMessage(e));
+    }
+  }
+
+  async function onBackfillUsd() {
+    setMsg(null);
+    try {
+      const r = await backfillTourUsdPrices({ dryRun: false });
+      setMsg(`Backfilled USD/PKR for ${r.patched} tours.`);
     } catch (e) {
       setMsg(toUserFacingErrorMessage(e));
     }
@@ -415,6 +506,21 @@ export function AdminToursPanel() {
       return;
     }
     const images = imageRefs.filter(Boolean);
+    const parseLines = (raw: string) =>
+      raw
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+    const highlights = parseLines(highlightsInput);
+    const included = parseLines(includedInput);
+    const excluded = parseLines(excludedInput);
+    const timeSlots = parseLines(timeSlotsInput);
+    const ticketGroups = parseLines(ticketGroupsInput).map((line) => {
+      const m = line.match(/^(.*?)(?:\s*\((.+)\))?$/);
+      const label = (m?.[1] ?? line).trim();
+      const ageRange = (m?.[2] ?? "").trim() || undefined;
+      return { label, ageRange };
+    });
     setSaving(true);
     try {
       const uniqueDestinationIds = Array.from(new Set(destinationIds));
@@ -427,13 +533,24 @@ export function AdminToursPanel() {
           types,
           destinationIds: uniqueDestinationIds,
           destinationId: uniqueDestinationIds[0],
-          price,
+          pricePkr,
+          priceUsd,
           durationDays,
           location,
+          maxPeople: maxPeople === "" ? undefined : maxPeople,
+          minAge: minAge === "" ? undefined : minAge,
+          tourTypeLabel: tourTypeLabel.trim() || undefined,
+          ratingAvg: ratingAvg === "" ? undefined : ratingAvg,
+          reviewsCount: reviewsCount === "" ? undefined : reviewsCount,
           office,
           email,
           images,
           itinerary,
+          highlights,
+          included,
+          excluded,
+          timeSlots,
+          ticketGroups,
           isActive,
         });
         setMsg("Tour updated.");
@@ -445,13 +562,24 @@ export function AdminToursPanel() {
           types,
           destinationIds: uniqueDestinationIds,
           destinationId: uniqueDestinationIds[0],
-          price,
+          pricePkr,
+          priceUsd,
           durationDays,
           location,
+          maxPeople: maxPeople === "" ? undefined : maxPeople,
+          minAge: minAge === "" ? undefined : minAge,
+          tourTypeLabel: tourTypeLabel.trim() || undefined,
+          ratingAvg: ratingAvg === "" ? undefined : ratingAvg,
+          reviewsCount: reviewsCount === "" ? undefined : reviewsCount,
           office,
           email,
           images,
           itinerary,
+          highlights,
+          included,
+          excluded,
+          timeSlots,
+          ticketGroups,
           isActive,
         });
         setMsg("Tour created.");
@@ -483,8 +611,14 @@ export function AdminToursPanel() {
           <Plus className="h-4 w-4" aria-hidden />
           Add tour
         </Button>
+        <Button type="button" variant="secondary" onClick={() => setBulkOpen(true)}>
+          Bulk upload
+        </Button>
         <Button type="button" variant="secondary" onClick={() => void onSeed()}>
           Seed sample tours
+        </Button>
+        <Button type="button" variant="secondary" onClick={() => void onBackfillUsd()}>
+          Backfill USD prices
         </Button>
         {msg && !modalOpen ? (
           <span className="text-sm text-brand-muted">{msg}</span>
@@ -501,6 +635,7 @@ export function AdminToursPanel() {
               <th className="px-4 py-3">Destination</th>
               <th className="px-4 py-3">Types</th>
               <th className="px-4 py-3">Price (PKR)</th>
+              <th className="px-4 py-3">Price (USD)</th>
               <th className="px-4 py-3">Days</th>
               <th className="px-4 py-3">Active</th>
               <th className="px-4 py-3 text-right">Actions</th>
@@ -535,7 +670,10 @@ export function AdminToursPanel() {
                     : "-"}
                 </td>
                 <td className="px-4 py-3 tabular-nums text-slate-700">
-                  {t.price.toLocaleString()}
+                  {(t.pricePkr ?? t.price).toLocaleString()}
+                </td>
+                <td className="px-4 py-3 tabular-nums text-slate-700">
+                  {Number(t.priceUsd ?? 0).toLocaleString()}
                 </td>
                 <td className="px-4 py-3 text-slate-600">{t.durationDays}</td>
                 <td className="px-4 py-3">
@@ -713,7 +851,7 @@ export function AdminToursPanel() {
               })}
             </div>
           </fieldset>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
             <label className="block text-xs font-semibold text-slate-600">
               Price (PKR)
               <input
@@ -721,8 +859,19 @@ export function AdminToursPanel() {
                 required
                 min={0}
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={price}
-                onChange={(e) => setPrice(Number(e.target.value))}
+                value={pricePkr}
+                onChange={(e) => setPricePkr(Number(e.target.value))}
+              />
+            </label>
+            <label className="block text-xs font-semibold text-slate-600">
+              Price (USD)
+              <input
+                type="number"
+                required
+                min={0}
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={priceUsd}
+                onChange={(e) => setPriceUsd(Number(e.target.value))}
               />
             </label>
             <label className="block text-xs font-semibold text-slate-600">
@@ -746,6 +895,133 @@ export function AdminToursPanel() {
               />
             </label>
           </div>
+
+          <fieldset className="rounded-lg border border-slate-200 p-3">
+            <legend className="px-1 text-xs font-semibold text-slate-600">
+              ThemeForest “facts row”
+            </legend>
+            <div className="mt-2 grid gap-3 sm:grid-cols-3">
+              <label className="block text-xs font-semibold text-slate-600">
+                Max people
+                <input
+                  type="number"
+                  min={1}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  value={maxPeople}
+                  onChange={(e) =>
+                    setMaxPeople(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                Min age
+                <input
+                  type="number"
+                  min={0}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  value={minAge}
+                  onChange={(e) =>
+                    setMinAge(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                Tour type label
+                <input
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="e.g. Honeymoon tours"
+                  value={tourTypeLabel}
+                  onChange={(e) => setTourTypeLabel(e.target.value)}
+                />
+              </label>
+            </div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+              <label className="block text-xs font-semibold text-slate-600">
+                Rating avg
+                <input
+                  type="number"
+                  min={0}
+                  max={5}
+                  step="0.1"
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  value={ratingAvg}
+                  onChange={(e) =>
+                    setRatingAvg(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                Reviews count
+                <input
+                  type="number"
+                  min={0}
+                  step="1"
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  value={reviewsCount}
+                  onChange={(e) =>
+                    setReviewsCount(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="block text-xs font-semibold text-slate-600">
+              Highlights (one per line)
+              <textarea
+                rows={4}
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={highlightsInput}
+                onChange={(e) => setHighlightsInput(e.target.value)}
+              />
+            </label>
+            <label className="block text-xs font-semibold text-slate-600">
+              What’s included (one per line)
+              <textarea
+                rows={4}
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={includedInput}
+                onChange={(e) => setIncludedInput(e.target.value)}
+              />
+            </label>
+            <label className="block text-xs font-semibold text-slate-600">
+              Not included (one per line)
+              <textarea
+                rows={4}
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                value={excludedInput}
+                onChange={(e) => setExcludedInput(e.target.value)}
+              />
+            </label>
+          </div>
+
+          <fieldset className="rounded-lg border border-slate-200 p-3">
+            <legend className="px-1 text-xs font-semibold text-slate-600">
+              Booking form fields (ThemeForest-style)
+            </legend>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs font-semibold text-slate-600">
+                Time slots (one per line)
+                <textarea
+                  rows={3}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  value={timeSlotsInput}
+                  onChange={(e) => setTimeSlotsInput(e.target.value)}
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                Ticket groups (one per line, optional “(age range)”)
+                <textarea
+                  rows={3}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  value={ticketGroupsInput}
+                  onChange={(e) => setTicketGroupsInput(e.target.value)}
+                  placeholder={"Adult (18+)\nChildren (0-12)"}
+                />
+              </label>
+            </div>
+          </fieldset>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-xs font-semibold text-slate-600">
               Office
@@ -919,6 +1195,119 @@ export function AdminToursPanel() {
           </div>
         </form>
       </Modal>
+
+      <BulkUploadModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        title="Bulk upload tours"
+        description="Upload a .json or .xlsx file. Rows are upserted by slug. For nested fields, use JSON-in-cell (recommended) or newline-separated lists where applicable."
+        templateHint={
+          <div className="space-y-1">
+            <p className="font-semibold">Required keys</p>
+            <p className="font-mono text-xs">
+              title, slug, description, price, durationDays, location, images, itinerary, isActive
+            </p>
+            <p className="text-xs text-slate-600">
+              For XLSX: put <span className="font-mono">images</span> as newline/comma text, and{" "}
+              <span className="font-mono">itinerary</span> as a JSON array string.
+            </p>
+          </div>
+        }
+        transformRow={(row) => {
+          const title = asString(row.title);
+          const slug = asString(row.slug);
+          const description = asString(row.description);
+          const price = asNumber(row.price);
+          const durationDays = asNumber(row.durationDays);
+          const location = asString(row.location);
+          const isActive = asBoolean(row.isActive);
+          if (!title) throw new Error("Missing title");
+          if (!slug) throw new Error("Missing slug");
+          if (!description) throw new Error("Missing description");
+          if (price === undefined) throw new Error("Missing price");
+          if (durationDays === undefined) throw new Error("Missing durationDays");
+          if (!location) throw new Error("Missing location");
+          if (isActive === undefined) throw new Error("Missing isActive");
+
+          const images = asStringArray(row.images) ?? [];
+          const itinerary = asJson<
+            Array<{ day?: number; title?: string; description?: string }>
+          >(row.itinerary);
+          if (!Array.isArray(itinerary) || itinerary.length === 0) {
+            throw new Error("itinerary must be a JSON array");
+          }
+          const normalizedItinerary = itinerary.map((it, idx) => ({
+            day: typeof it.day === "number" ? it.day : idx + 1,
+            title: typeof it.title === "string" && it.title.trim() ? it.title : `Day ${idx + 1}`,
+            description: typeof it.description === "string" ? it.description : "",
+          }));
+
+          return {
+            title,
+            slug,
+            description,
+            price,
+            durationDays,
+            location,
+            isActive,
+            images,
+            itinerary: normalizedItinerary,
+            types: asStringArray(row.types),
+            highlights: asStringArray(row.highlights),
+            included: asStringArray(row.included),
+            excluded: asStringArray(row.excluded),
+            timeSlots: asStringArray(row.timeSlots),
+            ticketGroups: asJson<Array<{ label: string; ageRange?: string }>>(row.ticketGroups),
+            maxPeople: asNumber(row.maxPeople),
+            minAge: asNumber(row.minAge),
+            tourTypeLabel: asString(row.tourTypeLabel),
+            ratingAvg: asNumber(row.ratingAvg),
+            reviewsCount: asNumber(row.reviewsCount),
+            office: asString(row.office),
+            email: asString(row.email),
+          };
+        }}
+        onImport={async (rows) => {
+          return await importInBatches({
+            rows,
+            batchSize: 10,
+            importBatch: async (batch) =>
+              bulkUpsert({
+                rows: batch.map((b) => ({
+                  title: b.title,
+                  slug: b.slug,
+                  description: b.description,
+                  price: b.price,
+                  durationDays: b.durationDays,
+                  location: b.location,
+                  images: b.images,
+                  itinerary: b.itinerary,
+                  isActive: b.isActive,
+                  types: b.types,
+                  highlights: b.highlights,
+                  included: b.included,
+                  excluded: b.excluded,
+                  timeSlots: b.timeSlots,
+                  ticketGroups: Array.isArray(b.ticketGroups) ? b.ticketGroups : undefined,
+                  maxPeople: b.maxPeople,
+                  minAge: b.minAge,
+                  tourTypeLabel: b.tourTypeLabel,
+                  ratingAvg: b.ratingAvg,
+                  reviewsCount: b.reviewsCount,
+                  office: b.office,
+                  email: b.email,
+                })),
+              }),
+            merge: (a, b) => ({
+              processed: a.processed + b.processed,
+              created: (a.created ?? 0) + (b.created ?? 0),
+              updated: (a.updated ?? 0) + (b.updated ?? 0),
+              skipped: (a.skipped ?? 0) + (b.skipped ?? 0),
+              errors: [...(a.errors ?? []), ...(b.errors ?? [])],
+            }),
+          });
+        }}
+      />
     </div>
   );
 }
