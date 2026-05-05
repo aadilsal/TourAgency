@@ -21,17 +21,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   entries.push({ url: `${base}/hunza-tour-operator`, lastModified: new Date() });
   try {
     const client = getConvexServer();
-    const tours = await client.query(api.tours.getTours, {});
-    for (const t of tours) {
+    const tourSlugs = await client.query(api.tours.listSlugsActive, {});
+    for (const slug of tourSlugs) {
       entries.push({
-        url: `${base}/tours/${t.slug}`,
+        url: `${base}/tours/${slug}`,
         lastModified: new Date(),
       });
     }
-    const posts = await client.query(api.blog.getPosts, {});
-    for (const p of posts) {
+    const postSlugs = await client.query(api.blog.listSlugsPublic, {});
+    for (const slug of postSlugs) {
       entries.push({
-        url: `${base}/blog/${p.slug}`,
+        url: `${base}/blog/${slug}`,
         lastModified: new Date(),
       });
     }

@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
+import { useCurrency } from "@/hooks/useCurrency";
 import {
   FieldLabel,
   FieldHint,
@@ -24,6 +25,7 @@ export function TourMemberBooking({
 }) {
   const router = useRouter();
   const sessionToken = useConvexSessionToken();
+  const currency = useCurrency();
   const minDate = todayYmdLocal();
   const createBooking = useMutation(api.bookings.createBooking);
   const [adults, setAdults] = useState(2);
@@ -54,6 +56,7 @@ export function TourMemberBooking({
         sessionToken: token,
         tourId,
         peopleCount,
+        currency,
         notes: notes.trim() || undefined,
         preferredStart: preferredStart.trim() || undefined,
         preferredEnd: preferredEnd.trim() || undefined,

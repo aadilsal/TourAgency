@@ -149,7 +149,7 @@ export function ScrollyJourneyReelMobile({ className }: { className?: string }) 
               </div>
 
               <div className="pointer-events-none absolute inset-x-4 top-4 z-20 flex items-center justify-between gap-3">
-                <div className="rounded-full border border-white/15 bg-black/30 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur">
+                <div className="rounded-full border border-border bg-background/80 px-3 py-1.5 text-xs font-semibold text-foreground backdrop-blur">
                   {activeIndex + 1}/{chapters.length} · {active.mapPoint.label}
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -158,7 +158,7 @@ export function ScrollyJourneyReelMobile({ className }: { className?: string }) 
                       key={c.id}
                       className={cn(
                         "h-1.5 w-1.5 rounded-full transition",
-                        i === activeIndex ? "bg-white/85" : "bg-white/25",
+                        i === activeIndex ? "bg-havezic-primary" : "bg-black/15",
                       )}
                       aria-hidden
                     />
@@ -168,7 +168,7 @@ export function ScrollyJourneyReelMobile({ className }: { className?: string }) 
 
               {!hasInteracted ? (
                 <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center">
-                  <div className="rounded-full border border-white/15 bg-black/35 px-3 py-1.5 text-xs font-semibold text-white/75 backdrop-blur">
+                  <div className="rounded-full border border-border bg-background/80 px-3 py-1.5 text-xs font-semibold text-foreground backdrop-blur">
                     Swipe to explore
                   </div>
                 </div>
@@ -195,18 +195,18 @@ export function ScrollyJourneyReelMobile({ className }: { className?: string }) 
                       key={c.id}
                       className="min-w-0 flex-[0_0_88%] pr-4 sm:flex-[0_0_70%]"
                     >
-                      <div className="h-full rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-white/60">
+                      <div className="h-full rounded-2xl border border-border bg-background p-5 shadow-[0_16px_40px_rgba(0,0,0,0.08)]">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.26em] text-muted">
                           {c.eyebrow}
                         </p>
-                        <p className="mt-2 text-lg font-semibold text-white">
+                        <p className="mt-2 text-lg font-semibold text-foreground">
                           {c.title}
                         </p>
-                        <ul className="mt-3 space-y-2 text-sm leading-relaxed text-white/75">
+                        <ul className="mt-3 space-y-2 text-sm leading-relaxed text-muted">
                           {bullets.map((b) => (
                             <li key={b} className="flex gap-2">
                               <span
-                                className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-white/60"
+                                className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-havezic-primary"
                                 aria-hidden
                               />
                               <span>{b}</span>
@@ -218,7 +218,7 @@ export function ScrollyJourneyReelMobile({ className }: { className?: string }) 
                             {c.stats.slice(0, 3).map((s) => (
                               <span
                                 key={s}
-                                className="rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[11px] font-semibold text-white/70"
+                                className="rounded-full border border-border bg-havezic-background-light px-3 py-1 text-[11px] font-semibold text-foreground/80"
                               >
                                 {s}
                               </span>

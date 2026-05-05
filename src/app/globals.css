@@ -3,7 +3,24 @@
 @tailwind utilities;
 
 :root {
-  /* DARK theme (single theme for now) */
+  /* Theme switch */
+  --theme: dark;
+
+  /* Havezic tokens (source: havezic/style.css :root) */
+  --havezic-primary: #fb5b32;
+  --havezic-primary-hover: #e1512d;
+  --havezic-secondary: #4d40ca;
+  --havezic-secondary-hover: #4539b5;
+  --havezic-text: #6e6e6e;
+  --havezic-text-light: #999999;
+  --havezic-accent: #000000;
+  --havezic-border: #dee0ea;
+  --havezic-background: #ffffff;
+  --havezic-background-light: #f9f9f9;
+  --havezic-container: 1200px;
+  --havezic-gutter-width: 30px;
+
+  /* App semantic tokens (default to current dark look) */
   --bg: #0c1929;
   --fg: #f1f5f9;
   --muted: rgba(241, 245, 249, 0.72);
@@ -17,15 +34,15 @@
     0 2px 16px -4px rgba(0, 0, 0, 0.25);
   --shadow-panel-strong: var(--shadow-panel);
 
-  /* Mesh accents (logo-led, reduce blue) */
-  --mesh-1: rgba(246, 176, 30, 0.16); /* gold */
-  --mesh-2: rgba(255, 122, 0, 0.10); /* orange */
-  --mesh-3: rgba(46, 125, 50, 0.10); /* green */
-  --mesh-4: rgba(11, 18, 32, 0.88); /* charcoal */
+  /* Mesh accents */
+  --mesh-1: rgba(246, 176, 30, 0.16);
+  --mesh-2: rgba(255, 122, 0, 0.10);
+  --mesh-3: rgba(46, 125, 50, 0.10);
+  --mesh-4: rgba(11, 18, 32, 0.88);
   --bg-grad-top: rgba(10, 22, 40, 0.92);
   --bg-grad-bottom: rgba(7, 11, 18, 0.98);
 
-  /* Back-compat: existing tokens referenced in Tailwind/utilities */
+  /* Back-compat */
   --background: var(--bg);
   --foreground: var(--fg);
   --surface: var(--panel);
@@ -36,7 +53,47 @@
   --glow-accent: 0 0 60px -12px rgba(246, 176, 30, 0.20);
 }
 
+/* Havezic theme mode: apply WP-like light tokens across the whole app */
+html.theme-havezic {
+  --theme: havezic;
+
+  --bg: var(--havezic-background);
+  --fg: var(--havezic-accent);
+  --muted: var(--havezic-text);
+
+  --panel: #ffffff;
+  --panel-elevated: #ffffff;
+  --border: var(--havezic-border);
+  --border-strong: rgba(251, 91, 50, 0.55);
+
+  /* Theme uses subtle, soft shadows (e.g. dropdown: 0 0 30px rgba(0,0,0,0.05)) */
+  --shadow-panel: 0 0 30px rgba(0, 0, 0, 0.05);
+  --shadow-panel-strong: 0 14px 40px rgba(0, 0, 0, 0.12);
+
+  /* Disable mesh background in Havezic mode (the WP theme is clean/light) */
+  --mesh-1: transparent;
+  --mesh-2: transparent;
+  --mesh-3: transparent;
+  --mesh-4: transparent;
+  --bg-grad-top: var(--havezic-background);
+  --bg-grad-bottom: var(--havezic-background);
+
+  --glow-accent: 0 0 0 0 transparent;
+}
+
 @layer base {
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
+  /* Prevent long strings / code / URLs from forcing horizontal scroll. */
+  * {
+    overflow-wrap: anywhere;
+  }
+
   /* Readable text on light inputs (body foreground is light; cards use white fields). */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
@@ -56,6 +113,8 @@
   body {
     color: var(--foreground);
     background-color: var(--background);
+    font-size: 16px;
+    line-height: 1.625;
     background-image:
       radial-gradient(ellipse 110% 80% at 50% -20%, var(--mesh-1), transparent),
       radial-gradient(ellipse 70% 55% at 100% 10%, var(--mesh-2), transparent),
@@ -73,7 +132,7 @@
   }
 
   .font-display {
-    font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+    font-family: var(--font-inter), system-ui, sans-serif;
   }
 
   .glass-panel {

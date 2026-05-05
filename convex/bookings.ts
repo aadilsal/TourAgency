@@ -12,6 +12,22 @@ import {
 } from "./lib/authHelpers.js";
 import type { Id } from "./_generated/dataModel.js";
 
+type CurrencyCode = "PKR" | "USD";
+
+function normalizeCurrency(raw: unknown): CurrencyCode {
+  return raw === "USD" ? "USD" : "PKR";
+}
+
+function tourUnitPrice(
+  tour: { price: number; pricePkr?: number; priceUsd?: number },
+  currency: CurrencyCode,
+): number {
+  if (currency === "USD") {
+    return Number.isFinite(tour.priceUsd) ? (tour.priceUsd as number) : 0;
+  }
+  return Number.isFinite(tour.pricePkr) ? (tour.pricePkr as number) : tour.price;
+}
+
 export const getGuestBookingDoc = internalQuery({
   args: { id: v.id("guestBookings") },
   handler: async (ctx, { id }) => {
@@ -40,6 +56,7 @@ export const createGuestBooking = mutation({
     email: v.optional(v.string()),
     tourId: v.id("tours"),
     peopleCount: v.number(),
+    currency: v.optional(v.union(v.literal("PKR"), v.literal("USD"))),
     notes: v.optional(v.string()),
     preferredStart: v.optional(v.string()),
     preferredEnd: v.optional(v.string()),
@@ -56,6 +73,8 @@ export const createGuestBooking = mutation({
     if (!tour || !tour.isActive) throw new Error("Tour not available");
     const now = Date.now();
     const phoneNormalized = normalizePhone(args.phone);
+    const currency = normalizeCurrency(args.currency);
+    const unitPrice = tourUnitPrice(tour as any, currency);
     const guestBookingId = await ctx.db.insert("guestBookings", {
       name: args.name.trim(),
       phone: args.phone.trim(),
@@ -63,6 +82,8 @@ export const createGuestBooking = mutation({
       email: args.email?.trim().toLowerCase() || undefined,
       tourId: args.tourId,
       peopleCount: args.peopleCount,
+      currency,
+      unitPrice,
       notes: args.notes,
       preferredStart: args.preferredStart?.trim() || undefined,
       preferredEnd: args.preferredEnd?.trim() || undefined,
@@ -99,6 +120,7 @@ export const createBooking = mutation({
     sessionToken: v.string(),
     tourId: v.id("tours"),
     peopleCount: v.number(),
+    currency: v.optional(v.union(v.literal("PKR"), v.literal("USD"))),
     notes: v.optional(v.string()),
     preferredStart: v.optional(v.string()),
     preferredEnd: v.optional(v.string()),
@@ -115,12 +137,16 @@ export const createBooking = mutation({
     }
     const tour = await ctx.db.get(tourId);
     if (!tour || !tour.isActive) throw new Error("Tour not available");
-    const totalPrice = tour.price * peopleCount;
+    const currency = normalizeCurrency(args.currency);
+    const unitPrice = tourUnitPrice(tour as any, currency);
+    const totalPrice = unitPrice * peopleCount;
     const now = Date.now();
     const bookingId = await ctx.db.insert("bookings", {
       userId: user._id,
       tourId,
       peopleCount,
+      currency,
+      unitPrice,
       totalPrice,
       status: "pending",
       notes,
@@ -159,6 +185,8 @@ export const getUserBookings = query({
           source: "member" as const,
           _id: b._id,
           peopleCount: b.peopleCount,
+          currency: normalizeCurrency((b as any).currency),
+          unitPrice: Number.isFinite((b as any).unitPrice) ? (b as any).unitPrice : undefined,
           totalPrice: b.totalPrice,
           status: b.status,
           createdAt: b.createdAt,
@@ -173,14 +201,20 @@ export const getUserBookings = query({
     const guestRows = await Promise.all(
       linkedGuests.map(async (g) => {
         const tour = await ctx.db.get(g.tourId);
-        const totalPrice =
-          tour && Number.isFinite(tour.price)
-            ? tour.price * g.peopleCount
-            : 0;
+        const currency = normalizeCurrency((g as any).currency);
+        const unitPrice =
+          Number.isFinite((g as any).unitPrice)
+            ? ((g as any).unitPrice as number)
+            : tour
+              ? tourUnitPrice(tour as any, currency)
+              : 0;
+        const totalPrice = unitPrice * g.peopleCount;
         return {
           source: "guest" as const,
           _id: g._id,
           peopleCount: g.peopleCount,
+          currency,
+          unitPrice,
           totalPrice,
           status: g.status,
           createdAt: g.createdAt,
@@ -208,6 +242,8 @@ export type UnifiedBooking =
       tourTitle: string;
       peopleCount: number;
       status: "pending" | "confirmed" | "cancelled";
+      currency?: CurrencyCode;
+      unitPrice?: number;
       totalPrice: number;
       createdAt: number;
       preferredStart?: string;
@@ -225,6 +261,8 @@ export type UnifiedBooking =
       tourTitle: string;
       peopleCount: number;
       status: "pending" | "confirmed" | "cancelled";
+      currency?: CurrencyCode;
+      unitPrice?: number;
       totalPrice: number;
       createdAt: number;
       preferredStart?: string;
@@ -244,8 +282,13 @@ export const getAllBookings = query({
     const guestRows: UnifiedBooking[] = await Promise.all(
       guests.map(async (g) => {
         const tour = await ctx.db.get(g.tourId);
-        const tourPrice =
-          tour && Number.isFinite(tour.price) ? (tour.price as number) : 0;
+        const currency = normalizeCurrency((g as any).currency);
+        const unitPrice =
+          Number.isFinite((g as any).unitPrice)
+            ? ((g as any).unitPrice as number)
+            : tour
+              ? tourUnitPrice(tour as any, currency)
+              : 0;
         return {
           kind: "guest" as const,
           id: g._id,
@@ -255,7 +298,7 @@ export const getAllBookings = query({
           tourTitle: tour?.title ?? "Unknown",
           peopleCount: g.peopleCount,
           status: g.status,
-          totalPrice: tourPrice * g.peopleCount,
+          totalPrice: unitPrice * g.peopleCount,
           createdAt: g.createdAt,
           preferredStart: g.preferredStart,
           preferredEnd: g.preferredEnd,
@@ -278,6 +321,8 @@ export const getAllBookings = query({
           tourTitle: tour?.title ?? "Unknown",
           peopleCount: b.peopleCount,
           status: b.status,
+          currency: normalizeCurrency((b as any).currency),
+          unitPrice: Number.isFinite((b as any).unitPrice) ? (b as any).unitPrice : undefined,
           totalPrice: b.totalPrice,
           createdAt: b.createdAt,
           preferredStart: b.preferredStart,

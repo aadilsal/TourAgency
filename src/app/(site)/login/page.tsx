@@ -57,7 +57,7 @@ function LoginPageInner() {
       subtitle={
         <>
           No account?{" "}
-          <Link href="/register" className="font-semibold text-brand-accent hover:underline">
+          <Link href="/register" className="font-semibold text-havezic-primary hover:underline">
             Sign up
           </Link>
         </>

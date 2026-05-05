@@ -1,0 +1,1636 @@
+@charset "UTF-8";
+/* ===== Start ICONS CSS ===== */
+@font-face {
+  font-family: "havezic-icon";
+  src: url("./assets/fonts/icons/havezic-icon-1.1.6.eot");
+  src: url("./assets/fonts/icons/havezic-icon-1.1.6.eot?#iefix") format("eot"), url("./assets/fonts/icons/havezic-icon-1.1.6.woff2") format("woff2"), url("./assets/fonts/icons/havezic-icon-1.1.6.woff") format("woff"), url("./assets/fonts/icons/havezic-icon-1.1.6.ttf") format("truetype"), url("./assets/fonts/icons/havezic-icon-1.1.6.svg#havezic-icon-1.1.6") format("svg");
+}
+[class*=havezic-icon-] {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.havezic-icon-angle-down:before {
+  content: "";
+}
+
+.havezic-icon-angle-left:before {
+  content: "";
+}
+
+.havezic-icon-angle-right:before {
+  content: "";
+}
+
+.havezic-icon-angle-up:before {
+  content: "";
+}
+
+.havezic-icon-arrow-down:before {
+  content: "";
+}
+
+.havezic-icon-arrow-left:before {
+  content: "";
+}
+
+.havezic-icon-arrow-right:before {
+  content: "";
+}
+
+.havezic-icon-arrow-small-left:before {
+  content: "";
+}
+
+.havezic-icon-arrow-small-right:before {
+  content: "";
+}
+
+.havezic-icon-arrow-small-up:before {
+  content: "";
+}
+
+.havezic-icon-arrow-up:before {
+  content: "";
+}
+
+.havezic-icon-bicycle:before {
+  content: "";
+}
+
+.havezic-icon-boarding:before {
+  content: "";
+}
+
+.havezic-icon-calendar-check:before {
+  content: "";
+}
+
+.havezic-icon-calendar:before {
+  content: "";
+}
+
+.havezic-icon-check-verified:before {
+  content: "";
+}
+
+.havezic-icon-check:before {
+  content: "";
+}
+
+.havezic-icon-checkbox-circle-fill:before {
+  content: "";
+}
+
+.havezic-icon-compass:before {
+  content: "";
+}
+
+.havezic-icon-contacts-book:before {
+  content: "";
+}
+
+.havezic-icon-coupon:before {
+  content: "";
+}
+
+.havezic-icon-credit-check:before {
+  content: "";
+}
+
+.havezic-icon-encil-ruler:before {
+  content: "";
+}
+
+.havezic-icon-envelope-fill:before {
+  content: "";
+}
+
+.havezic-icon-file-list:before {
+  content: "";
+}
+
+.havezic-icon-flag:before {
+  content: "";
+}
+
+.havezic-icon-globe:before {
+  content: "";
+}
+
+.havezic-icon-headphone-line:before {
+  content: "";
+}
+
+.havezic-icon-heart:before {
+  content: "";
+}
+
+.havezic-icon-home-smile:before {
+  content: "";
+}
+
+.havezic-icon-hot-air:before {
+  content: "";
+}
+
+.havezic-icon-image:before {
+  content: "";
+}
+
+.havezic-icon-kayak:before {
+  content: "";
+}
+
+.havezic-icon-location:before {
+  content: "";
+}
+
+.havezic-icon-luggage:before {
+  content: "";
+}
+
+.havezic-icon-mail-send-line:before {
+  content: "";
+}
+
+.havezic-icon-mail:before {
+  content: "";
+}
+
+.havezic-icon-map-pin-line:before {
+  content: "";
+}
+
+.havezic-icon-map-pin:before {
+  content: "";
+}
+
+.havezic-icon-moon:before {
+  content: "";
+}
+
+.havezic-icon-mountains:before {
+  content: "";
+}
+
+.havezic-icon-pad-thai:before {
+  content: "";
+}
+
+.havezic-icon-phone-call:before {
+  content: "";
+}
+
+.havezic-icon-phone:before {
+  content: "";
+}
+
+.havezic-icon-play-fill:before {
+  content: "";
+}
+
+.havezic-icon-plus-slim:before {
+  content: "";
+}
+
+.havezic-icon-quote:before {
+  content: "";
+}
+
+.havezic-icon-share:before {
+  content: "";
+}
+
+.havezic-icon-suitcase:before {
+  content: "";
+}
+
+.havezic-icon-time-line:before {
+  content: "";
+}
+
+.havezic-icon-travel:before {
+  content: "";
+}
+
+.havezic-icon-user-check:before {
+  content: "";
+}
+
+.havezic-icon-user-circle:before {
+  content: "";
+}
+
+.havezic-icon-users:before {
+  content: "";
+}
+
+.havezic-icon-video-recorder:before {
+  content: "";
+}
+
+.havezic-icon-360:before {
+  content: "";
+}
+
+.havezic-icon-bars:before {
+  content: "";
+}
+
+.havezic-icon-calendar-alt:before {
+  content: "";
+}
+
+.havezic-icon-cart-empty:before {
+  content: "";
+}
+
+.havezic-icon-check-square:before {
+  content: "";
+}
+
+.havezic-icon-circle:before {
+  content: "";
+}
+
+.havezic-icon-cloud-download-alt:before {
+  content: "";
+}
+
+.havezic-icon-comment:before {
+  content: "";
+}
+
+.havezic-icon-comments:before {
+  content: "";
+}
+
+.havezic-icon-contact:before {
+  content: "";
+}
+
+.havezic-icon-credit-card:before {
+  content: "";
+}
+
+.havezic-icon-dot-circle:before {
+  content: "";
+}
+
+.havezic-icon-edit:before {
+  content: "";
+}
+
+.havezic-icon-envelope:before {
+  content: "";
+}
+
+.havezic-icon-expand-alt:before {
+  content: "";
+}
+
+.havezic-icon-external-link-alt:before {
+  content: "";
+}
+
+.havezic-icon-file-alt:before {
+  content: "";
+}
+
+.havezic-icon-file-archive:before {
+  content: "";
+}
+
+.havezic-icon-folder-open:before {
+  content: "";
+}
+
+.havezic-icon-folder:before {
+  content: "";
+}
+
+.havezic-icon-frown:before {
+  content: "";
+}
+
+.havezic-icon-gift:before {
+  content: "";
+}
+
+.havezic-icon-grid:before {
+  content: "";
+}
+
+.havezic-icon-grip-horizontal:before {
+  content: "";
+}
+
+.havezic-icon-heart-fill:before {
+  content: "";
+}
+
+.havezic-icon-history:before {
+  content: "";
+}
+
+.havezic-icon-home:before {
+  content: "";
+}
+
+.havezic-icon-info-circle:before {
+  content: "";
+}
+
+.havezic-icon-instagram:before {
+  content: "";
+}
+
+.havezic-icon-level-up-alt:before {
+  content: "";
+}
+
+.havezic-icon-list:before {
+  content: "";
+}
+
+.havezic-icon-map-marker-check:before {
+  content: "";
+}
+
+.havezic-icon-meh:before {
+  content: "";
+}
+
+.havezic-icon-minus-circle:before {
+  content: "";
+}
+
+.havezic-icon-minus:before {
+  content: "";
+}
+
+.havezic-icon-mobile-android-alt:before {
+  content: "";
+}
+
+.havezic-icon-money-bill:before {
+  content: "";
+}
+
+.havezic-icon-pencil-alt:before {
+  content: "";
+}
+
+.havezic-icon-plus-circle:before {
+  content: "";
+}
+
+.havezic-icon-plus:before {
+  content: "";
+}
+
+.havezic-icon-random:before {
+  content: "";
+}
+
+.havezic-icon-reply-all:before {
+  content: "";
+}
+
+.havezic-icon-reply:before {
+  content: "";
+}
+
+.havezic-icon-search:before {
+  content: "";
+}
+
+.havezic-icon-shield-check:before {
+  content: "";
+}
+
+.havezic-icon-shopping-basket:before {
+  content: "";
+}
+
+.havezic-icon-shopping-cart:before {
+  content: "";
+}
+
+.havezic-icon-sign-out-alt:before {
+  content: "";
+}
+
+.havezic-icon-smile:before {
+  content: "";
+}
+
+.havezic-icon-spinner:before {
+  content: "";
+}
+
+.havezic-icon-square:before {
+  content: "";
+}
+
+.havezic-icon-star:before {
+  content: "";
+}
+
+.havezic-icon-store:before {
+  content: "";
+}
+
+.havezic-icon-sync:before {
+  content: "";
+}
+
+.havezic-icon-tachometer-alt:before {
+  content: "";
+}
+
+.havezic-icon-th-list:before {
+  content: "";
+}
+
+.havezic-icon-thumbtack:before {
+  content: "";
+}
+
+.havezic-icon-ticket:before {
+  content: "";
+}
+
+.havezic-icon-times-circle:before {
+  content: "";
+}
+
+.havezic-icon-times-square:before {
+  content: "";
+}
+
+.havezic-icon-times:before {
+  content: "";
+}
+
+.havezic-icon-trophy-alt:before {
+  content: "";
+}
+
+.havezic-icon-truck:before {
+  content: "";
+}
+
+.havezic-icon-unlock:before {
+  content: "";
+}
+
+.havezic-icon-video:before {
+  content: "";
+}
+
+.havezic-icon-wishlist-empty:before {
+  content: "";
+}
+
+.havezic-icon-adobe:before {
+  content: "";
+}
+
+.havezic-icon-amazon:before {
+  content: "";
+}
+
+.havezic-icon-android:before {
+  content: "";
+}
+
+.havezic-icon-angular:before {
+  content: "";
+}
+
+.havezic-icon-apper:before {
+  content: "";
+}
+
+.havezic-icon-apple:before {
+  content: "";
+}
+
+.havezic-icon-atlassian:before {
+  content: "";
+}
+
+.havezic-icon-behance:before {
+  content: "";
+}
+
+.havezic-icon-bitbucket:before {
+  content: "";
+}
+
+.havezic-icon-bitcoin:before {
+  content: "";
+}
+
+.havezic-icon-bity:before {
+  content: "";
+}
+
+.havezic-icon-bluetooth:before {
+  content: "";
+}
+
+.havezic-icon-btc:before {
+  content: "";
+}
+
+.havezic-icon-centos:before {
+  content: "";
+}
+
+.havezic-icon-chrome:before {
+  content: "";
+}
+
+.havezic-icon-codepen:before {
+  content: "";
+}
+
+.havezic-icon-cpanel:before {
+  content: "";
+}
+
+.havezic-icon-discord:before {
+  content: "";
+}
+
+.havezic-icon-dochub:before {
+  content: "";
+}
+
+.havezic-icon-docker:before {
+  content: "";
+}
+
+.havezic-icon-dribbble:before {
+  content: "";
+}
+
+.havezic-icon-dropbox:before {
+  content: "";
+}
+
+.havezic-icon-drupal:before {
+  content: "";
+}
+
+.havezic-icon-ebay:before {
+  content: "";
+}
+
+.havezic-icon-facebook-f:before {
+  content: "";
+}
+
+.havezic-icon-facebook:before {
+  content: "";
+}
+
+.havezic-icon-figma:before {
+  content: "";
+}
+
+.havezic-icon-firefox:before {
+  content: "";
+}
+
+.havezic-icon-google-plus:before {
+  content: "";
+}
+
+.havezic-icon-google:before {
+  content: "";
+}
+
+.havezic-icon-grunt:before {
+  content: "";
+}
+
+.havezic-icon-gulp:before {
+  content: "";
+}
+
+.havezic-icon-html5:before {
+  content: "";
+}
+
+.havezic-icon-joomla:before {
+  content: "";
+}
+
+.havezic-icon-link-brand:before {
+  content: "";
+}
+
+.havezic-icon-linkedin:before {
+  content: "";
+}
+
+.havezic-icon-mailchimp:before {
+  content: "";
+}
+
+.havezic-icon-opencart:before {
+  content: "";
+}
+
+.havezic-icon-paypal:before {
+  content: "";
+}
+
+.havezic-icon-pinterest-p:before {
+  content: "";
+}
+
+.havezic-icon-pinterest-r:before {
+  content: "";
+}
+
+.havezic-icon-reddit:before {
+  content: "";
+}
+
+.havezic-icon-skype:before {
+  content: "";
+}
+
+.havezic-icon-slack:before {
+  content: "";
+}
+
+.havezic-icon-snapchat:before {
+  content: "";
+}
+
+.havezic-icon-spotify:before {
+  content: "";
+}
+
+.havezic-icon-trello:before {
+  content: "";
+}
+
+.havezic-icon-twitter-x:before {
+  content: "";
+}
+
+.havezic-icon-twitter:before {
+  content: "";
+}
+
+.havezic-icon-vimeo:before {
+  content: "";
+}
+
+.havezic-icon-whatsapp:before {
+  content: "";
+}
+
+.havezic-icon-wordpress:before {
+  content: "";
+}
+
+.havezic-icon-yoast:before {
+  content: "";
+}
+
+.havezic-icon-youtube:before {
+  content: "";
+}
+
+/* ===== End ICONS CSS ===== */
+.editor-styles-wrapper blockquote,
+.editor-styles-wrapper .wp-block-quote,
+.hentry .entry-content blockquote,
+.hentry .entry-content .wp-block-quote {
+  position: relative;
+  overflow: hidden;
+}
+.editor-styles-wrapper blockquote:before,
+.editor-styles-wrapper .wp-block-quote:before,
+.hentry .entry-content blockquote:before,
+.hentry .entry-content .wp-block-quote:before {
+  position: absolute;
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  font-size: 120px;
+  color: var(--border);
+  left: 0;
+  top: -20px;
+}
+@media (min-width: 768px) {
+  .editor-styles-wrapper blockquote:before,
+.editor-styles-wrapper .wp-block-quote:before,
+.hentry .entry-content blockquote:before,
+.hentry .entry-content .wp-block-quote:before {
+    left: 65px;
+    top: 33px;
+  }
+}
+
+.havezic-social ul {
+  margin: 0;
+  list-style-type: none;
+}
+.havezic-social ul li {
+  display: inline-block;
+  margin-right: 10px;
+  line-height: 1;
+}
+.havezic-social ul li:last-child {
+  margin-right: 0;
+}
+.havezic-social ul li a:before {
+  position: relative;
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+}
+.havezic-social ul li a[href*=twitter]:before {
+  content: "";
+  color: #1DA1F2;
+}
+.havezic-social ul li a[href*=instagram]:before {
+  content: "";
+  color: #262626;
+}
+.havezic-social ul li a[href*=docker]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=dochub]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=yelp]:before {
+  content: "";
+  color: #af0606;
+}
+.havezic-social ul li a[href*=flickr]:before {
+  content: "";
+  color: #0063dc;
+}
+.havezic-social ul li a[href*=github]:before {
+  content: "";
+  color: #333333;
+}
+.havezic-social ul li a[href*=dribbble]:before {
+  content: "";
+  color: #ea4c89;
+}
+.havezic-social ul li a[href*=wordpress]:before {
+  content: "";
+  color: #21759b;
+}
+.havezic-social ul li a[href*=tumblr]:before {
+  content: "";
+  color: #35465c;
+}
+.havezic-social ul li a[href*=angular]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=atlassian]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=snapchat]:before {
+  content: "";
+  color: #fffc00;
+}
+.havezic-social ul li a[href*=apper]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=codepen]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=gulp]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=cpanel]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=skype]:before {
+  content: "";
+  color: #00AFF0;
+}
+.havezic-social ul li a[href*=reddit]:before {
+  content: "";
+  color: #ff4500;
+}
+.havezic-social ul li a[href*=whatsapp]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=slack]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=amazon]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=android]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=grunt]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=firefox]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=adobe]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=behance]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=dropbox]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=facebook]:before {
+  content: "";
+  color: #3b5998;
+}
+.havezic-social ul li a[href*=linkedin]:before {
+  content: "";
+  color: #0077b5;
+}
+.havezic-social ul li a[href*=paypal]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=trello]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=vimeo]:before {
+  content: "";
+  color: #1ab7ea;
+}
+.havezic-social ul li a[href*=youtube]:before {
+  content: "";
+  color: #cd201f;
+}
+.havezic-social ul li a[href*=apple]:before {
+  content: "";
+  color: #999999;
+}
+.havezic-social ul li a[href*=bitbucket]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=bitcoin]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=bluetooth]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=bity]:before {
+  content: "";
+}
+.havezic-social ul li a[href*="google/chrome"]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=drupal]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=html5]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=mailchimp]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=jenkins]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=spotify]:before {
+  content: "";
+  color: #2ebd59;
+}
+.havezic-social ul li a[href*=ebay]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=telegram]:before {
+  content: "";
+  color: #2CA5E0;
+}
+.havezic-social ul li a[href*=yoast]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=btc-e]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=discord]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=google]:before {
+  content: "";
+  color: #dd4b39;
+}
+.havezic-social ul li a[href*=google-plus]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=figma]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=joomla]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=opencart]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=pinterest]:before {
+  content: "";
+  color: #bd081c;
+}
+.havezic-social ul li a[href*=vimeo]:before {
+  content: "";
+  color: #1ab7ea;
+}
+.havezic-social ul li a[href*=centos]:before {
+  content: "";
+}
+.havezic-social ul li a[href*=whatsapp]:before {
+  content: "";
+}
+
+#comments .commentlist .bypostauthor > .comment-body cite::after {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  margin-left: 0.5407911001em;
+}
+
+#respond #cancel-comment-reply-link::before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  display: block;
+}
+
+#comments .comment-list .reply a.comment-reply-link:before, #comments .comment-list .reply a.comment-edit-link:before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  font-size: 12px;
+  margin-right: 5px;
+}
+#comments .comment-list .reply a.comment-reply-link:before {
+  content: "";
+}
+#comments .comment-list .reply a.comment-edit-link:before {
+  content: "";
+}
+
+.sticky .entry-title::before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  margin-right: 0.5407911001em;
+}
+
+.nav-previous .nav-content .reader-text:before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  font-size: 20px;
+  margin-right: 8px;
+  margin-bottom: 1px;
+}
+
+.nav-next .nav-content .reader-text:after {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  font-size: 20px;
+  margin-left: 2px;
+  margin-bottom: 1px;
+}
+
+button.loading,
+.button.loading {
+  position: relative;
+}
+button.loading::after,
+.button.loading::after {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  animation: fa-spin 0.75s linear infinite;
+  height: 20px;
+  width: 20px;
+  line-height: 20px;
+  font-size: 20px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-left: -10px;
+  margin-top: -10px;
+  display: block;
+  background-color: transparent;
+  z-index: 1;
+}
+
+.main-navigtion ul li a::before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  margin-right: 0.5407911001em;
+}
+
+.mobile-navigation ul li button::before, .mobile-navigation-categories ul li button::before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+}
+.mobile-navigation ul li button.toggled-on::before, .mobile-navigation-categories ul li button.toggled-on::before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+}
+
+a.remove {
+  display: block;
+  width: 1.618em;
+  height: 1.618em;
+  line-height: 1.618;
+  font-weight: 400;
+  text-indent: -9999px;
+  position: relative;
+}
+a.remove::before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  color: #999999;
+  line-height: 1.618;
+  text-indent: 0;
+  text-align: center;
+}
+
+.blockUI::before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  animation: fa-spin 0.75s linear infinite;
+  height: 30px;
+  width: 30px;
+  line-height: 30px;
+  font-size: 30px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-left: -15px;
+  margin-top: -15px;
+}
+
+.pagination .next:before, .pagination .next:after,
+.pagination .prev:before,
+.pagination .prev:after {
+  font-size: 20px;
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+}
+.pagination .next:after {
+  content: "";
+}
+.pagination .prev:before {
+  content: "";
+}
+
+.elementor-widget-havezic-vertical-menu .vertical-navigation .havezic-icon {
+  position: relative;
+}
+.elementor-widget-havezic-vertical-menu .vertical-navigation .havezic-icon::after {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  font-size: 24px;
+  font-weight: 700;
+  transition: transform 0.2s;
+}
+.elementor-widget-havezic-vertical-menu .vertical-navigation .havezic-icon::before {
+  position: absolute;
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  font-size: 24px;
+  font-weight: 700;
+  transform: translate3d(0, 250%, 0);
+  transition: transform 0.2s;
+}
+.elementor-widget-havezic-vertical-menu .vertical-navigation:hover .havezic-icon::after {
+  transform: translate3d(0, -250%, 0);
+}
+.elementor-widget-havezic-vertical-menu .vertical-navigation:hover .havezic-icon::before {
+  transform: translate3d(0, 0, 0);
+}
+
+@media (min-width: 768px) {
+  .main-navigation ul.menu > li.menu-item-has-children > a:after, .main-navigation ul.menu > li.page_item_has_children > a:after, .main-navigation ul.menu > li.has-mega-menu > a:after,
+.main-navigation ul.nav-menu > li.menu-item-has-children > a:after,
+.main-navigation ul.nav-menu > li.page_item_has_children > a:after,
+.main-navigation ul.nav-menu > li.has-mega-menu > a:after {
+    font-family: "havezic-icon";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: normal;
+    line-height: 1;
+    vertical-align: middle;
+    content: "";
+    font-size: 14px;
+    margin-left: 10px;
+    font-weight: 700;
+  }
+  .gecko .main-navigation ul.menu > li.menu-item-has-children > a:after, .gecko .main-navigation ul.menu > li.page_item_has_children > a:after, .gecko .main-navigation ul.menu > li.has-mega-menu > a:after,
+.gecko .main-navigation ul.nav-menu > li.menu-item-has-children > a:after,
+.gecko .main-navigation ul.nav-menu > li.page_item_has_children > a:after,
+.gecko .main-navigation ul.nav-menu > li.has-mega-menu > a:after {
+    margin-bottom: 0;
+    vertical-align: sub;
+  }
+
+  .header-side .main-navigation ul.menu > li.menu-item-has-children > a::after, .header-side .main-navigation ul.menu > li.page_item_has_children > a::after, .header-side .main-navigation ul.menu > li.has-mega-menu > a::after,
+.header-side .main-navigation ul.nav-menu > li.menu-item-has-children > a::after,
+.header-side .main-navigation ul.nav-menu > li.page_item_has_children > a::after,
+.header-side .main-navigation ul.nav-menu > li.has-mega-menu > a::after {
+    font-family: "havezic-icon";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: normal;
+    line-height: 1;
+    vertical-align: middle;
+    content: "";
+    margin-left: 1em;
+    margin-right: -25px;
+  }
+
+  .vertical-navigation ul.menu > li.menu-item-has-children > a::after, .vertical-navigation ul.menu > li.page_item_has_children > a::after, .vertical-navigation ul.menu > li.has-mega-menu > a::after,
+.vertical-navigation ul.nav-menu > li.menu-item-has-children > a::after,
+.vertical-navigation ul.nav-menu > li.page_item_has_children > a::after,
+.vertical-navigation ul.nav-menu > li.has-mega-menu > a::after,
+.vertical-navigation ul.sub-menu > li.menu-item-has-children > a::after,
+.vertical-navigation ul.sub-menu > li.page_item_has_children > a::after,
+.vertical-navigation ul.sub-menu > li.has-mega-menu > a::after {
+    font-family: "havezic-icon";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: normal;
+    line-height: 1;
+    vertical-align: middle;
+    content: "";
+    margin-left: auto;
+    float: right;
+    font-size: 8px;
+  }
+
+  .main-navigation ul.menu ul li.menu-item-has-children > a::after, .main-navigation ul.menu ul li.page_item_has_children > a::after,
+.main-navigation ul.nav-menu ul li.menu-item-has-children > a::after,
+.main-navigation ul.nav-menu ul li.page_item_has_children > a::after {
+    font-family: "havezic-icon";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    display: inline-block;
+    font-style: normal;
+    font-variant: normal;
+    font-weight: normal;
+    line-height: 1;
+    vertical-align: middle;
+    content: "";
+    float: right;
+    margin-left: 10px;
+    line-height: 1.5;
+    color: var(--text_light);
+    font-size: 8px;
+    position: relative;
+    top: 2px;
+  }
+}
+body.loading {
+  position: relative;
+}
+body.loading::after {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  animation: fa-spin 0.75s linear infinite;
+  height: 40px;
+  width: 40px;
+  line-height: 40px;
+  font-size: 40px;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  display: block;
+  z-index: 999999;
+  color: #fff;
+}
+body.loading:before {
+  content: "";
+  display: block;
+  position: fixed;
+  width: 100vw;
+  height: 100vh;
+  left: 0;
+  top: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 999998;
+}
+
+a.read-more:after {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  margin-left: 5px;
+}
+
+.elementor-widget-havezic-language-switcher .havezic-language-switcher .language-switcher-head:after {
+  position: relative;
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  margin-left: 5px;
+  line-height: 12px;
+}
+.elementor-widget-havezic-language-switcher .havezic-language-switcher .language-switcher-head:before {
+  position: relative;
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  margin-right: 8px;
+  font-size: 20px;
+  color: var(--accent);
+}
+
+.popup-navigation ul.menu > li.menu-item-has-children > a:after, .popup-navigation ul.menu > li.page_item_has_children > a:after, .popup-navigation ul.menu > li.has-mega-menu > a:after,
+.popup-navigation ul.nav-menu > li.menu-item-has-children > a:after,
+.popup-navigation ul.nav-menu > li.page_item_has_children > a:after,
+.popup-navigation ul.nav-menu > li.has-mega-menu > a:after {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  margin-left: 0.5em;
+  font-size: 16px;
+}
+
+.popup-navigation ul.menu ul li.menu-item-has-children > a::after, .popup-navigation ul.menu ul li.page_item_has_children > a::after,
+.popup-navigation ul.nav-menu ul li.menu-item-has-children > a::after,
+.popup-navigation ul.nav-menu ul li.page_item_has_children > a::after {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  float: right;
+  margin-left: 0.5em;
+  line-height: 20px;
+  font-size: 14px;
+}
+
+.elementor-widget-image-gallery .elementor-image-gallery .gallery-icon a[data-elementor-open-lightbox=yes]:after {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+}
+
+.elementor-widget-havezic-post-grid .elementor-pagination .page-numbers:after {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+}
+.elementor-widget-havezic-post-grid .elementor-pagination .page-numbers.prev:after {
+  content: "";
+}
+.elementor-widget-havezic-post-grid .elementor-pagination .page-numbers.next:after {
+  content: "";
+}
+
+@keyframes mf-spin-fast {
+  0% {
+    -webkit-transform: rotate(0);
+    transform: rotate(0);
+    animation-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  }
+  50% {
+    -webkit-transform: rotate(900deg);
+    transform: rotate(900deg);
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  to {
+    -webkit-transform: rotate(1800deg);
+    transform: rotate(1800deg);
+  }
+}
+@-webkit-keyframes mf-spin-fast {
+  0% {
+    -webkit-transform: rotate(0);
+    transform: rotate(0);
+    animation-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  }
+  50% {
+    -webkit-transform: rotate(900deg);
+    transform: rotate(900deg);
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  to {
+    -webkit-transform: rotate(1800deg);
+    transform: rotate(1800deg);
+  }
+}
+@-o-keyframes mf-spin-fast {
+  0% {
+    -webkit-transform: rotate(0);
+    transform: rotate(0);
+    animation-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  }
+  50% {
+    -webkit-transform: rotate(900deg);
+    transform: rotate(900deg);
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  to {
+    -webkit-transform: rotate(1800deg);
+    transform: rotate(1800deg);
+  }
+}
+@-ms-keyframes mf-spin-fast {
+  0% {
+    -webkit-transform: rotate(0);
+    transform: rotate(0);
+    animation-timing-function: cubic-bezier(0.55, 0.055, 0.675, 0.19);
+  }
+  50% {
+    -webkit-transform: rotate(900deg);
+    transform: rotate(900deg);
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  to {
+    -webkit-transform: rotate(1800deg);
+    transform: rotate(1800deg);
+  }
+}
+.filter-close:after {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+}
+
+.form-style .mc4wp-form .mc4wp-form-fields:before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+}
+
+.button-popup-content .mfp-close:before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+}
+
+.input-square input[type=radio] + label:before,
+.input-square input[type=checkbox] + label:before,
+.babe-search-filter-terms .term_item > label:before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+  border-color: #c6c6c6;
+}
+
+.stars .star .fa-star:before {
+  font-family: "havezic-icon";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: normal;
+  line-height: 1;
+  vertical-align: middle;
+  content: "";
+}
+
+/*# sourceMappingURL=icons.css.map */

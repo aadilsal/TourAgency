@@ -1,0 +1,69 @@
+.opal-helix {
+    animation-name: opalHelix;
+    -moz-animation-name: opalHelix;
+    -webkit-animation-name: opalHelix;
+}
+@-webkit-keyframes opalHelix {
+     from {
+         opacity: 0;
+         -webkit-perspective: 1300px;
+         perspective: 1300px;
+         -webkit-transform: rotateY(-180deg);
+         transform: rotateY(-180deg);
+         -webkit-transform-style: preserve-3d;
+         transform-style: preserve-3d;
+     }
+     to {
+         -webkit-transform: rotateY(0deg);
+         transform: rotateY(0deg);
+         opacity: 1;
+     }
+ }
+@-moz-keyframes opalHelix {
+    from {
+        opacity: 0;
+        -webkit-perspective: 1300px;
+        perspective: 1300px;
+        -webkit-transform: rotateY(-180deg);
+        transform: rotateY(-180deg);
+        -webkit-transform-style: preserve-3d;
+        transform-style: preserve-3d;
+    }
+    to {
+        -webkit-transform: rotateY(0deg);
+        transform: rotateY(0deg);
+        opacity: 1;
+    }
+}
+@-ms-keyframes opalHelix {
+    from {
+        opacity: 0;
+        -webkit-perspective: 1300px;
+        perspective: 1300px;
+        -webkit-transform: rotateY(-180deg);
+        transform: rotateY(-180deg);
+        -webkit-transform-style: preserve-3d;
+        transform-style: preserve-3d;
+    }
+    to {
+        -webkit-transform: rotateY(0deg);
+        transform: rotateY(0deg);
+        opacity: 1;
+    }
+}
+@keyframes opalHelix {
+    from {
+        opacity: 0;
+        -webkit-perspective: 1300px;
+        perspective: 1300px;
+        -webkit-transform: rotateY(-180deg);
+        transform: rotateY(-180deg);
+        -webkit-transform-style: preserve-3d;
+        transform-style: preserve-3d;
+    }
+    to {
+        -webkit-transform: rotateY(0deg);
+        transform: rotateY(0deg);
+        opacity: 1;
+    }
+}

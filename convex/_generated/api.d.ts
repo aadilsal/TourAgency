@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as about from "../about.js";
 import type * as admin from "../admin.js";
 import type * as ai from "../ai.js";
 import type * as aiRequests from "../aiRequests.js";
@@ -21,6 +22,7 @@ import type * as dashboard from "../dashboard.js";
 import type * as destinations from "../destinations.js";
 import type * as documentsActions from "../documentsActions.js";
 import type * as email from "../email.js";
+import type * as faqs from "../faqs.js";
 import type * as invoices from "../invoices.js";
 import type * as itineraries from "../itineraries.js";
 import type * as leads from "../leads.js";
@@ -29,9 +31,11 @@ import type * as lib_resolveTourImages from "../lib/resolveTourImages.js";
 import type * as lib_syncTourImageAssets from "../lib/syncTourImageAssets.js";
 import type * as media from "../media.js";
 import type * as mediaActions from "../mediaActions.js";
+import type * as migrations from "../migrations.js";
 import type * as plannerChatSessions from "../plannerChatSessions.js";
 import type * as seed from "../seed.js";
 import type * as siteSettings from "../siteSettings.js";
+import type * as team from "../team.js";
 import type * as tours from "../tours.js";
 import type * as users from "../users.js";
 import type * as whatsapp from "../whatsapp.js";
@@ -43,6 +47,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  about: typeof about;
   admin: typeof admin;
   ai: typeof ai;
   aiRequests: typeof aiRequests;
@@ -56,6 +61,7 @@ declare const fullApi: ApiFromModules<{
   destinations: typeof destinations;
   documentsActions: typeof documentsActions;
   email: typeof email;
+  faqs: typeof faqs;
   invoices: typeof invoices;
   itineraries: typeof itineraries;
   leads: typeof leads;
@@ -64,9 +70,11 @@ declare const fullApi: ApiFromModules<{
   "lib/syncTourImageAssets": typeof lib_syncTourImageAssets;
   media: typeof media;
   mediaActions: typeof mediaActions;
+  migrations: typeof migrations;
   plannerChatSessions: typeof plannerChatSessions;
   seed: typeof seed;
   siteSettings: typeof siteSettings;
+  team: typeof team;
   tours: typeof tours;
   users: typeof users;
   whatsapp: typeof whatsapp;

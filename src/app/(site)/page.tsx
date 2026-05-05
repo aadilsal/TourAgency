@@ -2,8 +2,8 @@ import { getConvexServer } from "@/lib/convex-server";
 import { api } from "@convex/_generated/api";
 import { getWhatsAppClickUrl } from "@/lib/whatsapp-server";
 import { blogCoverImage } from "@/lib/blog-covers";
-import { HomeLandingAboveFold } from "@/components/landing/HomeLandingAboveFold";
 import { HomeLandingBelowFold } from "@/components/landing/HomeLandingBelowFold";
+import { HomeHero } from "@/components/landing/havezic/HomeHero";
 import type { FeaturedTour } from "@/components/landing/FeaturedToursCarousel";
 import { Suspense } from "react";
 
@@ -21,27 +21,29 @@ async function HomePageDeferred() {
 
   try {
     const client = getConvexServer();
-    const raw = (await client.query(api.tours.getTours, {})) as Array<{
+    const raw = (await client.query(api.tours.listActiveToursForExplore, {})) as Array<{
       _id: string;
       slug: string;
       title: string;
       description: string;
       types?: string[];
       price: number;
+      pricePkr?: number;
+      priceUsd?: number;
       durationDays: number;
       location: string;
       images: string[];
       isActive: boolean;
     }>;
-    tours = raw
-      .filter((t) => t.isActive)
-      .map((t) => ({
+    tours = raw.map((t) => ({
         _id: t._id,
         slug: t.slug,
         title: t.title,
         description: t.description,
         types: t.types ?? [],
         price: t.price,
+        pricePkr: t.pricePkr,
+        priceUsd: t.priceUsd,
         durationDays: t.durationDays,
         location: t.location,
         images: t.images ?? [],
@@ -71,7 +73,7 @@ async function HomePageDeferred() {
 export default async function HomePage() {
   return (
     <main className="min-h-screen">
-      <HomeLandingAboveFold />
+      <HomeHero />
       <Suspense fallback={null}>
         <HomePageDeferred />
       </Suspense>

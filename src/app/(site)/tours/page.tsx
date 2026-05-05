@@ -1,8 +1,8 @@
-import { getConvexServer } from "@/lib/convex-server";
 import { api } from "@convex/_generated/api";
 import type { Metadata } from "next";
 import nextDynamic from "next/dynamic";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
+import { getConvexServer } from "@/lib/convex-server";
 
 const ToursExploreClient = nextDynamic(
   () =>
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   description: "Filter and book northern Pakistan tours — Hunza, Skardu, Swat, and more.",
 };
 
-type Search = { type?: string; max?: string; min?: string };
+type Search = { type?: string; max?: string; min?: string; location?: string; from?: string; guests?: string };
 
 export default async function ToursPage({
   searchParams,
@@ -40,6 +40,8 @@ export default async function ToursPage({
     description: string;
     types?: string[];
     price: number;
+    pricePkr?: number;
+    priceUsd?: number;
     durationDays: number;
     location: string;
     images: string[];
@@ -48,7 +50,7 @@ export default async function ToursPage({
 
   try {
     const client = getConvexServer();
-    tours = (await client.query(api.tours.getTours, {})) as typeof tours;
+    tours = (await client.query(api.tours.listActiveToursForExplore, {})) as typeof tours;
   } catch (e) {
     if (process.env.NODE_ENV === "development") {
       console.error("[tours/page] Convex getTours failed:", e);
@@ -56,15 +58,14 @@ export default async function ToursPage({
     tours = [];
   }
 
-  const active = tours.filter((t) => t.isActive);
-
   return (
     <main className="min-h-screen">
       <ToursExploreClient
-        initialTours={active}
+        initialTours={tours}
         initialType={searchParams.type}
         initialMax={searchParams.max}
         initialMin={searchParams.min}
+        initialLocation={searchParams.location}
       />
     </main>
   );

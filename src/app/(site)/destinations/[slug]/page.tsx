@@ -7,6 +7,7 @@ import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -37,15 +38,17 @@ export default async function DestinationPage({ params }: Props) {
         ]}
       />
       <div className="relative h-[min(55vh,520px)] w-full overflow-hidden">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={d.heroUrl}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-primary/95 via-brand-primary/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent" />
         <PageContainer className="relative flex h-full flex-col justify-end pb-12 pt-32 text-white md:pb-16 md:pt-40">
-          <p className="text-sm font-medium text-brand-accent">
+          <p className="text-sm font-medium text-white/85">
             <Link href="/destinations" className="hover:underline">
               Destinations
             </Link>{" "}
@@ -85,12 +88,12 @@ export default async function DestinationPage({ params }: Props) {
         <div className="grid gap-8 lg:grid-cols-3">
           <div className="space-y-8 lg:col-span-2">
             <Card className="p-6 md:p-8">
-              <h2 className="text-xl font-bold text-brand-ink">About {d.name}</h2>
-              <p className="mt-4 leading-relaxed text-brand-muted">{d.description}</p>
+              <h2 className="text-xl font-bold text-foreground">About {d.name}</h2>
+              <p className="mt-4 leading-relaxed text-muted">{d.description}</p>
               <ul className="mt-6 space-y-2">
                 {d.bullets.map((b) => (
-                  <li key={b} className="flex gap-2 text-sm text-brand-muted">
-                    <span className="text-brand-accent" aria-hidden>
+                  <li key={b} className="flex gap-2 text-sm text-muted">
+                    <span className="text-havezic-primary" aria-hidden>
                       ✓
                     </span>
                     {b}
@@ -100,13 +103,13 @@ export default async function DestinationPage({ params }: Props) {
             </Card>
 
             <Card className="p-6 md:p-8">
-              <h2 className="text-xl font-bold text-brand-ink">Best time to visit</h2>
-              <p className="mt-4 text-brand-muted">{d.bestTime}</p>
+              <h2 className="text-xl font-bold text-foreground">Best time to visit</h2>
+              <p className="mt-4 text-muted">{d.bestTime}</p>
             </Card>
 
             <Card className="p-6 md:p-8">
-              <h2 className="text-xl font-bold text-brand-ink">Travel tips</h2>
-              <ul className="mt-4 list-inside list-disc space-y-2 text-brand-muted">
+              <h2 className="text-xl font-bold text-foreground">Travel tips</h2>
+              <ul className="mt-4 list-inside list-disc space-y-2 text-muted">
                 {d.tips.map((t) => (
                   <li key={t}>{t}</li>
                 ))}
@@ -114,8 +117,8 @@ export default async function DestinationPage({ params }: Props) {
             </Card>
 
             <Card className="p-6 md:p-8">
-              <h2 className="text-xl font-bold text-brand-ink">Cost estimate</h2>
-              <p className="mt-4 text-sm leading-relaxed text-brand-muted">
+              <h2 className="text-xl font-bold text-foreground">Cost estimate</h2>
+              <p className="mt-4 text-sm leading-relaxed text-muted">
                 {d.costEstimate}
               </p>
             </Card>
@@ -123,8 +126,8 @@ export default async function DestinationPage({ params }: Props) {
 
           <aside className="lg:col-span-1">
             <Card className="sticky top-28 p-6">
-              <h3 className="font-bold text-brand-ink">Plan this trip</h3>
-              <p className="mt-2 text-sm text-brand-muted">
+              <h3 className="font-bold text-foreground">Plan this trip</h3>
+              <p className="mt-2 text-sm text-muted">
                 Use AI to match dates, budget, and style — or message us on
                 WhatsApp for a custom quote.
               </p>

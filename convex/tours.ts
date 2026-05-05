@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server.js";
+import { paginationOptsValidator } from "convex/server";
 import { internal } from "./_generated/api.js";
 import { resolveUserFromSessionToken, requireAdmin } from "./lib/authHelpers.js";
 import type { Doc } from "./_generated/dataModel.js";
@@ -9,23 +10,27 @@ import {
   syncTourImageAssetIndex,
 } from "./lib/syncTourImageAssets.js";
 
+const MAX_TOURS_RETURNED = 500;
+
 export const getTours = query({
   args: {
     includeInactive: v.optional(v.boolean()),
     sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, { includeInactive, sessionToken }) => {
-    const all = await ctx.db.query("tours").collect();
     const user = await resolveUserFromSessionToken(ctx, sessionToken);
     const isAdmin =
       user?.role === "admin" || user?.role === "super_admin";
 
-    let list = all;
-    if (!includeInactive || !isAdmin) {
-      list = all.filter((t) => t.isActive);
-    }
+    const wantsAll = Boolean(includeInactive) && isAdmin;
+    const list = wantsAll
+      ? await ctx.db.query("tours").take(MAX_TOURS_RETURNED)
+      : await ctx.db
+          .query("tours")
+          .withIndex("by_isActive", (q) => q.eq("isActive", true))
+          .take(MAX_TOURS_RETURNED);
 
-    if (includeInactive && isAdmin) {
+    if (wantsAll) {
       return list;
     }
 
@@ -38,19 +43,94 @@ export const getTours = query({
   },
 });
 
+export const listActiveToursForExplore = query({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("tours")
+      .withIndex("by_isActive_and_createdAt", (q) => q.eq("isActive", true))
+      .order("desc")
+      .take(MAX_TOURS_RETURNED);
+
+    return Promise.all(
+      rows.map(async (t) => ({
+        _id: t._id,
+        slug: t.slug,
+        title: t.title,
+        description: t.description,
+        types: t.types ?? [],
+        price: t.price,
+        pricePkr: (t as { pricePkr?: number }).pricePkr,
+        priceUsd: (t as { priceUsd?: number }).priceUsd,
+        durationDays: t.durationDays,
+        location: t.location,
+        isActive: t.isActive,
+        images: await resolveTourImageUrls(ctx, t.images),
+      })),
+    );
+  },
+});
+
+export const listActiveToursPaginated = query({
+  args: { paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { paginationOpts }) => {
+    return await ctx.db
+      .query("tours")
+      .withIndex("by_isActive_and_createdAt", (q) => q.eq("isActive", true))
+      .order("desc")
+      .paginate(paginationOpts);
+  },
+});
+
+export const listRelatedTours = query({
+  args: {
+    excludeTourId: v.id("tours"),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { excludeTourId, limit }) => {
+    const rows = await ctx.db
+      .query("tours")
+      .withIndex("by_isActive_and_createdAt", (q) => q.eq("isActive", true))
+      .order("desc")
+      .take(Math.min(MAX_TOURS_RETURNED, Math.max(1, limit ?? 12)));
+
+    const filtered = rows.filter((t) => t._id !== excludeTourId);
+    return Promise.all(
+      filtered.map(async (t) => ({
+        ...t,
+        images: await resolveTourImageUrls(ctx, t.images),
+      })),
+    );
+  },
+});
+
+export const listSlugsActive = query({
+  args: {},
+  handler: async (ctx) => {
+    const rows = await ctx.db
+      .query("tours")
+      .withIndex("by_isActive", (q) => q.eq("isActive", true))
+      .take(MAX_TOURS_RETURNED);
+    return rows.map((t) => t.slug);
+  },
+});
+
 export const listToursForAi = internalQuery({
   args: {},
   handler: async (ctx) => {
-    const tours = await ctx.db.query("tours").collect();
+    const tours = await ctx.db
+      .query("tours")
+      .withIndex("by_isActive", (q) => q.eq("isActive", true))
+      .take(MAX_TOURS_RETURNED);
     return tours
-      .filter((t) => t.isActive)
       .map((t) => ({
         title: t.title,
         slug: t.slug,
         types: t.types ?? [],
         location: t.location,
         durationDays: t.durationDays,
-        price: t.price,
+        pricePkr: (t as { pricePkr?: number }).pricePkr ?? t.price,
+        priceUsd: (t as { priceUsd?: number }).priceUsd ?? null,
         description: t.description,
       }));
   },
@@ -79,9 +159,15 @@ export const createTour = mutation({
     types: v.optional(v.array(v.string())),
     destinationIds: v.optional(v.array(v.id("destinations"))),
     destinationId: v.optional(v.id("destinations")),
-    price: v.number(),
+    pricePkr: v.number(),
+    priceUsd: v.number(),
     durationDays: v.number(),
     location: v.string(),
+    maxPeople: v.optional(v.number()),
+    minAge: v.optional(v.number()),
+    tourTypeLabel: v.optional(v.string()),
+    ratingAvg: v.optional(v.number()),
+    reviewsCount: v.optional(v.number()),
     office: v.optional(v.string()),
     email: v.optional(v.string()),
     images: v.array(v.string()),
@@ -91,6 +177,18 @@ export const createTour = mutation({
         title: v.string(),
         description: v.string(),
       }),
+    ),
+    highlights: v.optional(v.array(v.string())),
+    included: v.optional(v.array(v.string())),
+    excluded: v.optional(v.array(v.string())),
+    timeSlots: v.optional(v.array(v.string())),
+    ticketGroups: v.optional(
+      v.array(
+        v.object({
+          label: v.string(),
+          ageRange: v.optional(v.string()),
+        }),
+      ),
     ),
     isActive: v.boolean(),
   },
@@ -105,6 +203,8 @@ export const createTour = mutation({
       slug: normalizedSlug,
       imageFolderKey,
       createdAt: now,
+      // Keep legacy `price` populated for older code paths and migrations.
+      price: args.pricePkr,
       destinationIds:
         args.destinationIds ?? (args.destinationId ? [args.destinationId] : undefined),
     });
@@ -129,9 +229,15 @@ export const updateTour = mutation({
     types: v.optional(v.array(v.string())),
     destinationIds: v.optional(v.array(v.id("destinations"))),
     destinationId: v.optional(v.id("destinations")),
-    price: v.optional(v.number()),
+    pricePkr: v.optional(v.number()),
+    priceUsd: v.optional(v.number()),
     durationDays: v.optional(v.number()),
     location: v.optional(v.string()),
+    maxPeople: v.optional(v.number()),
+    minAge: v.optional(v.number()),
+    tourTypeLabel: v.optional(v.string()),
+    ratingAvg: v.optional(v.number()),
+    reviewsCount: v.optional(v.number()),
     office: v.optional(v.string()),
     email: v.optional(v.string()),
     images: v.optional(v.array(v.string())),
@@ -144,6 +250,18 @@ export const updateTour = mutation({
         }),
       ),
     ),
+    highlights: v.optional(v.array(v.string())),
+    included: v.optional(v.array(v.string())),
+    excluded: v.optional(v.array(v.string())),
+    timeSlots: v.optional(v.array(v.string())),
+    ticketGroups: v.optional(
+      v.array(
+        v.object({
+          label: v.string(),
+          ageRange: v.optional(v.string()),
+        }),
+      ),
+    ),
     isActive: v.optional(v.boolean()),
   },
   handler: async (ctx, { tourId, ...patch }) => {
@@ -153,6 +271,10 @@ export const updateTour = mutation({
     const next: Record<string, unknown> = {};
     for (const [k, val] of Object.entries(patch)) {
       if (val !== undefined) next[k] = val;
+    }
+    // Keep legacy `price` in sync with PKR for older code paths.
+    if (next.pricePkr !== undefined) {
+      next.price = next.pricePkr;
     }
     if (next.slug) {
       next.slug = String(next.slug)
@@ -197,5 +319,122 @@ export const deleteTour = mutation({
       timestamp: Date.now(),
       details: String(tourId),
     });
+  },
+});
+
+export const bulkUpsert = mutation({
+  args: {
+    rows: v.array(
+      v.object({
+        title: v.string(),
+        slug: v.string(),
+        description: v.string(),
+        types: v.optional(v.array(v.string())),
+        destinationIds: v.optional(v.array(v.id("destinations"))),
+        destinationId: v.optional(v.id("destinations")),
+        price: v.number(),
+        durationDays: v.number(),
+        location: v.string(),
+        maxPeople: v.optional(v.number()),
+        minAge: v.optional(v.number()),
+        tourTypeLabel: v.optional(v.string()),
+        ratingAvg: v.optional(v.number()),
+        reviewsCount: v.optional(v.number()),
+        office: v.optional(v.string()),
+        email: v.optional(v.string()),
+        images: v.array(v.string()),
+        itinerary: v.array(
+          v.object({
+            day: v.number(),
+            title: v.string(),
+            description: v.string(),
+          }),
+        ),
+        highlights: v.optional(v.array(v.string())),
+        included: v.optional(v.array(v.string())),
+        excluded: v.optional(v.array(v.string())),
+        timeSlots: v.optional(v.array(v.string())),
+        ticketGroups: v.optional(
+          v.array(
+            v.object({
+              label: v.string(),
+              ageRange: v.optional(v.string()),
+            }),
+          ),
+        ),
+        isActive: v.boolean(),
+      }),
+    ),
+  },
+  handler: async (ctx, { rows }) => {
+    const admin = await requireAdmin(ctx);
+    const now = Date.now();
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    const errors: Array<{ index: number; message: string }> = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]!;
+      try {
+        const normalizedSlug = row.slug.trim().toLowerCase().replace(/\s+/g, "-");
+        if (!normalizedSlug) throw new Error("slug is required");
+        const imageFolderKey = `tours/${normalizedSlug}`;
+
+        const existing = await ctx.db
+          .query("tours")
+          .withIndex("by_slug", (q) => q.eq("slug", normalizedSlug))
+          .unique();
+
+        const payload = {
+          ...row,
+          title: row.title.trim(),
+          slug: normalizedSlug,
+          description: row.description.trim(),
+          types: row.types ?? [],
+          imageFolderKey,
+          destinationIds:
+            row.destinationIds ??
+            (row.destinationId ? [row.destinationId] : undefined),
+        };
+        if (!payload.title) throw new Error("title is required");
+        if (!payload.description) throw new Error("description is required");
+        if (!payload.location.trim()) throw new Error("location is required");
+
+        if (existing) {
+          await ctx.db.patch(existing._id, payload);
+          await syncTourImageAssetIndex(
+            ctx,
+            existing._id,
+            imageFolderKey,
+            payload.images,
+          );
+          await ctx.runMutation(internal.destinations.syncFromTour, {
+            tourId: existing._id,
+          });
+          updated++;
+        } else {
+          const id = await ctx.db.insert("tours", {
+            ...payload,
+            createdAt: now + i,
+          });
+          await syncTourImageAssetIndex(ctx, id, imageFolderKey, payload.images);
+          await ctx.runMutation(internal.destinations.syncFromTour, { tourId: id });
+          created++;
+        }
+      } catch (e) {
+        errors.push({ index: i, message: e instanceof Error ? e.message : String(e) });
+        skipped++;
+      }
+    }
+
+    await ctx.db.insert("adminLogs", {
+      action: "bulk_upsert_tours",
+      performedBy: admin._id,
+      timestamp: Date.now(),
+      details: `processed=${rows.length} created=${created} updated=${updated} skipped=${skipped}`,
+    });
+
+    return { processed: rows.length, created, updated, skipped, errors };
   },
 });

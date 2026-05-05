@@ -11,6 +11,9 @@ import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
+import { asBoolean, asString } from "@/lib/bulkUpload/coerce";
+import { importInBatches } from "@/lib/bulkUpload/importInBatches";
 
 type Post = {
   _id: Id<"blogPosts">;
@@ -35,6 +38,7 @@ export function AdminBlogPanel() {
   const deletePost = useMutation(api.blog.deletePost);
   const updatePost = useMutation(api.blog.updatePost);
   const seedPosts = useMutation(api.blog.seedSamplePosts);
+  const bulkUpsert = useMutation(api.blog.bulkUpsert);
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<Id<"blogPosts"> | null>(null);
@@ -46,6 +50,7 @@ export function AdminBlogPanel() {
   const [published, setPublished] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   function openNew() {
     setEditingId(null);
@@ -128,6 +133,9 @@ export function AdminBlogPanel() {
         <Button type="button" variant="primary" onClick={openNew}>
           <Plus className="h-4 w-4" aria-hidden />
           New post
+        </Button>
+        <Button type="button" variant="secondary" onClick={() => setBulkOpen(true)}>
+          Bulk upload
         </Button>
         <Button type="button" variant="secondary" onClick={() => void seedPosts({})}>
           Seed sample posts
@@ -339,6 +347,53 @@ export function AdminBlogPanel() {
           </div>
         </form>
       </Modal>
+
+      <BulkUploadModal
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        title="Bulk upload blog posts"
+        description="Upload a .json or .xlsx file. Rows are upserted by slug."
+        templateHint={
+          <div className="space-y-1">
+            <p className="font-semibold">Columns / keys</p>
+            <p className="font-mono text-xs">
+              title, slug, content, metaTitle, metaDescription, published
+            </p>
+          </div>
+        }
+        transformRow={(row) => {
+          const title = asString(row.title);
+          const slug = asString(row.slug);
+          const content = asString(row.content);
+          const published = asBoolean(row.published);
+          if (!title) throw new Error("Missing title");
+          if (!slug) throw new Error("Missing slug");
+          if (!content) throw new Error("Missing content");
+          if (published === undefined) throw new Error("Missing published");
+          return {
+            title,
+            slug,
+            content,
+            metaTitle: asString(row.metaTitle),
+            metaDescription: asString(row.metaDescription),
+            published,
+          };
+        }}
+        onImport={async (rows) => {
+          return await importInBatches({
+            rows,
+            batchSize: 25,
+            importBatch: async (batch) => bulkUpsert({ rows: batch }),
+            merge: (a, b) => ({
+              processed: a.processed + b.processed,
+              created: (a.created ?? 0) + (b.created ?? 0),
+              updated: (a.updated ?? 0) + (b.updated ?? 0),
+              skipped: (a.skipped ?? 0) + (b.skipped ?? 0),
+              errors: [...(a.errors ?? []), ...(b.errors ?? [])],
+            }),
+          });
+        }}
+      />
     </div>
   );
 }

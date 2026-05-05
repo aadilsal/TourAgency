@@ -64,7 +64,7 @@ export function RouteStage2D({
   return (
     <div
       className={cn(
-        "relative h-full w-full overflow-hidden rounded-3xl border border-white/10",
+        "relative h-full w-full overflow-hidden rounded-3xl border border-border",
         className,
       )}
     >
@@ -91,13 +91,13 @@ export function RouteStage2D({
           </div>
         ))}
       </div>
-      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/10 to-transparent" />
 
-      <div className="absolute left-4 top-4 sm:left-6 sm:top-6 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 backdrop-blur-md">
-        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/65">
+      <div className="absolute left-4 top-4 sm:left-6 sm:top-6 rounded-2xl border border-border bg-background/80 px-4 py-3 backdrop-blur-md">
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
           Journey reel
         </p>
-        <p className="mt-1 text-sm font-semibold text-white" data-scrolly-stage-title>
+        <p className="mt-1 text-sm font-semibold text-foreground" data-scrolly-stage-title>
           {active.eyebrow}
         </p>
       </div>
@@ -231,10 +231,10 @@ export function RouteStage2D({
           ].map((c) => (
             <div
               key={c.k}
-              className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3 backdrop-blur-md"
+              className="rounded-2xl border border-border bg-background/80 px-4 py-3 backdrop-blur-md"
             >
-              <p className="text-xs font-bold text-white/85">{c.k}</p>
-              <p className="mt-1 text-xs text-white/65">{c.v}</p>
+              <p className="text-xs font-bold text-foreground">{c.k}</p>
+              <p className="mt-1 text-xs text-muted">{c.v}</p>
             </div>
           ))}
         </div>

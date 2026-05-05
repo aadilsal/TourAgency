@@ -8,7 +8,7 @@ export function SceneCut({
   variant?: "default" | "subtle";
 }) {
   return (
-    <div className={cn("relative py-10 md:py-14", className)} aria-hidden>
+    <div className={cn("relative py-4 md:py-5", className)} aria-hidden>
       <div className="absolute inset-0">
         <div
           className={cn(

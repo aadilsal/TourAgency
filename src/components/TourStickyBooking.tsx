@@ -28,6 +28,9 @@ import {
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
+import { useCurrency } from "@/hooks/useCurrency";
+import { formatMoney } from "@/lib/money";
+import { getTourUnitPrice } from "@/lib/tourPricing";
 
 type FieldErrors = {
   name?: string;
@@ -41,13 +44,17 @@ export function TourStickyBooking({
   tourId,
   tourTitle,
   price,
+  pricePkr,
+  priceUsd,
   durationDays,
   location,
   whatsappUrl,
 }: {
   tourId: Id<"tours">;
   tourTitle: string;
-  price: number;
+  price: number; // legacy PKR
+  pricePkr?: number;
+  priceUsd?: number;
   durationDays: number;
   location: string;
   whatsappUrl: string | null;
@@ -55,6 +62,11 @@ export function TourStickyBooking({
   const router = useRouter();
   const sessionToken = useConvexSessionToken();
   const createGuest = useMutation(api.bookings.createGuestBooking);
+  const currency = useCurrency();
+  const unitPrice = useMemo(
+    () => getTourUnitPrice({ price, pricePkr, priceUsd }, currency),
+    [price, pricePkr, priceUsd, currency],
+  );
 
   const [minDate, setMinDate] = useState("");
   useEffect(() => {
@@ -72,8 +84,8 @@ export function TourStickyBooking({
   const [successOpen, setSuccessOpen] = useState(false);
 
   const totalPrice = useMemo(
-    () => price * Math.max(1, peopleCount),
-    [price, peopleCount],
+    () => unitPrice * Math.max(1, peopleCount),
+    [unitPrice, peopleCount],
   );
 
   const scrollToBook = useCallback(() => {
@@ -105,6 +117,7 @@ export function TourStickyBooking({
         phone: phone.trim(),
         email: email.trim() || undefined,
         peopleCount,
+        currency,
         notes: notes.trim() || undefined,
         preferredStart: tourDate,
       });
@@ -141,7 +154,7 @@ export function TourStickyBooking({
             From
           </p>
           <p className="mt-1 text-3xl font-bold tracking-tight text-foreground">
-            PKR {price.toLocaleString()}
+            {formatMoney(unitPrice, currency)}
             <span className="text-base font-semibold text-muted">
               {" "}
               / person

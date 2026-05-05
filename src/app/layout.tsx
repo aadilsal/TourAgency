@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Fraunces } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/AppProviders";
 import { getSiteUrl } from "@/lib/site";
 import { OrganizationJsonLd } from "@/components/OrganizationJsonLd";
 import Script from "next/script";
+import { WebVitalsReporter } from "@/components/analytics/WebVitalsReporter";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -18,9 +19,9 @@ const geistMono = localFont({
   weight: "100 900",
 });
 
-const fraunces = Fraunces({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-fraunces",
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -47,14 +48,15 @@ export default function RootLayout({
 }>) {
   const gaId = process.env.NEXT_PUBLIC_GA4_ID;
   return (
-    <html lang="en">
+    <html lang="en" className="theme-havezic">
       <head>
         <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="" />
         <link rel="dns-prefetch" href="https://images.unsplash.com" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} relative min-h-screen bg-background font-sans text-foreground antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} relative min-h-screen bg-background font-sans text-foreground antialiased`}
       >
+        <WebVitalsReporter />
         {gaId ? (
           <>
             <Script

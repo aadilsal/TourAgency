@@ -5,6 +5,7 @@ import { loadDestinationIndexRows } from "@/lib/destinations-server";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -38,13 +39,14 @@ export default async function DestinationsIndexPage() {
                   <Card className="flex h-full min-h-[42rem] flex-col overflow-hidden p-0 shadow-card">
                     <Link
                       href={`/destinations/${slug}`}
-                      className="group relative block h-80 bg-slate-200 outline-none ring-brand-accent transition focus-visible:ring-2"
+                      className="group relative block h-80 bg-havezic-background-light outline-none ring-havezic-primary/30 transition focus-visible:ring-2"
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <Image
                         src={heroUrl}
                         alt=""
-                        className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.02]"
+                        fill
+                        sizes="(min-width: 1280px) 560px, (min-width: 768px) 50vw, 100vw"
+                        className="object-cover transition duration-500 group-hover:scale-[1.02]"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
                       <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
@@ -65,7 +67,7 @@ export default async function DestinationsIndexPage() {
                     <div className="flex flex-1 flex-col p-6">
                       {preview.length > 0 ? (
                         <div>
-                          <p className="text-xs font-bold uppercase tracking-wide text-brand-muted">
+                          <p className="text-xs font-bold uppercase tracking-wide text-havezic-text">
                             Tours in this region
                           </p>
                           <ul className="mt-3 space-y-2">
@@ -73,10 +75,10 @@ export default async function DestinationsIndexPage() {
                               <li key={t.slug}>
                                 <Link
                                   href={`/tours/${t.slug}`}
-                                  className="flex items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-brand-surface/50 px-3 py-2.5 text-sm font-medium text-brand-ink transition hover:border-brand-accent/40 hover:bg-white"
+                                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-havezic-background-light/50 px-3 py-2.5 text-sm font-medium text-foreground transition hover:border-havezic-primary/40 hover:bg-white"
                                 >
                                   <span className="line-clamp-1">{t.title}</span>
-                                  <span className="shrink-0 text-xs text-brand-accent">
+                                  <span className="shrink-0 text-xs font-semibold text-havezic-primary">
                                     PKR {t.price.toLocaleString()}
                                   </span>
                                 </Link>
@@ -84,11 +86,11 @@ export default async function DestinationsIndexPage() {
                             ))}
                           </ul>
                           {rest > 0 ? (
-                            <p className="mt-2 text-xs text-brand-muted">
+                            <p className="mt-2 text-xs text-havezic-text">
                               +{rest} more on the{" "}
                               <Link
                                 href={`/destinations/${slug}`}
-                                className="font-semibold text-brand-accent underline"
+                                className="font-semibold text-havezic-primary underline"
                               >
                                 {name} page
                               </Link>
@@ -96,18 +98,18 @@ export default async function DestinationsIndexPage() {
                           ) : null}
                         </div>
                       ) : (
-                        <p className="text-sm text-brand-muted">
+                        <p className="text-sm text-havezic-text">
                           No tours tagged for this region yet — see the{" "}
                           <Link
                             href={`/destinations/${slug}`}
-                            className="font-semibold text-brand-accent underline"
+                            className="font-semibold text-havezic-primary underline"
                           >
                             {name} guide
                           </Link>{" "}
                           for planning tips, or{" "}
                           <Link
                             href="/tours"
-                            className="font-semibold text-brand-accent underline"
+                            className="font-semibold text-havezic-primary underline"
                           >
                             browse all tours
                           </Link>
@@ -117,7 +119,7 @@ export default async function DestinationsIndexPage() {
 
                       <Link
                         href={`/destinations/${slug}`}
-                        className="mt-auto flex items-center gap-2 pt-6 text-sm font-semibold text-brand-accent hover:underline"
+                        className="mt-auto flex items-center gap-2 pt-6 text-sm font-semibold text-havezic-primary hover:underline"
                       >
                         Open {name} guide
                         <ArrowRight className="h-4 w-4" aria-hidden />
@@ -130,13 +132,13 @@ export default async function DestinationsIndexPage() {
           )}
         </ul>
 
-        <p className="mt-14 text-center text-sm text-brand-muted">
+        <p className="mt-14 text-center text-sm text-havezic-text">
           Looking for something else?{" "}
-          <Link href="/tours" className="font-semibold text-brand-accent underline">
+          <Link href="/tours" className="font-semibold text-havezic-primary underline">
             View every tour
           </Link>{" "}
           or{" "}
-          <Link href="/ai-planner" className="font-semibold text-brand-accent underline">
+          <Link href="/ai-planner" className="font-semibold text-havezic-primary underline">
             plan with AI
           </Link>
           .

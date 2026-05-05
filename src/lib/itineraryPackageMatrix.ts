@@ -43,3 +43,6 @@ export function tiersToPackagesForPdf(
     })),
   }));
 }
+
+// Ensures TS always treats this file as a module in all moduleDetection modes.
+export {};

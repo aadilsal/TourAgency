@@ -2,13 +2,18 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
+import { useCurrency } from "@/hooks/useCurrency";
+import { formatMoney } from "@/lib/money";
+import { getTourUnitPrice } from "@/lib/tourPricing";
 
 export type TourCardData = {
   slug: string;
   title: string;
   description: string;
   types?: string[];
-  price: number;
+  price: number; // legacy PKR
+  pricePkr?: number;
+  priceUsd?: number;
   durationDays: number;
   location: string;
   images: string[];
@@ -21,6 +26,8 @@ type Props = {
 };
 
 export function TourCard({ tour, badge, className }: Props) {
+  const currency = useCurrency();
+  const unitPrice = getTourUnitPrice(tour, currency);
   return (
     <Card
       hover
@@ -41,12 +48,12 @@ export function TourCard({ tour, badge, className }: Props) {
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="flex h-full items-center justify-center bg-gradient-to-br from-brand-primary/25 to-brand-cta/15 text-sm text-white/70">
+          <div className="flex h-full items-center justify-center bg-gradient-to-br from-black/20 to-havezic-primary/15 text-sm text-white/70">
             Photo soon
           </div>
         )}
         {badge ? (
-          <span className="absolute left-3 top-3 rounded-full bg-brand-cta px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
+          <span className="absolute left-3 top-3 rounded-full bg-havezic-primary px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
             {badge}
           </span>
         ) : null}
@@ -55,8 +62,8 @@ export function TourCard({ tour, badge, className }: Props) {
         <h3 className="line-clamp-2 text-lg font-semibold text-foreground">
           {tour.title}
         </h3>
-        <p className="mt-2 text-sm font-semibold text-brand-sun">
-          PKR {tour.price.toLocaleString()} · {tour.durationDays} days
+        <p className="mt-2 text-sm font-semibold text-havezic-primary">
+          {formatMoney(unitPrice, currency)} · {tour.durationDays} days
         </p>
         <p className="mt-1 line-clamp-2 text-sm text-muted">{tour.location}</p>
         <div className="mt-auto flex gap-2 pt-5">
@@ -82,6 +89,8 @@ export function TourCard({ tour, badge, className }: Props) {
 
 /** Compact card for destination / related tour strips */
 export function TourCardCompact({ tour }: { tour: TourCardData }) {
+  const currency = useCurrency();
+  const unitPrice = getTourUnitPrice(tour, currency);
   return (
     <Link
       href={`/tours/${tour.slug}`}
@@ -99,15 +108,15 @@ export function TourCardCompact({ tour }: { tour: TourCardData }) {
             referrerPolicy="no-referrer"
           />
         ) : (
-          <div className="flex h-full items-center justify-center bg-gradient-to-br from-brand-primary/15 to-brand-cta/15 text-xs text-white/70">
+          <div className="flex h-full items-center justify-center bg-gradient-to-br from-black/15 to-havezic-primary/15 text-xs text-white/70">
             Photo soon
           </div>
         )}
       </div>
       <div className="p-4 text-left">
         <p className="font-semibold text-foreground">{tour.title}</p>
-        <p className="mt-1 text-sm font-medium text-brand-sun">
-          PKR {tour.price.toLocaleString()} · {tour.durationDays}d
+        <p className="mt-1 text-sm font-medium text-havezic-primary">
+          {formatMoney(unitPrice, currency)} · {tour.durationDays}d
         </p>
       </div>
     </Link>

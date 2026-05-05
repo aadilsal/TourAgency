@@ -26,14 +26,13 @@ export function SiteFooter({
 }: Props) {
   const phoneDisplay = contactPhone ?? "";
   return (
-    <footer className="relative mt-auto border-t border-border bg-panel text-foreground">
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/5 to-transparent dark:from-black/20" />
-      <PageContainer className="relative py-16 md:py-20">
+    <footer className="relative mt-auto border-t border-border bg-background text-foreground">
+      <PageContainer className="py-16 md:py-20">
         <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
           <div>
             <Link
               href="/"
-              className="font-display text-xl font-semibold tracking-tight text-foreground"
+              className="text-xl font-semibold tracking-tight text-foreground"
             >
               JunketTours
             </Link>
@@ -43,14 +42,23 @@ export function SiteFooter({
             </p>
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-brand-sun">
+            <p className="text-xs font-bold uppercase tracking-wider text-havezic-primary">
               Explore
             </p>
             <ul className="mt-4 space-y-2 text-sm">
               <li>
                 <Link
+                  href="/about"
+                  className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
+                >
+                  <Compass className="h-4 w-4 shrink-0 opacity-80" />
+                  About us
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/tours"
-                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
+                  className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
                 >
                   <Compass className="h-4 w-4 shrink-0 opacity-80" />
                   Tours
@@ -59,7 +67,7 @@ export function SiteFooter({
               <li>
                 <Link
                   href="/destinations"
-                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
+                  className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
                 >
                   <MapPin className="h-4 w-4 shrink-0 opacity-80" />
                   Destinations
@@ -68,7 +76,7 @@ export function SiteFooter({
               <li>
                 <Link
                   href="/blog"
-                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
+                  className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
                 >
                   <BookOpen className="h-4 w-4 shrink-0 opacity-80" />
                   Travel guides
@@ -77,7 +85,7 @@ export function SiteFooter({
               <li>
                 <Link
                   href="/ai-planner"
-                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
+                  className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
                 >
                   <Sparkles className="h-4 w-4 shrink-0 opacity-80" />
                   AI Planner
@@ -86,7 +94,7 @@ export function SiteFooter({
               <li>
                 <Link
                   href="/contact"
-                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
+                  className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
                 >
                   <PhoneCall className="h-4 w-4 shrink-0 opacity-80" />
                   Contact us
@@ -95,7 +103,7 @@ export function SiteFooter({
             </ul>
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-brand-sun">
+            <p className="text-xs font-bold uppercase tracking-wider text-havezic-primary">
               Contact
             </p>
             <ul className="mt-4 space-y-2 text-sm">
@@ -103,7 +111,7 @@ export function SiteFooter({
                 <li>
                   <a
                     href={`tel:${phoneDisplay.replace(/\s/g, "")}`}
-                    className="inline-flex items-center gap-2 text-muted hover:text-foreground"
+                    className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
                   >
                     <Phone className="h-4 w-4 shrink-0" />
                     {phoneDisplay}
@@ -116,7 +124,7 @@ export function SiteFooter({
                     href={whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center rounded-lg p-2 text-[#25D366] transition hover:bg-black/5 dark:hover:bg-white/10"
+                    className="inline-flex items-center justify-center rounded-full bg-havezic-primary p-2 text-white transition hover:bg-havezic-primary-hover"
                     aria-label="Chat on WhatsApp — +92 320 9973486"
                   >
                     <WhatsAppBrandIcon className="h-7 w-7 shrink-0" />
@@ -126,7 +134,7 @@ export function SiteFooter({
             </ul>
           </div>
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-brand-sun">
+            <p className="text-xs font-bold uppercase tracking-wider text-havezic-primary">
               Social
             </p>
             <ul className="mt-4 flex flex-wrap gap-4 text-sm">
@@ -135,7 +143,7 @@ export function SiteFooter({
                   href="https://www.instagram.com/junkettoursofficial/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
+                  className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
                 >
                   <ExternalLink className="h-4 w-4" />
                   Instagram
@@ -146,7 +154,7 @@ export function SiteFooter({
                   href="https://www.facebook.com/JunketToursOfficial"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
+                  className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
                 >
                   <ExternalLink className="h-4 w-4" />
                   Facebook
@@ -157,7 +165,7 @@ export function SiteFooter({
                   href="https://www.tiktok.com/@junkettours"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-muted hover:text-foreground"
+                  className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
                 >
                   <ExternalLink className="h-4 w-4" />
                   TikTok
@@ -168,7 +176,7 @@ export function SiteFooter({
         </div>
         {(mapsEmbedUrl || officeAddress) && (
           <div className="mt-14 border-t border-border pt-10">
-            <p className="text-xs font-bold uppercase tracking-wider text-brand-sun">
+            <p className="text-xs font-bold uppercase tracking-wider text-havezic-primary">
               Visit us
             </p>
             {officeAddress ? (
@@ -177,7 +185,7 @@ export function SiteFooter({
               </p>
             ) : null}
             {mapsEmbedUrl ? (
-              <div className="mt-4 overflow-hidden rounded-xl border border-border bg-black/5 shadow-sm dark:bg-black/20">
+              <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-havezic-background-light shadow-sm">
                 <iframe
                   title="Office location"
                   src={mapsEmbedUrl}

@@ -3,6 +3,8 @@ import { mutation, query } from "./_generated/server.js";
 import { resolveUserFromSessionToken, requireAdmin } from "./lib/authHelpers.js";
 import type { Doc } from "./_generated/dataModel.js";
 
+const MAX_PUBLIC_POSTS = 200;
+
 const SAMPLE_POSTS = [
   {
     title: "Hunza Trip Cost Guide",
@@ -42,25 +44,56 @@ export const getPosts = query({
     sessionToken: v.optional(v.string()),
   },
   handler: async (ctx, { includeDrafts, sessionToken }) => {
-    const posts = await ctx.db.query("blogPosts").collect();
-    const sorted = posts.sort((a, b) => b.createdAt - a.createdAt);
     if (includeDrafts) {
       const user = await resolveUserFromSessionToken(ctx, sessionToken);
       if (user?.role === "admin" || user?.role === "super_admin") {
-        return sorted;
+        return await ctx.db
+          .query("blogPosts")
+          .withIndex("by_createdAt")
+          .order("desc")
+          .take(MAX_PUBLIC_POSTS);
       }
     }
-    return sorted.filter((p) => p.published);
+    return await ctx.db
+      .query("blogPosts")
+      .withIndex("by_published_and_createdAt", (q) => q.eq("published", true))
+      .order("desc")
+      .take(MAX_PUBLIC_POSTS);
   },
 });
 
 export const listPublicPosts = query({
   args: {},
   handler: async (ctx) => {
-    const posts = await ctx.db.query("blogPosts").collect();
-    return posts
-      .filter((p) => p.published)
-      .sort((a, b) => b.createdAt - a.createdAt);
+    return await ctx.db
+      .query("blogPosts")
+      .withIndex("by_published_and_createdAt", (q) => q.eq("published", true))
+      .order("desc")
+      .take(MAX_PUBLIC_POSTS);
+  },
+});
+
+export const listSlugsPublic = query({
+  args: {},
+  handler: async (ctx) => {
+    const posts = await ctx.db
+      .query("blogPosts")
+      .withIndex("by_published_and_createdAt", (q) => q.eq("published", true))
+      .order("desc")
+      .take(MAX_PUBLIC_POSTS);
+    return posts.map((p) => p.slug);
+  },
+});
+
+export const listRelatedPublic = query({
+  args: { slug: v.string(), limit: v.optional(v.number()) },
+  handler: async (ctx, { slug, limit }) => {
+    const posts = await ctx.db
+      .query("blogPosts")
+      .withIndex("by_published_and_createdAt", (q) => q.eq("published", true))
+      .order("desc")
+      .take(MAX_PUBLIC_POSTS);
+    return posts.filter((p) => p.slug !== slug).slice(0, Math.max(1, limit ?? 3));
   },
 });
 
@@ -179,5 +212,74 @@ export const seedSamplePosts = mutation({
       inserted++;
     }
     return { inserted, skipped: false as const };
+  },
+});
+
+export const bulkUpsert = mutation({
+  args: {
+    rows: v.array(
+      v.object({
+        title: v.string(),
+        slug: v.string(),
+        content: v.string(),
+        metaTitle: v.optional(v.string()),
+        metaDescription: v.optional(v.string()),
+        published: v.boolean(),
+        createdAt: v.optional(v.number()),
+      }),
+    ),
+  },
+  handler: async (ctx, { rows }) => {
+    const admin = await requireAdmin(ctx);
+    const now = Date.now();
+    let created = 0;
+    let updated = 0;
+    let skipped = 0;
+    const errors: Array<{ index: number; message: string }> = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]!;
+      try {
+        const slug = row.slug.trim().toLowerCase().replace(/\s+/g, "-");
+        if (!slug) throw new Error("slug is required");
+        const existing = await ctx.db
+          .query("blogPosts")
+          .withIndex("by_slug", (q) => q.eq("slug", slug))
+          .unique();
+        const payload = {
+          title: row.title.trim(),
+          slug,
+          content: row.content,
+          metaTitle: row.metaTitle?.trim() || undefined,
+          metaDescription: row.metaDescription?.trim() || undefined,
+          published: row.published,
+        };
+        if (!payload.title) throw new Error("title is required");
+        if (!payload.content) throw new Error("content is required");
+
+        if (existing) {
+          await ctx.db.patch(existing._id, payload);
+          updated++;
+        } else {
+          await ctx.db.insert("blogPosts", {
+            ...payload,
+            createdAt: row.createdAt ?? now + i,
+          });
+          created++;
+        }
+      } catch (e) {
+        errors.push({ index: i, message: e instanceof Error ? e.message : String(e) });
+        skipped++;
+      }
+    }
+
+    await ctx.db.insert("adminLogs", {
+      action: "bulk_upsert_blog_posts",
+      performedBy: admin._id,
+      timestamp: Date.now(),
+      details: `processed=${rows.length} created=${created} updated=${updated} skipped=${skipped}`,
+    });
+
+    return { processed: rows.length, created, updated, skipped, errors };
   },
 });

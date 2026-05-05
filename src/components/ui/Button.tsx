@@ -9,13 +9,14 @@ export function buttonClass(
   className?: string,
 ) {
   return cn(
-    "inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+    // 44px minimum touch target (h-11) for accessibility on mobile.
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
     variant === "primary" &&
-      "bg-brand-cta text-white shadow-sm hover:bg-[#e66e00] focus-visible:outline-brand-sun",
+      "bg-havezic-primary text-white shadow-sm hover:bg-havezic-primary-hover focus-visible:outline-havezic-primary",
     variant === "secondary" &&
-      "border border-border bg-panel text-foreground shadow-sm hover:border-border-strong hover:bg-panel-elevated focus-visible:outline-brand-sun",
+      "border border-border bg-white text-foreground shadow-sm hover:border-border-strong hover:bg-havezic-background-light focus-visible:outline-havezic-primary",
     variant === "ghost" &&
-      "text-foreground hover:bg-black/5 dark:hover:bg-white/10 focus-visible:outline-brand-sun",
+      "text-foreground hover:bg-black/5 focus-visible:outline-havezic-primary",
     className,
   );
 }

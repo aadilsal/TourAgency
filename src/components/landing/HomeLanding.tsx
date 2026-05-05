@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Sparkles, ShieldCheck, Users, Zap, Star } from "lucide-react";
 import { HeroAiPlanner } from "./HeroAiPlanner";
 import {
@@ -21,6 +22,7 @@ import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { blogCoverImage } from "@/lib/blog-covers";
 import { SceneCut } from "@/components/ui/SceneCut";
 import { ScrollyJourneyReel } from "@/components/scrolly/ScrollyJourneyReel";
+import { DESTINATION_DETAILS } from "@/lib/destinations-data";
 
 type BlogPostInput = {
   slug: string;
@@ -35,26 +37,30 @@ type Props = {
   whatsappUrl: string | null;
 };
 
-const DESTINATIONS: { name: string; slug: string; blurb: string }[] = [
+const DESTINATIONS: { name: string; slug: string; blurb: string; image: string }[] = [
   {
     name: "Hunza",
     slug: "hunza",
     blurb: "Rakaposhi views, ancient forts, and cherry blossoms.",
+    image: DESTINATION_DETAILS.hunza.heroImage,
   },
   {
     name: "Skardu",
     slug: "skardu",
     blurb: "Gateway to K2 base camp and surreal blue lakes.",
+    image: DESTINATION_DETAILS.skardu.heroImage,
   },
   {
     name: "Swat",
     slug: "swat",
     blurb: "Alpine valleys, rivers, and rich heritage.",
+    image: DESTINATION_DETAILS.swat.heroImage,
   },
   {
     name: "Naran",
     slug: "naran",
     blurb: "Lake Saif-ul-Malook and the Babusar route.",
+    image: DESTINATION_DETAILS.naran.heroImage,
   },
 ];
 
@@ -239,6 +245,17 @@ export function HomeLanding({ tours, blogPosts, whatsappUrl }: Props) {
             {DESTINATIONS.map((d) => (
               <Link key={d.slug} href={`/destinations/${d.slug}`} className="block h-full">
                 <Card className="flex h-full flex-col p-6 transition-shadow hover:shadow-card-hover" hover>
+                  <div className="relative mb-4 aspect-[16/10] w-full overflow-hidden rounded-2xl bg-slate-100">
+                    <Image
+                      src={d.image}
+                      alt={`${d.name} destination`}
+                      fill
+                      className="object-cover"
+                      sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+                      priority={false}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-black/0 to-transparent" />
+                  </div>
                   <h3 className="text-lg font-bold text-foreground">{d.name}</h3>
                   <p className="mt-2 flex-1 text-sm text-muted">{d.blurb}</p>
                   <span className="mt-4 text-sm font-semibold text-brand-sun">

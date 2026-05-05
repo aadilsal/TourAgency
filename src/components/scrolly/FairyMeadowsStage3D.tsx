@@ -82,7 +82,7 @@ export function FairyMeadowsStage3D({
   return (
     <div
       className={cn(
-        "relative h-full w-full overflow-hidden rounded-3xl border border-white/10 bg-slate-950/40",
+        "relative h-full w-full overflow-hidden rounded-3xl border border-border bg-panel",
         className,
       )}
     >
@@ -99,11 +99,11 @@ export function FairyMeadowsStage3D({
         <TopoScene accent={accent} />
         <Environment preset="city" />
       </Canvas>
-      <div className="absolute left-6 top-6 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 backdrop-blur-md">
-        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/65">
+      <div className="absolute left-6 top-6 rounded-2xl border border-border bg-background/80 px-4 py-3 backdrop-blur-md">
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-muted">
           {label}
         </p>
-        <p className="mt-1 text-sm font-semibold text-white">{subtitle}</p>
+        <p className="mt-1 text-sm font-semibold text-foreground">{subtitle}</p>
       </div>
     </div>
   );

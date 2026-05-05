@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Calendar, Clock } from "lucide-react";
-import { getConvexServer } from "@/lib/convex-server";
 import { api } from "@convex/_generated/api";
 import type { Metadata } from "next";
 import { getSiteUrl } from "@/lib/site";
@@ -12,6 +11,9 @@ import { BlogPostCard } from "@/components/blog/BlogPostCard";
 import { BlogArticleJsonLd } from "@/components/blog/BlogJsonLd";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { blogCoverImage } from "@/lib/blog-covers";
+import { loadBlogPostBySlug } from "@/lib/blog-server";
+import { getConvexServer } from "@/lib/convex-server";
+import Image from "next/image";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +35,7 @@ function readingMinutes(content: string): number {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
-    const client = getConvexServer();
-    const post = await client.query(api.blog.getPostBySlug, {
-      slug: params.slug,
-    });
+    const post = await loadBlogPostBySlug(params.slug);
     if (!post) return { title: "Post" };
     const base = getSiteUrl();
     const plain =
@@ -67,36 +66,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function BlogPostPage({ params }: Props) {
-  let post: {
-    slug: string;
-    title: string;
-    content: string;
-    metaTitle?: string;
-    metaDescription?: string;
-    createdAt: number;
-  } | null = null;
-
-  try {
-    const client = getConvexServer();
-    post = await client.query(api.blog.getPostBySlug, { slug: params.slug });
-  } catch {
-    post = null;
-  }
+  const post = await loadBlogPostBySlug(params.slug);
   if (!post) notFound();
 
-  let allPosts: Array<{
+  let related: Array<{
     slug: string;
     title: string;
     metaDescription?: string;
   }> = [];
   try {
     const client = getConvexServer();
-    allPosts = (await client.query(api.blog.getPosts, {})) as typeof allPosts;
+    related = (await client.query(api.blog.listRelatedPublic, {
+      slug: post.slug,
+      limit: 3,
+    })) as typeof related;
   } catch {
-    allPosts = [];
+    related = [];
   }
-
-  const related = allPosts.filter((p) => p.slug !== post.slug).slice(0, 3);
   const ogDescription =
     post.metaDescription?.trim() ||
     post.content.replace(/<[^>]+>/g, " ").slice(0, 155).trim();
@@ -121,15 +107,17 @@ export default async function BlogPostPage({ params }: Props) {
       />
 
       <div className="relative h-[min(42vh,380px)] w-full overflow-hidden md:h-[min(48vh,440px)]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={hero}
           alt=""
-          className="absolute inset-0 h-full w-full object-cover"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-brand-primary via-brand-primary/70 to-brand-primary/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/30" />
         <PageContainer className="relative flex h-full flex-col justify-end pb-10 pt-28 md:pb-14 md:pt-36">
-          <p className="text-sm font-medium text-brand-accent">
+          <p className="text-sm font-medium text-white/85">
             <Link href="/blog" className="hover:underline">
               Travel Guides
             </Link>{" "}
@@ -140,11 +128,11 @@ export default async function BlogPostPage({ params }: Props) {
           </h1>
           <div className="mt-5 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-white/90">
             <span className="inline-flex items-center gap-2">
-              <Calendar className="h-4 w-4 shrink-0 text-brand-accent" aria-hidden />
+              <Calendar className="h-4 w-4 shrink-0 text-havezic-primary" aria-hidden />
               {formatPostDate(post.createdAt)}
             </span>
             <span className="inline-flex items-center gap-2">
-              <Clock className="h-4 w-4 shrink-0 text-brand-accent" aria-hidden />
+              <Clock className="h-4 w-4 shrink-0 text-havezic-primary" aria-hidden />
               {readMin} min read
             </span>
           </div>

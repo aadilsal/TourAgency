@@ -30,8 +30,8 @@ export function SectionHeader({
       {eyebrow ? (
         <p
           className={cn(
-            "text-xs font-semibold uppercase tracking-widest",
-            "text-brand-sun",
+            "text-xs font-semibold uppercase tracking-[0.28em]",
+            "text-havezic-primary",
           )}
         >
           {eyebrow}
@@ -39,8 +39,8 @@ export function SectionHeader({
       ) : null}
       <h2
         className={cn(
-          "mt-2 font-display text-3xl font-semibold tracking-tight md:text-4xl",
-          "text-foreground",
+          // Havezic h2: 48px / 1.125 on desktop; scale down for mobile.
+          "mt-3 whitespace-pre-line text-[32px] font-semibold leading-[1.18] tracking-tight text-foreground sm:text-[40px] sm:leading-[1.14] lg:text-[48px] lg:leading-[1.125]",
         )}
       >
         {title}
@@ -48,8 +48,7 @@ export function SectionHeader({
       {description ? (
         <p
           className={cn(
-            "mt-3 text-base leading-relaxed",
-            "text-muted",
+            "mt-4 text-base leading-relaxed text-muted md:text-lg",
           )}
         >
           {description}

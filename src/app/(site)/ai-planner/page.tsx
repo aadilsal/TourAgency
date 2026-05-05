@@ -32,14 +32,14 @@ export default function AiPlannerPage() {
       <PageContainer className="max-w-6xl">
         <MotionSection>
           <header className="mx-auto max-w-3xl text-center">
-            <p className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-brand-accent">
+            <p className="flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-havezic-primary">
               <Sparkles className="h-4 w-4" aria-hidden />
               AI concierge
             </p>
             <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-white md:text-4xl lg:text-[2.75rem] lg:leading-tight">
               Plan Your Trip with AI
             </h1>
-            <p className="mt-4 text-base leading-relaxed text-slate-300 md:text-lg">
+            <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">
               Add your budget, how long you can travel, where you&apos;re leaving
               from, and what you love — we generate a tailored outline, match
               live packages, and let you book or save the plan.
