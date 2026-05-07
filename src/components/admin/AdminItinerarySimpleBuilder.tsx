@@ -62,10 +62,10 @@ function syncAtGlanceToDayCount(
   const safe = clamp(newDays, 1, 60);
   const next = prev.slice(0, safe);
   while (next.length < safe) {
-    const d = next.length + 1;
+    const d = next.length;
     next.push({ dayNumber: d, title: `Day ${d}`, detail: "" });
   }
-  return next.map((row, i) => ({ ...row, dayNumber: i + 1 }));
+  return next.map((row, i) => ({ ...row, dayNumber: i }));
 }
 
 type ExistingItinerary = {
@@ -228,7 +228,7 @@ export function AdminItinerarySimpleBuilder({
   );
   const [pickupDropoff, setPickupDropoff] = useState("");
   const [atGlanceDays, setAtGlanceDays] = useState<AtGlanceDay[]>([
-    { dayNumber: 1, title: "Day 1", detail: "" },
+    { dayNumber: 0, title: "Day 0", detail: "" },
   ]);
   const [packageStayRows, setPackageStayRows] = useState<PackageStayRow[]>([
     { location: "" },

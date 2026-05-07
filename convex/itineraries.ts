@@ -114,8 +114,8 @@ export const createDraft = mutation({
     const now = Date.now();
     const safeDays = Math.max(1, Math.min(60, Math.floor(args.days)));
     const atGlanceDays = Array.from({ length: safeDays }, (_, i) => ({
-      dayNumber: i + 1,
-      title: `Day ${i + 1}`,
+      dayNumber: i,
+      title: `Day ${i}`,
       detail: "",
     }));
 

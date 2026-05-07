@@ -43,8 +43,8 @@ type TourDoc = Doc<"tours"> & TourThemeFields;
 
 const defaultItinerary: Doc<"tours">["itinerary"] = [
   {
-    day: 1,
-    title: "Day 1",
+    day: 0,
+    title: "Day 0",
     description: "Update itinerary details in the editor.",
   },
 ];
@@ -57,8 +57,8 @@ function parseItineraryJson(raw: string): Doc<"tours">["itinerary"] {
   return parsed.map((item, i) => {
     if (!item || typeof item !== "object") throw new Error("Invalid itinerary row");
     const o = item as Record<string, unknown>;
-    const day = typeof o.day === "number" ? o.day : i + 1;
-    const title = typeof o.title === "string" ? o.title : `Day ${i + 1}`;
+    const day = typeof o.day === "number" ? o.day : i;
+    const title = typeof o.title === "string" ? o.title : `Day ${i}`;
     const description =
       typeof o.description === "string" ? o.description : "";
     return { day, title, description };

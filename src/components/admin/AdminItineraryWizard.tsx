@@ -498,8 +498,14 @@ export function AdminItineraryWizard({
     setDayPlans((prev) => {
       const out = [...prev];
       if (out.length > safe) out.length = safe;
-      while (out.length < safe) out.push(emptyDay(out.length + 1));
-      const normalized = out.map((d, i) => ({ ...d, dayNumber: i + 1, title: d.title || `Day ${i + 1}` }));
+      while (out.length < safe) out.push(emptyDay(out.length));
+      const normalized = out.map((d, i) => {
+        // Update title to match new day number if it was in default format
+        const oldTitle = `Day ${d.dayNumber}`;
+        const isDefaultTitle = d.title === oldTitle;
+        const newTitle = isDefaultTitle ? `Day ${i}` : d.title;
+        return { ...d, dayNumber: i, title: newTitle };
+      });
       if (itineraryId) queuePatch({ days: safe, dayPlans: normalized });
       return normalized;
     });
@@ -1797,7 +1803,7 @@ export function AdminItineraryWizard({
                           setDayPlans((prev) => {
                             const next = prev.filter((_, i) => i !== idx).map((x, i) => ({
                               ...x,
-                              dayNumber: i + 1,
+                              dayNumber: i,
                             }));
                             queuePatch({ dayPlans: next });
                             return next;
