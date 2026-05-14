@@ -94,7 +94,7 @@ function smallTable(rows: Array<[string, string]>) {
 }
 
 export async function buildItineraryWordBlob(model: ItineraryPdfModel) {
-  const children = [
+  const children: Array<Paragraph | Table> = [
     textParagraph(model.companyName || "JunketTours", { bold: true, spacingAfter: 60 }),
     new Paragraph({
       text: model.headline?.trim() || "Your Dream Trip Awaits —",
@@ -183,13 +183,17 @@ export async function buildItineraryWordBlob(model: ItineraryPdfModel) {
 
   if (model.bankDetails) {
     children.push(sectionHeading("Bank Details"));
-    const bankRows: Array<[string, string]> = [
+    const bankRowsSource: Array<[string, string]> = [
       ["Bank", model.bankDetails.bankName ?? ""],
       ["Account title", model.bankDetails.accountTitle ?? ""],
       ["Account number", model.bankDetails.accountNumber ?? ""],
       ["IBAN", model.bankDetails.iban ?? ""],
       ["Instruction", model.bankDetails.instruction ?? ""],
-    ].filter(([, value]) => Boolean(value?.trim()));
+    ];
+    const bankRows = bankRowsSource.reduce<Array<[string, string]>>((rows, row) => {
+      if (row[1].trim()) rows.push(row);
+      return rows;
+    }, []);
     if (bankRows.length) children.push(smallTable(bankRows));
   }
 
