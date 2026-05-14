@@ -190,13 +190,6 @@ const styles = StyleSheet.create({
   glanceBlock: { marginTop: 14 },
 });
 
-function chunkArray<T>(arr: T[], chunkSize: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += chunkSize) {
-    out.push(arr.slice(i, i + chunkSize));
-  }
-  return out;
-}
 
 function formatPackageHotelChain(
   stays: Array<{ location: string; hotel: string; nights: number }>,
@@ -238,6 +231,17 @@ function Chrome({ model }: { model: ItineraryPdfModel }) {
   );
 }
 
+function renderSimpleDayTitle(dayNumber: number, title: string) {
+  const safeDay = Math.max(1, Math.floor(dayNumber || 0));
+  const trimmedTitle = (title ?? "").trim();
+  const normalizedTitle = trimmedTitle.toLowerCase().replace(/\s+/g, "");
+  const normalizedDefault = `day${safeDay}`;
+  if (!trimmedTitle || normalizedTitle === normalizedDefault) {
+    return `Day ${safeDay}`;
+  }
+  return `Day ${safeDay} - ${trimmedTitle}`;
+}
+
 export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
   const coverTitle = model.headline?.trim() || "Your Dream Trip Awaits —";
   const variant = model.variantLabel?.trim() || "";
@@ -245,13 +249,6 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
   const dateRange = model.dateRangeLabel?.trim() || "";
   const showEmptySections = model.includeEmptySections ?? true;
   const isSimple = model.layoutVariant === "simple";
-  const glanceDays = model.atGlanceDays ?? [];
-  const glanceChunks =
-    glanceDays.length === 0
-      ? showEmptySections && isSimple
-        ? [[]]
-        : []
-      : chunkArray(glanceDays, 10);
 
   return (
     <Document>
@@ -315,30 +312,29 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
         </View>
       </Page>
 
-      {isSimple
-        ? showEmptySections || (model.atGlanceDays ?? []).length > 0
-          ? glanceChunks.map((chunk, pageIdx) => (
-              <Page key={`glance-${pageIdx}`} size="A4" style={styles.page}>
-                <Chrome model={model} />
-                <Text style={styles.sectionTitle}>
-                  {pageIdx === 0
-                    ? `${`Your ${model.daysLabel || ""} Itinerary`.trim()} at a Glance`
-                    : `${`Your ${model.daysLabel || ""} Itinerary`.trim()} at a Glance (cont.)`}
-                </Text>
-                {chunk.length === 0 ? (
-                  <Text style={[styles.muted, { marginTop: 12 }]}>—</Text>
-                ) : null}
-                {chunk.map((d) => {
-                  const num = String(d.dayNumber).padStart(2, "0");
+      <Page size="A4" style={styles.page}>
+        <Chrome model={model} />
+
+        {/* 1. Itinerary Glance or Detailed Plans */}
+        {isSimple ? (
+          (showEmptySections || (model.atGlanceDays ?? []).length > 0) && (
+            <View style={{ marginBottom: 20 }}>
+              <Text style={styles.sectionTitle}>{`${`Your ${model.daysLabel || ""} Itinerary`.trim()} at a Glance`}</Text>
+              {(model.atGlanceDays ?? []).length === 0 ? (
+                <Text style={[styles.muted, { marginTop: 12 }]}>—</Text>
+              ) : (
+                (model.atGlanceDays ?? []).map((d) => {
+                  const displayDay = Math.max(1, Math.floor(d.dayNumber || 0));
+                  const num = String(displayDay).padStart(2, "0");
                   const overnight = d.overnight?.trim();
                   return (
-                    <View key={`g-${d.dayNumber}-${pageIdx}`} style={styles.glanceBlock}>
+                    <View key={`glance-${d.dayNumber}`} style={styles.glanceBlock} wrap={false}>
                       <View style={styles.dayRow}>
                         <View style={styles.glanceNum}>
                           <Text style={styles.glanceNumText}>{num}</Text>
                         </View>
                         <View style={styles.dayBody}>
-                          <Text style={styles.dayTitle}>{`Day ${d.dayNumber} — ${d.title}`}</Text>
+                          <Text style={styles.dayTitle}>{renderSimpleDayTitle(displayDay, d.title)}</Text>
                           {d.detail?.trim() ? (
                             <Text style={styles.glanceDetail}>{d.detail.trim()}</Text>
                           ) : null}
@@ -349,13 +345,13 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
                       </View>
                     </View>
                   );
-                })}
-              </Page>
-            ))
-          : null
-        : showEmptySections || (model.dayPlans ?? []).length > 0 ? (
-            <Page size="A4" style={styles.page}>
-              <Chrome model={model} />
+                })
+              )}
+            </View>
+          )
+        ) : (
+          (showEmptySections || (model.dayPlans ?? []).length > 0) && (
+            <View style={{ marginBottom: 20 }}>
               <Text style={styles.sectionTitle}>{`Your ${model.daysLabel || ""} Itinerary`.trim()}</Text>
               {(model.dayPlans ?? []).map((d) => {
                 const highlights = d.highlights?.length ? d.highlights.join(", ") : "";
@@ -367,7 +363,7 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
                 const evening = (d.evening ?? []).filter((x) => x.title.trim() || x.description.trim());
 
                 return (
-                  <View key={`d-${d.dayNumber}`} style={styles.dayCard}>
+                  <View key={`dayplan-${d.dayNumber}`} style={styles.dayCard} wrap={false}>
                     {d.imageUrl ? (
                       <SafeImage src={d.imageUrl} style={styles.dayCover} />
                     ) : null}
@@ -435,214 +431,65 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
                   </View>
                 );
               })}
-            </Page>
-          ) : null}
+            </View>
+          )
+        )}
 
-      {isSimple ? (
-        <>
-          {showEmptySections ||
-          (model.included ?? []).length > 0 ||
-          (model.notIncluded ?? []).length > 0 ? (
-            <Page size="A4" style={styles.page}>
-              <Chrome model={model} />
-              <Text style={styles.sectionTitle}>What&apos;s Included &amp; What&apos;s Not</Text>
-              <View style={{ marginTop: 12, flexDirection: "row", gap: 14 }}>
-                <View style={[styles.card, { flex: 1 }]}>
-                  <Text style={[styles.smallCaps, styles.muted]}>Included ✔</Text>
-                  <View style={{ marginTop: 10 }}>
-                    {(model.included ?? []).length === 0 ? (
-                      <Text style={styles.muted}>—</Text>
-                    ) : (
-                      (model.included ?? []).slice(0, 18).map((t, i) => (
-                        <Text key={`inc-${i}`} style={styles.listItem}>
-                          {t}
-                        </Text>
-                      ))
-                    )}
-                  </View>
-                </View>
-                <View style={[styles.card, { flex: 1 }]}>
-                  <Text style={[styles.smallCaps, styles.muted]}>Not Included ✖</Text>
-                  <View style={{ marginTop: 10 }}>
-                    {(model.notIncluded ?? []).length === 0 ? (
-                      <Text style={styles.muted}>—</Text>
-                    ) : (
-                      (model.notIncluded ?? []).slice(0, 18).map((t, i) => (
-                        <Text key={`exc-${i}`} style={styles.listItem}>
-                          {t}
-                        </Text>
-                      ))
-                    )}
-                  </View>
-                </View>
-              </View>
-            </Page>
-          ) : null}
-
-          <Page size="A4" style={styles.page}>
-            <Chrome model={model} />
-            <Text style={styles.sectionTitle}>Choose Your Package Tier</Text>
-            <Text style={[styles.muted, { marginTop: 6, lineHeight: 1.4 }]}>
-              Package prices are calculated on current fuel prices and are subject to revision. Prices exclude air tickets unless stated.
-            </Text>
-            {(model.packages ?? []).slice(0, 8).map((p, idx) => {
-              const chain = formatPackageHotelChain(p.stays ?? []);
-              return (
-                <View key={`pkg-${idx}`} style={[styles.card, styles.pkgCard]}>
-                  <Text style={styles.pkgName}>{p.name}</Text>
-                  <Text style={styles.pkgPrice}>{p.priceLabel}</Text>
-                  {p.vehicle?.trim() ? <Text style={styles.pkgMuted}>{p.vehicle}</Text> : null}
-                  {chain ? (
-                    <Text style={[styles.pkgMuted, { marginTop: 8, lineHeight: 1.45 }]}>
-                      {chain}
-                    </Text>
-                  ) : null}
-                  {p.note?.trim() ? <Text style={styles.pkgMuted}>{p.note}</Text> : null}
-                </View>
-              );
-            })}
-          </Page>
-
-          {showEmptySections ||
-          (model.paymentTerms ?? []).length > 0 ||
-          Boolean(
-            model.bankDetails?.bankName ||
-              model.bankDetails?.accountTitle ||
-              model.bankDetails?.accountNumber ||
-              model.bankDetails?.iban ||
-              model.bankDetails?.instruction,
-          ) ||
-          (model.termsBlocks ?? []).length > 0 ? (
-            <Page size="A4" style={styles.page} wrap>
-              <Chrome model={model} />
-
-              {showEmptySections ||
-              (model.paymentTerms ?? []).length > 0 ||
-              Boolean(
-                model.bankDetails?.bankName ||
-                  model.bankDetails?.accountTitle ||
-                  model.bankDetails?.accountNumber ||
-                  model.bankDetails?.iban ||
-                  model.bankDetails?.instruction,
-              ) ? (
-                <View wrap={false}>
-                  <Text style={styles.sectionTitle}>Payment Terms &amp; How to Book</Text>
-                  <View style={styles.payRow} wrap={false}>
-                    {(model.paymentTerms ?? []).slice(0, 3).map((t, idx) => (
-                      <View key={`pt-${idx}`} style={styles.payBox} wrap={false}>
-                        <Text style={styles.payPct}>{`${t.percent}%`}</Text>
-                        <Text style={{ marginTop: 6, fontWeight: 700 }}>{t.title}</Text>
-                        <Text style={[styles.muted, { marginTop: 4, lineHeight: 1.4 }]}>
-                          {t.description?.trim() || "—"}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                  <View style={[styles.card, { marginTop: 14 }]} wrap={false}>
-                    <Text style={[styles.smallCaps, styles.muted]}>Bank transfer</Text>
-                    <Text style={{ marginTop: 8, lineHeight: 1.5 }}>
-                      {(model.bankDetails?.bankName && `Bank: ${model.bankDetails.bankName} | `) || ""}
-                      {(model.bankDetails?.accountTitle && `Account: ${model.bankDetails.accountTitle} | `) || ""}
-                      {(model.bankDetails?.accountNumber && `Acc No: ${model.bankDetails.accountNumber} | `) || ""}
-                      {(model.bankDetails?.iban && `IBAN: ${model.bankDetails.iban}`) || ""}
-                    </Text>
-                    {model.bankDetails?.instruction?.trim() ? (
-                      <Text style={[styles.muted, { marginTop: 8, lineHeight: 1.4 }]}>
-                        {model.bankDetails.instruction}
+        {/* 2. Included & Not Included */}
+        {(showEmptySections || (model.included ?? []).length > 0 || (model.notIncluded ?? []).length > 0) && (
+          <View style={{ marginTop: 20 }}>
+            <Text style={styles.sectionTitle}>What&apos;s Included &amp; What&apos;s Not</Text>
+            <View style={{ marginTop: 12, flexDirection: "row", gap: 14 }}>
+              <View style={[styles.card, { flex: 1 }]}>
+                <Text style={[styles.smallCaps, styles.muted]}>Included ✔</Text>
+                <View style={{ marginTop: 10 }}>
+                  {(model.included ?? []).length === 0 ? (
+                    <Text style={styles.muted}>—</Text>
+                  ) : (
+                    (model.included ?? []).slice(0, 24).map((t, i) => (
+                      <Text key={`inc-${i}`} style={styles.listItem}>
+                        {t}
                       </Text>
-                    ) : null}
-                    <View style={{ marginTop: 12 }}>
-                      <Text style={[styles.smallCaps, styles.muted]}>Contact</Text>
-                      {model.contact?.officeAddress?.trim() ? (
-                        <Text style={[styles.muted, { marginTop: 6 }]}>{model.contact.officeAddress}</Text>
-                      ) : null}
-                      {model.contact?.email?.trim() ? (
-                        <Text style={[styles.muted, { marginTop: 2 }]}>{model.contact.email}</Text>
-                      ) : null}
-                      {model.contact?.website?.trim() ? (
-                        <Text style={[styles.muted, { marginTop: 2 }]}>{model.contact.website}</Text>
-                      ) : null}
-                      {model.contact?.phone?.trim() ? (
-                        <Text style={[styles.muted, { marginTop: 2 }]}>{model.contact.phone}</Text>
-                      ) : null}
-                    </View>
-                  </View>
-                </View>
-              ) : null}
-
-              {showEmptySections || (model.termsBlocks ?? []).length > 0 ? (
-                <View style={{ marginTop: 18 }}>
-                  <Text style={styles.sectionTitle}>Terms &amp; Conditions</Text>
-                  <View style={{ marginTop: 12 }}>
-                    {(model.termsBlocks ?? []).slice(0, 8).map((b, idx) => (
-                      <View key={`tb-${idx}`} style={[styles.card, { marginTop: 10 }]} wrap={false}>
-                        <Text style={{ fontWeight: 700 }}>{b.title}</Text>
-                        <Text style={[styles.muted, { marginTop: 6, lineHeight: 1.5 }]}>
-                          {b.body}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                </View>
-              ) : null}
-            </Page>
-          ) : null}
-        </>
-      ) : (
-        <>
-          {showEmptySections ||
-          (model.included ?? []).length > 0 ||
-          (model.notIncluded ?? []).length > 0 ? (
-            <Page size="A4" style={styles.page}>
-              <Chrome model={model} />
-              <Text style={styles.sectionTitle}>What&apos;s Included &amp; What&apos;s Not</Text>
-              <View style={{ marginTop: 12, flexDirection: "row", gap: 14 }}>
-                <View style={[styles.card, { flex: 1 }]}>
-                  <Text style={[styles.smallCaps, styles.muted]}>Included ✔</Text>
-                  <View style={{ marginTop: 10 }}>
-                    {(model.included ?? []).length === 0 ? (
-                      <Text style={styles.muted}>—</Text>
-                    ) : (
-                      (model.included ?? []).slice(0, 18).map((t, i) => (
-                        <Text key={`inc-${i}`} style={styles.listItem}>
-                          {t}
-                        </Text>
-                      ))
-                    )}
-                  </View>
-                </View>
-                <View style={[styles.card, { flex: 1 }]}>
-                  <Text style={[styles.smallCaps, styles.muted]}>Not Included ✖</Text>
-                  <View style={{ marginTop: 10 }}>
-                    {(model.notIncluded ?? []).length === 0 ? (
-                      <Text style={styles.muted}>—</Text>
-                    ) : (
-                      (model.notIncluded ?? []).slice(0, 18).map((t, i) => (
-                        <Text key={`exc-${i}`} style={styles.listItem}>
-                          {t}
-                        </Text>
-                      ))
-                    )}
-                  </View>
+                    ))
+                  )}
                 </View>
               </View>
-            </Page>
-          ) : null}
+              <View style={[styles.card, { flex: 1 }]}>
+                <Text style={[styles.smallCaps, styles.muted]}>Not Included ✖</Text>
+                <View style={{ marginTop: 10 }}>
+                  {(model.notIncluded ?? []).length === 0 ? (
+                    <Text style={styles.muted}>—</Text>
+                  ) : (
+                    (model.notIncluded ?? []).slice(0, 24).map((t, i) => (
+                      <Text key={`exc-${i}`} style={styles.listItem}>
+                        {t}
+                      </Text>
+                    ))
+                  )}
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
 
-          <Page size="A4" style={styles.page}>
-            <Chrome model={model} />
-            <Text style={styles.sectionTitle}>Choose Your Package</Text>
+        {/* 3. Package Tiers */}
+        {(showEmptySections || (model.packages ?? []).length > 0) && (
+          <View style={{ marginTop: 30 }}>
+            <Text style={styles.sectionTitle}>{isSimple ? "Choose Your Package Tier" : "Choose Your Package"}</Text>
             <Text style={[styles.muted, { marginTop: 6, lineHeight: 1.4 }]}>
-              All packages are for two adults. Prices exclude air tickets — airfares will be added at time of booking.
+              {isSimple 
+                ? "Package prices are calculated on current fuel prices and are subject to revision. Prices exclude air tickets unless stated."
+                : "All packages are for two adults. Prices exclude air tickets — airfares will be added at time of booking."}
             </Text>
-            {(model.packages ?? []).slice(0, 8).map((p, idx) => {
+            {(model.packages ?? []).slice(0, 10).map((p, idx) => {
               const chain = formatPackageHotelChain(p.stays ?? []);
               return (
-                <View key={`pkg-${idx}`} style={[styles.card, styles.pkgCard]}>
+                <View key={`pkg-${idx}`} style={[styles.card, styles.pkgCard]} wrap={false}>
                   <Text style={styles.pkgName}>{p.name}</Text>
                   <Text style={styles.pkgPrice}>{p.priceLabel}</Text>
                   {p.vehicle?.trim() ? <Text style={styles.pkgMuted}>{p.vehicle}</Text> : null}
-                  {(p.stays ?? []).length ? (
+                  
+                  {!isSimple && (p.stays ?? []).length ? (
                     <View style={{ marginTop: 8 }}>
                       {(p.stays ?? []).map((s, i) => (
                         <Text key={`stay-${idx}-${i}`} style={styles.pkgMuted}>
@@ -655,85 +502,78 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
                       {chain}
                     </Text>
                   ) : null}
+                  
                   {p.note?.trim() ? <Text style={styles.pkgMuted}>{p.note}</Text> : null}
                 </View>
               );
             })}
-          </Page>
+          </View>
+        )}
 
-          {showEmptySections ||
-          (model.paymentTerms ?? []).length > 0 ||
-          Boolean(
-            model.bankDetails?.bankName ||
-              model.bankDetails?.accountTitle ||
-              model.bankDetails?.accountNumber ||
-              model.bankDetails?.iban ||
-              model.bankDetails?.instruction,
-          ) ? (
-            <Page size="A4" style={styles.page}>
-              <Chrome model={model} />
-              <Text style={styles.sectionTitle}>Payment Terms &amp; How to Book</Text>
-              <View style={styles.payRow}>
-                {(model.paymentTerms ?? []).slice(0, 3).map((t, idx) => (
-                  <View key={`pt-${idx}`} style={styles.payBox}>
-                    <Text style={styles.payPct}>{`${t.percent}%`}</Text>
-                    <Text style={{ marginTop: 6, fontWeight: 700 }}>{t.title}</Text>
-                    <Text style={[styles.muted, { marginTop: 4, lineHeight: 1.4 }]}>
-                      {t.description?.trim() || "—"}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-              <View style={[styles.card, { marginTop: 14 }]}>
-                <Text style={[styles.smallCaps, styles.muted]}>Bank transfer</Text>
-                <Text style={{ marginTop: 8, lineHeight: 1.5 }}>
-                  {(model.bankDetails?.bankName && `Bank: ${model.bankDetails.bankName} | `) || ""}
-                  {(model.bankDetails?.accountTitle && `Account: ${model.bankDetails.accountTitle} | `) || ""}
-                  {(model.bankDetails?.accountNumber && `Acc No: ${model.bankDetails.accountNumber} | `) || ""}
-                  {(model.bankDetails?.iban && `IBAN: ${model.bankDetails.iban}`) || ""}
-                </Text>
-                {model.bankDetails?.instruction?.trim() ? (
-                  <Text style={[styles.muted, { marginTop: 8, lineHeight: 1.4 }]}>
-                    {model.bankDetails.instruction}
+        {/* 4. Payment & How to Book */}
+        {(showEmptySections || (model.paymentTerms ?? []).length > 0 || Boolean(model.bankDetails?.bankName || model.bankDetails?.accountTitle || model.bankDetails?.accountNumber || model.bankDetails?.iban || model.bankDetails?.instruction)) && (
+          <View style={{ marginTop: 30 }}>
+            <Text style={styles.sectionTitle}>Payment Terms &amp; How to Book</Text>
+            <View style={styles.payRow}>
+              {(model.paymentTerms ?? []).slice(0, 3).map((t, idx) => (
+                <View key={`pt-${idx}`} style={styles.payBox} wrap={false}>
+                  <Text style={styles.payPct}>{`${t.percent}%`}</Text>
+                  <Text style={{ marginTop: 6, fontWeight: 700 }}>{t.title}</Text>
+                  <Text style={[styles.muted, { marginTop: 4, lineHeight: 1.4 }]}>
+                    {t.description?.trim() || "—"}
                   </Text>
-                ) : null}
-                <View style={{ marginTop: 12 }}>
-                  <Text style={[styles.smallCaps, styles.muted]}>Contact</Text>
-                  {model.contact?.officeAddress?.trim() ? (
-                    <Text style={[styles.muted, { marginTop: 6 }]}>{model.contact.officeAddress}</Text>
-                  ) : null}
-                  {model.contact?.email?.trim() ? (
-                    <Text style={[styles.muted, { marginTop: 2 }]}>{model.contact.email}</Text>
-                  ) : null}
-                  {model.contact?.website?.trim() ? (
-                    <Text style={[styles.muted, { marginTop: 2 }]}>{model.contact.website}</Text>
-                  ) : null}
-                  {model.contact?.phone?.trim() ? (
-                    <Text style={[styles.muted, { marginTop: 2 }]}>{model.contact.phone}</Text>
-                  ) : null}
                 </View>
-              </View>
-            </Page>
-          ) : null}
-
-          {showEmptySections || (model.termsBlocks ?? []).length > 0 ? (
-            <Page size="A4" style={styles.page}>
-              <Chrome model={model} />
-              <Text style={styles.sectionTitle}>Terms &amp; Conditions</Text>
+              ))}
+            </View>
+            <View style={[styles.card, { marginTop: 14 }]} wrap={false}>
+              <Text style={[styles.smallCaps, styles.muted]}>Bank transfer</Text>
+              <Text style={{ marginTop: 8, lineHeight: 1.5 }}>
+                {(model.bankDetails?.bankName && `Bank: ${model.bankDetails.bankName} | `) || ""}
+                {(model.bankDetails?.accountTitle && `Account: ${model.bankDetails.accountTitle} | `) || ""}
+                {(model.bankDetails?.accountNumber && `Acc No: ${model.bankDetails.accountNumber} | `) || ""}
+                {(model.bankDetails?.iban && `IBAN: ${model.bankDetails.iban}`) || ""}
+              </Text>
+              {model.bankDetails?.instruction?.trim() ? (
+                <Text style={[styles.muted, { marginTop: 8, lineHeight: 1.4 }]}>
+                  {model.bankDetails.instruction}
+                </Text>
+              ) : null}
               <View style={{ marginTop: 12 }}>
-                {(model.termsBlocks ?? []).slice(0, 8).map((b, idx) => (
-                  <View key={`tb-${idx}`} style={[styles.card, { marginTop: 10 }]}>
-                    <Text style={{ fontWeight: 700 }}>{b.title}</Text>
-                    <Text style={[styles.muted, { marginTop: 6, lineHeight: 1.5 }]}>
-                      {b.body}
-                    </Text>
-                  </View>
-                ))}
+                <Text style={[styles.smallCaps, styles.muted]}>Contact</Text>
+                {model.contact?.officeAddress?.trim() ? (
+                  <Text style={[styles.muted, { marginTop: 6 }]}>{model.contact.officeAddress}</Text>
+                ) : null}
+                {model.contact?.email?.trim() ? (
+                  <Text style={[styles.muted, { marginTop: 2 }]}>{model.contact.email}</Text>
+                ) : null}
+                {model.contact?.website?.trim() ? (
+                  <Text style={[styles.muted, { marginTop: 2 }]}>{model.contact.website}</Text>
+                ) : null}
+                {model.contact?.phone?.trim() ? (
+                  <Text style={[styles.muted, { marginTop: 2 }]}>{model.contact.phone}</Text>
+                ) : null}
               </View>
-            </Page>
-          ) : null}
-        </>
-      )}
+            </View>
+          </View>
+        )}
+
+        {/* 5. Terms & Conditions */}
+        {(showEmptySections || (model.termsBlocks ?? []).length > 0) && (
+          <View style={{ marginTop: 30 }}>
+            <Text style={styles.sectionTitle}>Terms &amp; Conditions</Text>
+            <View style={{ marginTop: 12 }}>
+              {(model.termsBlocks ?? []).slice(0, 10).map((b, idx) => (
+                <View key={`tb-${idx}`} style={[styles.card, { marginTop: 10 }]} wrap={false}>
+                  <Text style={{ fontWeight: 700 }}>{b.title}</Text>
+                  <Text style={[styles.muted, { marginTop: 6, lineHeight: 1.5 }]}>
+                    {b.body}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+      </Page>
     </Document>
   );
 }

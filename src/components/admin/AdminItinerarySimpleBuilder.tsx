@@ -29,6 +29,11 @@ type AtGlanceDay = {
   overnight?: string;
 };
 
+function isDefaultDayTitle(title: string, dayNumber: number) {
+  const normalized = title.trim().toLowerCase().replace(/\s+/g, "");
+  return normalized === `day${dayNumber}`;
+}
+
 const DEFAULT_LOGO_URL = "/images-removebg-preview.png";
 
 const MAP_FALLBACK_IMAGES = [
@@ -55,6 +60,27 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+function parseYmdLocal(ymd: string) {
+  if (!ymd) return null;
+  const d = new Date(`${ymd}T00:00:00`);
+  if (!Number.isFinite(d.getTime())) return null;
+  return d;
+}
+
+function formatYmdLocal(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function addDaysToYmd(ymd: string, offsetDays: number) {
+  const d = parseYmdLocal(ymd);
+  if (!d) return null;
+  d.setDate(d.getDate() + offsetDays);
+  return formatYmdLocal(d);
+}
+
 function syncAtGlanceToDayCount(
   prev: AtGlanceDay[],
   newDays: number,
@@ -62,10 +88,16 @@ function syncAtGlanceToDayCount(
   const safe = clamp(newDays, 1, 60);
   const next = prev.slice(0, safe);
   while (next.length < safe) {
-    const d = next.length;
-    next.push({ dayNumber: d, title: `Day ${d}`, detail: "" });
+    next.push({ dayNumber: next.length + 1, title: "", detail: "" });
   }
-  return next.map((row, i) => ({ ...row, dayNumber: i }));
+  return next.map((row, i) => {
+    const dayNumber = i + 1;
+    return {
+      ...row,
+      dayNumber,
+      title: isDefaultDayTitle(row.title, row.dayNumber) ? "" : row.title,
+    };
+  });
 }
 
 type ExistingItinerary = {
@@ -130,7 +162,7 @@ function legacyDayPlansToAtGlance(
 
     return {
       dayNumber: idx + 1,
-      title: String(d.title ?? "").trim() || `Day ${idx + 1}`,
+      title: String(d.title ?? "").trim(),
       detail,
       overnight:
         typeof d.overnight === "string" && d.overnight.trim()
@@ -228,7 +260,7 @@ export function AdminItinerarySimpleBuilder({
   );
   const [pickupDropoff, setPickupDropoff] = useState("");
   const [atGlanceDays, setAtGlanceDays] = useState<AtGlanceDay[]>([
-    { dayNumber: 0, title: "Day 0", detail: "" },
+    { dayNumber: 1, title: "", detail: "" },
   ]);
   const [packageStayRows, setPackageStayRows] = useState<PackageStayRow[]>([
     { location: "" },
@@ -265,6 +297,37 @@ export function AdminItinerarySimpleBuilder({
     if (diff < 1) return null;
     return clamp(diff, 1, 60);
   }, [startDate, endDate]);
+
+  const displayDays = useMemo(() => {
+    if (computedDays != null) return computedDays;
+    if (existing?.days) return clamp(existing.days, 1, 60);
+    return clamp(atGlanceDays.length || 1, 1, 60);
+  }, [atGlanceDays.length, computedDays, existing?.days]);
+
+  const adjustDayCountBy = useCallback(
+    (delta: number) => {
+      if (delta === 0) return;
+      const currentDays = displayDays;
+      const targetDays = clamp(currentDays + delta, 1, 60);
+      if (targetDays === currentDays) return;
+
+      const baseStart = parseYmdLocal(startDate)
+        ? startDate
+        : parseYmdLocal(endDate)
+          ? endDate
+          : minDate;
+
+      if (!startDate || startDate !== baseStart) {
+        setStartDate(baseStart);
+      }
+
+      const nextEndDate = addDaysToYmd(baseStart, targetDays - 1);
+      if (nextEndDate) {
+        setEndDate(nextEndDate);
+      }
+    },
+    [displayDays, endDate, minDate, startDate],
+  );
 
   useEffect(() => {
     if (computedDays == null) return;
@@ -304,12 +367,15 @@ export function AdminItinerarySimpleBuilder({
 
     if (existing.atGlanceDays?.length) {
       setAtGlanceDays(
-        existing.atGlanceDays.map((d) => ({
-          dayNumber: d.dayNumber,
-          title: d.title,
-          detail: d.detail,
-          overnight: d.overnight,
-        })),
+        syncAtGlanceToDayCount(
+          existing.atGlanceDays.map((d) => ({
+            dayNumber: d.dayNumber,
+            title: d.title,
+            detail: d.detail,
+            overnight: d.overnight,
+          })),
+          existing.days ?? existing.atGlanceDays.length,
+        ),
       );
     }
 
@@ -782,8 +848,10 @@ export function AdminItinerarySimpleBuilder({
               </div>
               <div>
                 <FieldLabel>Days</FieldLabel>
-                <TextInput type="number" readOnly value={computedDays ?? ""} />
-                <FieldHint>From start and end date.</FieldHint>
+                <TextInput type="number" readOnly value={displayDays} />
+                <FieldHint>
+                  Day count stays synced with your date range.
+                </FieldHint>
               </div>
               <div>
                 <FieldLabel>Theme</FieldLabel>
@@ -856,9 +924,33 @@ export function AdminItinerarySimpleBuilder({
               </div>
 
               <div className="rounded-2xl border border-border bg-panel-elevated p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-muted">
-                  Itinerary at a glance
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted">
+                    Itinerary at a glance
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs text-muted">{displayDays} days</span>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => adjustDayCountBy(-1)}
+                      disabled={displayDays <= 1}
+                    >
+                      Remove Day
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => adjustDayCountBy(1)}
+                      disabled={displayDays >= 60}
+                    >
+                      + Add Day
+                    </Button>
+                  </div>
+                </div>
+                <FieldHint>
+                  Buttons adjust the date range automatically to keep day count and dates in sync.
+                </FieldHint>
                 <div className="mt-3 space-y-4">
                   {atGlanceDays.map((d, idx) => (
                     <div key={d.dayNumber} className="rounded-xl border border-border bg-panel p-3">

@@ -224,8 +224,6 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
         })}
 
         {/* Keep totals readable for long invoices */}
-        {model.items.length > 12 ? <View break /> : null}
-
         <View style={styles.totalsRow}>
           <View style={{ flexDirection: "row", gap: 12, width: "100%" }}>
             <View style={[styles.summaryBox, { flex: 1 }]}>
