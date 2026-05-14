@@ -214,6 +214,27 @@ function normalizePackageTier(
   };
 }
 
+function editablePackageTiersToPatchPayload(tiers: EditablePackageTier[]): PackageTier[] {
+  return tiers.map((tier) => ({
+    name: String(tier.name ?? "").trim(),
+    pricePkr: typeof tier.pricePkr === "number" ? tier.pricePkr : undefined,
+    vehicle:
+      typeof tier.vehicle === "string" && tier.vehicle.trim()
+        ? tier.vehicle.trim()
+        : undefined,
+    note: typeof tier.note === "string" && tier.note.trim() ? tier.note.trim() : undefined,
+    stays: tier.stays.map((stay, idx) => ({
+      location: String(stay.location ?? `Stop ${idx + 1}`).trim() || `Stop ${idx + 1}`,
+      hotel: String(stay.hotel ?? "").trim(),
+      nights: Math.max(1, Math.floor(Number(stay.nights) || 1)),
+    })),
+    hotels: tier.stays.map((stay) => ({
+      hotel: String(stay.hotel ?? "").trim(),
+      nights: Math.max(1, Math.floor(Number(stay.nights) || 1)),
+    })),
+  }));
+}
+
 function legacyDayPlansToAtGlance(
   dayPlans: NonNullable<ExistingItinerary["dayPlans"]>,
 ): AtGlanceDay[] {
@@ -495,7 +516,7 @@ export function AdminItinerarySimpleBuilder({
               },
             ];
       setPackageTiers(safeTiers);
-      patch.packageTiers = safeTiers;
+      patch.packageTiers = editablePackageTiersToPatchPayload(safeTiers);
     }
 
     legacyMigratedKey.current = key;
@@ -799,7 +820,7 @@ export function AdminItinerarySimpleBuilder({
       days: safeDays,
       theme,
       atGlanceDays,
-      packageTiers,
+      packageTiers: editablePackageTiersToPatchPayload(packageTiers),
       included: includedInput
         .split("\n")
         .map((s) => s.trim())
