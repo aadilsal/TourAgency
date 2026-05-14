@@ -17,8 +17,8 @@ import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { cn } from "@/lib/cn";
 import { PDFDownloadLink, PDFViewer, pdf } from "@react-pdf/renderer";
 import { ItineraryPdf, type ItineraryPdfModel } from "@/documents/itinerary/ItineraryPdf";
-import { alignHotelsToRows, tiersToPackagesForPdf } from "@/lib/itineraryPackageMatrix";
-import type { PackageStayRow, PackageTier } from "@/lib/itineraryPackageMatrix";
+import { tiersToPackagesForPdf } from "@/lib/itineraryPackageMatrix";
+import type { PackageStay, PackageTier } from "@/lib/itineraryPackageMatrix";
 
 type Theme = "luxury" | "minimal" | "adventure";
 
@@ -27,6 +27,23 @@ type AtGlanceDay = {
   title: string;
   detail: string;
   overnight?: string;
+};
+
+type SimpleBuilderDraftSnapshot = {
+  title: string;
+  clientName: string;
+  startDate: string;
+  endDate: string;
+  theme: Theme;
+  headline: string;
+  variantLabel: string;
+  coverSubtitle: string;
+  complianceLine: string;
+  pickupDropoff: string;
+  atGlanceDays: AtGlanceDay[];
+  packageTiers: EditablePackageTier[];
+  includedInput: string;
+  notIncludedInput: string;
 };
 
 function isDefaultDayTitle(title: string, dayNumber: number) {
@@ -58,6 +75,21 @@ function pickMapFallbackImage(input: string) {
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
+}
+
+function getSimpleBuilderStorageKey(itineraryId: string | null) {
+  return itineraryId
+    ? `jt:admin:itinerary-simple-builder:${itineraryId}`
+    : "jt:admin:itinerary-simple-builder:unsaved";
+}
+
+function parseSimpleBuilderSnapshot(raw: string | null) {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as Partial<SimpleBuilderDraftSnapshot>;
+  } catch {
+    return null;
+  }
 }
 
 function parseYmdLocal(ymd: string) {
@@ -139,6 +171,49 @@ type ExistingItinerary = {
   }>;
 };
 
+type EditablePackageTier = Omit<PackageTier, "stays" | "hotels"> & {
+  stays: PackageStay[];
+};
+
+function normalizeTierStay(stay: Partial<PackageStay>, fallbackLocation: string): PackageStay {
+  return {
+    location: String(stay.location ?? fallbackLocation).trim() || fallbackLocation,
+    hotel: String(stay.hotel ?? "").trim(),
+    nights: Math.max(1, Math.floor(Number(stay.nights) || 1)),
+  };
+}
+
+function normalizePackageTier(
+  tier: NonNullable<ExistingItinerary["packageTiers"]>[number],
+  fallbackRows?: Array<{ location: string }>,
+): EditablePackageTier {
+  const fallbackRowsSafe = fallbackRows ?? [];
+  const explicitStays = (tier.stays ?? []).map((stay, idx) =>
+    normalizeTierStay(stay, fallbackRowsSafe[idx]?.location ?? `Stop ${idx + 1}`),
+  );
+
+  const stays =
+    explicitStays.length > 0
+      ? explicitStays
+      : ((tier as { hotels?: Array<{ hotel: string; nights: number }> }).hotels ?? []).map((hotel, idx) =>
+          normalizeTierStay(
+            { hotel: hotel.hotel, nights: hotel.nights },
+            fallbackRowsSafe[idx]?.location ?? `Stop ${idx + 1}`,
+          ),
+        );
+
+  return {
+    name: String(tier.name ?? "").trim(),
+    pricePkr: typeof tier.pricePkr === "number" ? tier.pricePkr : undefined,
+    vehicle:
+      typeof tier.vehicle === "string" && tier.vehicle.trim()
+        ? tier.vehicle.trim()
+        : undefined,
+    note: typeof tier.note === "string" && tier.note.trim() ? tier.note.trim() : undefined,
+    stays: stays.length > 0 ? stays : [{ location: "", hotel: "", nights: 1 }],
+  };
+}
+
 function legacyDayPlansToAtGlance(
   dayPlans: NonNullable<ExistingItinerary["dayPlans"]>,
 ): AtGlanceDay[] {
@@ -174,7 +249,7 @@ function legacyDayPlansToAtGlance(
 
 function legacyPackagesToMatrix(
   packages: NonNullable<ExistingItinerary["packages"]>,
-): { rows: PackageStayRow[]; tiers: PackageTier[] } {
+): { rows: Array<{ location: string }>; tiers: EditablePackageTier[] } {
   const locations: string[] = [];
   const ensureLocation = (locRaw: string) => {
     const loc = (locRaw ?? "").trim();
@@ -191,29 +266,24 @@ function legacyPackagesToMatrix(
     for (const s of p.stays ?? []) ensureLocation(s.location);
   }
 
-  const rows: PackageStayRow[] = locations.map((location) => ({ location }));
-  const tiers: PackageTier[] = packages.map((p) => {
-    const hotels = rows.map(() => ({ hotel: "", nights: 1 }));
-    for (const s of p.stays ?? []) {
-      const idx = ensureLocation(s.location);
-      if (idx < 0) continue;
-      hotels[idx] = {
-        hotel: String(s.hotel ?? "").trim(),
-        nights: Math.max(1, Math.floor(Number(s.nights) || 1)),
-      };
-    }
-    return {
-      name: String(p.name ?? "").trim() || "Package",
-      pricePkr: typeof p.pricePkr === "number" ? p.pricePkr : undefined,
-      vehicle:
-        typeof p.vehicle === "string" && p.vehicle.trim()
-          ? p.vehicle.trim()
-          : undefined,
-      note:
-        typeof p.note === "string" && p.note.trim() ? p.note.trim() : undefined,
-      hotels,
-    };
-  });
+  const rows = locations.map((location) => ({ location }));
+  const tiers: EditablePackageTier[] = packages.map((p) => ({
+    name: String(p.name ?? "").trim() || "Package",
+    pricePkr: typeof p.pricePkr === "number" ? p.pricePkr : undefined,
+    vehicle:
+      typeof p.vehicle === "string" && p.vehicle.trim()
+        ? p.vehicle.trim()
+        : undefined,
+    note: typeof p.note === "string" && p.note.trim() ? p.note.trim() : undefined,
+    stays: (p.stays ?? []).map((s, idx) => ({
+      location:
+        String(s.location ?? rows[idx]?.location ?? `Stop ${idx + 1}`).trim() ||
+        rows[idx]?.location ||
+        `Stop ${idx + 1}`,
+      hotel: String(s.hotel ?? "").trim(),
+      nights: Math.max(1, Math.floor(Number(s.nights) || 1)),
+    })),
+  }));
 
   return { rows, tiers };
 }
@@ -262,16 +332,13 @@ export function AdminItinerarySimpleBuilder({
   const [atGlanceDays, setAtGlanceDays] = useState<AtGlanceDay[]>([
     { dayNumber: 1, title: "", detail: "" },
   ]);
-  const [packageStayRows, setPackageStayRows] = useState<PackageStayRow[]>([
-    { location: "" },
-  ]);
-  const [packageTiers, setPackageTiers] = useState<PackageTier[]>([
+  const [packageTiers, setPackageTiers] = useState<EditablePackageTier[]>([
     {
       name: "Standard",
       pricePkr: undefined,
       vehicle: "",
       note: "",
-      hotels: [{ hotel: "", nights: 1 }],
+      stays: [{ location: "", hotel: "", nights: 1 }],
     },
   ]);
   const [includedInput, setIncludedInput] = useState("");
@@ -287,6 +354,8 @@ export function AdminItinerarySimpleBuilder({
 
   const hydratedKey = useRef<string | null>(null);
   const legacyMigratedKey = useRef<string | null>(null);
+  const localDraftHydratedKey = useRef<string | null>(null);
+  const localDraftJsonRef = useRef<string>("");
 
   const computedDays = useMemo(() => {
     if (!startDate || !endDate) return null;
@@ -335,11 +404,6 @@ export function AdminItinerarySimpleBuilder({
   }, [computedDays]);
 
   useEffect(() => {
-    const rowCount = packageStayRows.length;
-    setPackageTiers((prev) => alignHotelsToRows(prev, rowCount));
-  }, [packageStayRows.length]);
-
-  useEffect(() => {
     if (!itineraryIdProp) return;
     setItineraryId(itineraryIdProp as Id<"itineraries">);
     hydratedKey.current = null;
@@ -379,17 +443,9 @@ export function AdminItinerarySimpleBuilder({
       );
     }
 
-    if (existing.packageStayRows?.length) {
-      setPackageStayRows(existing.packageStayRows.map((r) => ({ ...r })));
-    }
     if (existing.packageTiers?.length) {
-      const rc =
-        existing.packageStayRows?.length ??
-        existing.packageTiers[0]?.hotels.length ??
-        1;
-      setPackageTiers(
-        alignHotelsToRows(existing.packageTiers as PackageTier[], rc),
-      );
+      const fallbackRows = existing.packageStayRows ?? [];
+      setPackageTiers(existing.packageTiers.map((tier) => normalizePackageTier(tier, fallbackRows)));
     }
 
     setIncludedInput((existing.included ?? []).join("\n"));
@@ -403,11 +459,7 @@ export function AdminItinerarySimpleBuilder({
 
     const needsAtGlance =
       !existing.atGlanceDays || existing.atGlanceDays.length === 0;
-    const needsMatrix =
-      !existing.packageStayRows ||
-      existing.packageStayRows.length === 0 ||
-      !existing.packageTiers ||
-      existing.packageTiers.length === 0;
+    const needsMatrix = !existing.packageTiers || existing.packageTiers.length === 0;
     const hasLegacy =
       (existing.dayPlans && existing.dayPlans.length > 0) ||
       (existing.packages && existing.packages.length > 0);
@@ -429,8 +481,7 @@ export function AdminItinerarySimpleBuilder({
     }
 
     if (needsMatrix && existing.packages?.length) {
-      const { rows, tiers } = legacyPackagesToMatrix(existing.packages);
-      const safeRows = rows.length > 0 ? rows : [{ location: "" }];
+      const { tiers } = legacyPackagesToMatrix(existing.packages);
       const safeTiers =
         tiers.length > 0
           ? tiers
@@ -440,13 +491,11 @@ export function AdminItinerarySimpleBuilder({
                 pricePkr: undefined,
                 vehicle: "",
                 note: "",
-                hotels: [],
+                stays: [{ location: "", hotel: "", nights: 1 }],
               },
             ];
-      setPackageStayRows(safeRows);
-      setPackageTiers(alignHotelsToRows(safeTiers, safeRows.length));
-      patch.packageStayRows = safeRows;
-      patch.packageTiers = alignHotelsToRows(safeTiers, safeRows.length);
+      setPackageTiers(safeTiers);
+      patch.packageTiers = safeTiers;
     }
 
     legacyMigratedKey.current = key;
@@ -468,6 +517,54 @@ export function AdminItinerarySimpleBuilder({
       setNotIncludedInput(adminSettings.defaultNotIncluded.join("\n"));
     }
   }, [adminSettings, existing, itineraryId]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storageKey = getSimpleBuilderStorageKey(itineraryId ? String(itineraryId) : null);
+    if (localDraftHydratedKey.current === storageKey) return;
+
+    const snapshot = parseSimpleBuilderSnapshot(window.localStorage.getItem(storageKey));
+    if (!snapshot) {
+      localDraftHydratedKey.current = storageKey;
+      return;
+    }
+
+    localDraftHydratedKey.current = storageKey;
+
+    if (typeof snapshot.title === "string") setTitle(snapshot.title);
+    if (typeof snapshot.clientName === "string") setClientName(snapshot.clientName);
+    if (typeof snapshot.startDate === "string") setStartDate(snapshot.startDate);
+    if (typeof snapshot.endDate === "string") setEndDate(snapshot.endDate);
+    if (snapshot.theme) setTheme(snapshot.theme);
+    if (typeof snapshot.headline === "string") setHeadline(snapshot.headline);
+    if (typeof snapshot.variantLabel === "string") setVariantLabel(snapshot.variantLabel);
+    if (typeof snapshot.coverSubtitle === "string") setCoverSubtitle(snapshot.coverSubtitle);
+    if (typeof snapshot.complianceLine === "string") setComplianceLine(snapshot.complianceLine);
+    if (typeof snapshot.pickupDropoff === "string") setPickupDropoff(snapshot.pickupDropoff);
+    if (Array.isArray(snapshot.atGlanceDays) && snapshot.atGlanceDays.length > 0) {
+      setAtGlanceDays(snapshot.atGlanceDays);
+    }
+    if (Array.isArray(snapshot.packageTiers) && snapshot.packageTiers.length > 0) {
+      const restoredTiers: EditablePackageTier[] = snapshot.packageTiers.map((tier) => ({
+        name: String(tier.name ?? "").trim(),
+        pricePkr: typeof tier.pricePkr === "number" ? tier.pricePkr : undefined,
+        vehicle:
+          typeof tier.vehicle === "string" && tier.vehicle.trim()
+            ? tier.vehicle.trim()
+            : undefined,
+        note: typeof tier.note === "string" && tier.note.trim() ? tier.note.trim() : undefined,
+        stays: tier.stays.map((stay, idx) => ({
+          location:
+            String(stay.location ?? `Stop ${idx + 1}`).trim() || `Stop ${idx + 1}`,
+          hotel: String(stay.hotel ?? "").trim(),
+          nights: Math.max(1, Math.floor(Number(stay.nights) || 1)),
+        })),
+      }));
+      setPackageTiers(restoredTiers);
+    }
+    if (typeof snapshot.includedInput === "string") setIncludedInput(snapshot.includedInput);
+    if (typeof snapshot.notIncludedInput === "string") setNotIncludedInput(snapshot.notIncludedInput);
+  }, [itineraryId]);
 
   const saveTimer = useRef<number | null>(null);
   const lastPatchJson = useRef<string>("");
@@ -521,9 +618,9 @@ export function AdminItinerarySimpleBuilder({
     setPackageTiers((prevTiers) =>
       prevTiers.map((tier) => ({
         ...tier,
-        hotels: tier.hotels.map((h: { hotel: string; nights: number }) => ({
-          ...h,
-          nights: h.nights === prev ? next : h.nights,
+        stays: tier.stays.map((stay) => ({
+          ...stay,
+          nights: stay.nights === prev ? next : stay.nights,
         })),
       })),
     );
@@ -539,8 +636,7 @@ export function AdminItinerarySimpleBuilder({
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const tiersAligned = alignHotelsToRows(packageTiers, packageStayRows.length);
-    const packages = tiersToPackagesForPdf(packageStayRows, tiersAligned);
+    const packages = tiersToPackagesForPdf([], packageTiers);
 
     const settings = adminSettings;
     const licence =
@@ -591,7 +687,6 @@ export function AdminItinerarySimpleBuilder({
     mapFallback,
     nights,
     notIncludedInput,
-    packageStayRows,
     packageTiers,
     pickupDropoff,
     safeDays,
@@ -603,6 +698,81 @@ export function AdminItinerarySimpleBuilder({
 
   const [previewModel, setPreviewModel] = useState<ItineraryPdfModel>(pdfModel);
   const previewTimer = useRef<number | null>(null);
+
+  const localDraftSnapshot = useMemo<SimpleBuilderDraftSnapshot>(
+    () => ({
+      title,
+      clientName,
+      startDate,
+      endDate,
+      theme,
+      headline,
+      variantLabel,
+      coverSubtitle,
+      complianceLine,
+      pickupDropoff,
+      atGlanceDays,
+      packageTiers,
+      includedInput,
+      notIncludedInput,
+    }),
+    [
+      title,
+      clientName,
+      startDate,
+      endDate,
+      theme,
+      headline,
+      variantLabel,
+      coverSubtitle,
+      complianceLine,
+      pickupDropoff,
+      atGlanceDays,
+      packageTiers,
+      includedInput,
+      notIncludedInput,
+    ],
+  );
+
+  const localDraftStorageKey = useMemo(
+    () => getSimpleBuilderStorageKey(itineraryId ? String(itineraryId) : null),
+    [itineraryId],
+  );
+
+  useEffect(() => {
+    const json = JSON.stringify(localDraftSnapshot);
+    localDraftJsonRef.current = json;
+    if (typeof window === "undefined") return;
+
+    const timer = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(localDraftStorageKey, json);
+      } catch {
+        // ignore storage failures
+      }
+    }, 100);
+
+    return () => window.clearTimeout(timer);
+  }, [localDraftSnapshot, localDraftStorageKey]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const flushSnapshot = () => {
+      try {
+        window.localStorage.setItem(localDraftStorageKey, localDraftJsonRef.current);
+      } catch {
+        // ignore storage failures
+      }
+    };
+
+    window.addEventListener("pagehide", flushSnapshot);
+    window.addEventListener("beforeunload", flushSnapshot);
+    return () => {
+      window.removeEventListener("pagehide", flushSnapshot);
+      window.removeEventListener("beforeunload", flushSnapshot);
+    };
+  }, [localDraftStorageKey]);
 
   useEffect(() => {
     if (previewTimer.current) window.clearTimeout(previewTimer.current);
@@ -629,8 +799,7 @@ export function AdminItinerarySimpleBuilder({
       days: safeDays,
       theme,
       atGlanceDays,
-      packageStayRows,
-      packageTiers: alignHotelsToRows(packageTiers, packageStayRows.length),
+      packageTiers,
       included: includedInput
         .split("\n")
         .map((s) => s.trim())
@@ -654,7 +823,6 @@ export function AdminItinerarySimpleBuilder({
     safeDays,
     theme,
     atGlanceDays,
-    packageStayRows,
     packageTiers,
     includedInput,
     notIncludedInput,
@@ -1025,150 +1193,164 @@ export function AdminItinerarySimpleBuilder({
 
               <div className="rounded-2xl border border-border bg-panel-elevated p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted">
-                    Packages (shared stay rows)
-                  </p>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      setPackageStayRows((r) => [...r, { location: "" }]);
-                      setPackageTiers((prev) =>
-                        prev.map((t) => ({
-                          ...t,
-                          hotels: [...t.hotels, { hotel: "", nights: defaultHotelNights }],
-                        })),
-                      );
-                    }}
-                  >
-                    + Add stay row
-                  </Button>
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted">Packages</p>
                 </div>
                 <div className="mt-4 space-y-6">
-                  {packageTiers.map((tier, tIdx) => (
-                    <div key={tIdx} className="rounded-xl border border-border bg-panel p-3">
-                      <div className="flex flex-wrap items-end gap-2">
-                        <div className="min-w-[120px] flex-1">
-                          <FieldLabel>Tier name</FieldLabel>
-                          <TextInput
-                            value={tier.name}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setPackageTiers((prev) =>
-                                prev.map((x, i) => (i === tIdx ? { ...x, name: v } : x)),
-                              );
+                  {packageTiers.map((tier, tIdx) => {
+                    const stays = tier.stays;
+                    return (
+                      <div key={tIdx} className="rounded-xl border border-border bg-panel p-3">
+                        <div className="flex flex-wrap items-end gap-2">
+                          <div className="min-w-[120px] flex-1">
+                            <FieldLabel>Tier name</FieldLabel>
+                            <TextInput
+                              value={tier.name}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setPackageTiers((prev) =>
+                                  prev.map((x, i) => (i === tIdx ? { ...x, name: v } : x)),
+                                );
+                              }}
+                            />
+                          </div>
+                          <div className="w-28">
+                            <FieldLabel>PKR</FieldLabel>
+                            <TextInput
+                              type="number"
+                              min={0}
+                              value={tier.pricePkr ?? ""}
+                              onChange={(e) => {
+                                const n = Number(e.target.value);
+                                setPackageTiers((prev) =>
+                                  prev.map((x, i) =>
+                                    i === tIdx
+                                      ? {
+                                          ...x,
+                                          pricePkr: Number.isFinite(n) ? n : undefined,
+                                        }
+                                      : x,
+                                  ),
+                                );
+                              }}
+                            />
+                          </div>
+                          <div className="min-w-[100px] flex-1">
+                            <FieldLabel>Vehicle (optional)</FieldLabel>
+                            <TextInput
+                              value={tier.vehicle ?? ""}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                setPackageTiers((prev) =>
+                                  prev.map((x, i) => (i === tIdx ? { ...x, vehicle: v } : x)),
+                                );
+                              }}
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => {
+                              setPackageTiers((prev) => {
+                                const src = prev[tIdx];
+                                if (!src) return prev;
+                                const clone: EditablePackageTier = {
+                                  name: src.name ? `${src.name} (copy)` : "",
+                                  pricePkr: src.pricePkr,
+                                  vehicle: src.vehicle,
+                                  note: src.note,
+                                  stays: src.stays.map((stay) => ({ ...stay })),
+                                };
+                                const next = [...prev];
+                                next.splice(tIdx + 1, 0, clone);
+                                return next;
+                              });
                             }}
-                          />
-                        </div>
-                        <div className="w-28">
-                          <FieldLabel>PKR</FieldLabel>
-                          <TextInput
-                            type="number"
-                            min={0}
-                            value={tier.pricePkr ?? ""}
-                            onChange={(e) => {
-                              const n = Number(e.target.value);
+                          >
+                            Duplicate tier
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="border-red-500/40 text-red-200 hover:border-red-400/60 hover:bg-red-500/10"
+                            disabled={packageTiers.length <= 1}
+                            onClick={() =>
                               setPackageTiers((prev) =>
-                                prev.map((x, i) =>
-                                  i === tIdx
-                                    ? {
-                                        ...x,
-                                        pricePkr: Number.isFinite(n) ? n : undefined,
-                                      }
-                                    : x,
-                                ),
-                              );
-                            }}
-                          />
+                                prev.length <= 1 ? prev : prev.filter((_, i) => i !== tIdx),
+                              )
+                            }
+                          >
+                            Remove tier
+                          </Button>
                         </div>
-                        <div className="min-w-[100px] flex-1">
-                          <FieldLabel>Vehicle (optional)</FieldLabel>
-                          <TextInput
-                            value={tier.vehicle ?? ""}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setPackageTiers((prev) =>
-                                prev.map((x, i) => (i === tIdx ? { ...x, vehicle: v } : x)),
-                              );
-                            }}
-                          />
-                        </div>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => {
-                            setPackageTiers((prev) => {
-                              const src = prev[tIdx];
-                              if (!src) return prev;
-                              const clone: PackageTier = {
-                                name: src.name ? `${src.name} (copy)` : "",
-                                pricePkr: src.pricePkr,
-                                vehicle: src.vehicle,
-                                note: src.note,
-                                hotels: src.hotels.map((h: { hotel: string; nights: number }) => ({
-                                  hotel: h.hotel,
-                                  nights: h.nights,
-                                })),
-                              };
-                              const next = [...prev];
-                              next.splice(tIdx + 1, 0, clone);
-                              return alignHotelsToRows(next, packageStayRows.length);
-                            });
-                          }}
-                        >
-                          Duplicate tier
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="border-red-500/40 text-red-200 hover:border-red-400/60 hover:bg-red-500/10"
-                          disabled={packageTiers.length <= 1}
-                          onClick={() =>
-                            setPackageTiers((prev) =>
-                              prev.length <= 1 ? prev : prev.filter((_, i) => i !== tIdx),
-                            )
-                          }
-                        >
-                          Remove tier
-                        </Button>
-                      </div>
-                      <div className="mt-3">
-                        <div className="space-y-3">
-                          <div className="hidden md:grid md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px_28px] md:gap-2 md:text-xs md:font-bold md:uppercase md:tracking-wide md:text-muted">
+
+                        <div className="mt-3 space-y-3">
+                          <div className="hidden md:grid md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_96px_28px] md:gap-2 md:text-xs md:font-bold md:uppercase md:tracking-wide md:text-muted">
                             <div>Location</div>
                             <div>Hotel</div>
                             <div>Nights</div>
                             <div />
                           </div>
 
-                          {packageStayRows.map((row, ri) => (
+                          <div className="flex items-center justify-between gap-2">
+                            <FieldLabel className="text-xs uppercase tracking-wide text-muted">
+                              Stay rows
+                            </FieldLabel>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={() => {
+                                setPackageTiers((prev) =>
+                                  prev.map((x, i) =>
+                                    i === tIdx
+                                      ? {
+                                          ...x,
+                                          stays: [
+                                            ...x.stays,
+                                            {
+                                              location: "",
+                                              hotel: "",
+                                              nights: defaultHotelNights,
+                                            },
+                                          ],
+                                        }
+                                      : x,
+                                  ),
+                                );
+                              }}
+                            >
+                              + Add row
+                            </Button>
+                          </div>
+
+                          {stays.map((row, ri) => (
                             <div
                               key={ri}
                               className="rounded-xl border border-border/60 bg-panel p-3 md:rounded-none md:border-0 md:bg-transparent md:p-0"
                             >
-                              <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_96px_28px] md:items-start">
+                              <div className="grid gap-2 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_96px_28px] md:items-start">
                                 <div className="min-w-0">
                                   <p className="md:hidden text-[11px] font-bold uppercase tracking-wide text-muted">
                                     Location
                                   </p>
-                                  {tIdx === 0 ? (
-                                    <TextInput
-                                      value={row.location}
-                                      onChange={(e) => {
-                                        const v = e.target.value;
-                                        setPackageStayRows((prev) =>
-                                          prev.map((x, i) =>
-                                            i === ri ? { ...x, location: v } : x,
-                                          ),
-                                        );
-                                      }}
-                                      placeholder="e.g. Skardu"
-                                    />
-                                  ) : (
-                                    <div className="mt-1 md:mt-0 text-sm text-muted">
-                                      {row.location || "—"}
-                                    </div>
-                                  )}
+                                  <TextInput
+                                    value={row.location}
+                                    onChange={(e) => {
+                                      const v = e.target.value;
+                                      setPackageTiers((prev) =>
+                                        prev.map((x, i) => {
+                                          if (i !== tIdx) return x;
+                                          const nextStays = [...x.stays];
+                                          nextStays[ri] = {
+                                            location: v,
+                                            hotel: nextStays[ri]?.hotel ?? "",
+                                            nights: nextStays[ri]?.nights ?? 1,
+                                          };
+                                          return { ...x, stays: nextStays };
+                                        }),
+                                      );
+                                    }}
+                                    placeholder="e.g. Skardu"
+                                  />
                                 </div>
 
                                 <div className="min-w-0">
@@ -1176,18 +1358,19 @@ export function AdminItinerarySimpleBuilder({
                                     Hotel
                                   </p>
                                   <TextInput
-                                    value={tier.hotels[ri]?.hotel ?? ""}
+                                    value={row.hotel}
                                     onChange={(e) => {
                                       const v = e.target.value;
                                       setPackageTiers((prev) =>
                                         prev.map((x, i) => {
                                           if (i !== tIdx) return x;
-                                          const hotels = [...x.hotels];
-                                          hotels[ri] = {
+                                          const nextStays = [...x.stays];
+                                          nextStays[ri] = {
+                                            location: nextStays[ri]?.location ?? "",
                                             hotel: v,
-                                            nights: hotels[ri]?.nights ?? 1,
+                                            nights: nextStays[ri]?.nights ?? 1,
                                           };
-                                          return { ...x, hotels };
+                                          return { ...x, stays: nextStays };
                                         }),
                                       );
                                     }}
@@ -1202,18 +1385,19 @@ export function AdminItinerarySimpleBuilder({
                                     type="number"
                                     min={1}
                                     inputMode="numeric"
-                                    value={tier.hotels[ri]?.nights ?? 1}
+                                    value={row.nights}
                                     onChange={(e) => {
                                       const n = Number(e.target.value);
                                       setPackageTiers((prev) =>
                                         prev.map((x, i) => {
                                           if (i !== tIdx) return x;
-                                          const hotels = [...x.hotels];
-                                          hotels[ri] = {
-                                            hotel: hotels[ri]?.hotel ?? "",
+                                          const nextStays = [...x.stays];
+                                          nextStays[ri] = {
+                                            location: nextStays[ri]?.location ?? "",
+                                            hotel: nextStays[ri]?.hotel ?? "",
                                             nights: Math.max(1, n || 1),
                                           };
-                                          return { ...x, hotels };
+                                          return { ...x, stays: nextStays };
                                         }),
                                       );
                                     }}
@@ -1221,13 +1405,19 @@ export function AdminItinerarySimpleBuilder({
                                 </div>
 
                                 <div className="flex items-center justify-end">
-                                  {tIdx === 0 && ri > 0 ? (
+                                  {stays.length > 1 ? (
                                     <button
                                       type="button"
                                       className="text-xs font-semibold text-red-600"
                                       onClick={() => {
-                                        setPackageStayRows((prev) =>
-                                          prev.filter((_, i) => i !== ri),
+                                        setPackageTiers((prev) =>
+                                          prev.map((x, i) => {
+                                            if (i !== tIdx) return x;
+                                            return {
+                                              ...x,
+                                              stays: x.stays.filter((_, stayIdx) => stayIdx !== ri),
+                                            };
+                                          }),
                                         );
                                       }}
                                     >
@@ -1241,26 +1431,26 @@ export function AdminItinerarySimpleBuilder({
                             </div>
                           ))}
                         </div>
+
+                        <div className="mt-2">
+                          <FieldLabel>Note (optional)</FieldLabel>
+                          <TextInput
+                            value={tier.note ?? ""}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setPackageTiers((prev) =>
+                                prev.map((x, i) => (i === tIdx ? { ...x, note: v } : x)),
+                              );
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div className="mt-2">
-                        <FieldLabel>Note (optional)</FieldLabel>
-                        <TextInput
-                          value={tier.note ?? ""}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setPackageTiers((prev) =>
-                              prev.map((x, i) => (i === tIdx ? { ...x, note: v } : x)),
-                            );
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   <Button
                     type="button"
                     variant="secondary"
                     onClick={() => {
-                      const rowCount = packageStayRows.length;
                       setPackageTiers((prev) => [
                         ...prev,
                         {
@@ -1268,10 +1458,7 @@ export function AdminItinerarySimpleBuilder({
                           pricePkr: undefined,
                           vehicle: "",
                           note: "",
-                          hotels: Array.from({ length: rowCount }, () => ({
-                            hotel: "",
-                            nights: defaultHotelNights,
-                          })),
+                          stays: [{ location: "", hotel: "", nights: defaultHotelNights }],
                         },
                       ]);
                     }}

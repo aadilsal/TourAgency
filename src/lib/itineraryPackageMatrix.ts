@@ -2,12 +2,19 @@ import type { ItineraryPdfModel } from "@/documents/itinerary/ItineraryPdf";
 
 export type PackageStayRow = { location: string };
 
+export type PackageStay = {
+  location: string;
+  hotel: string;
+  nights: number;
+};
+
 export type PackageTier = {
   name: string;
   pricePkr?: number;
   vehicle?: string;
   note?: string;
-  hotels: Array<{ hotel: string; nights: number }>;
+  stays?: PackageStay[];
+  hotels?: Array<{ hotel: string; nights: number }>;
 };
 
 function clamp(n: number, min: number, max: number) {
@@ -16,11 +23,22 @@ function clamp(n: number, min: number, max: number) {
 
 export function alignHotelsToRows(tiers: PackageTier[], rowCount: number): PackageTier[] {
   return tiers.map((t) => {
-    const hotels = Array.from({ length: rowCount }, (_, i) => ({
-      hotel: t.hotels[i]?.hotel ?? "",
-      nights: Math.max(1, t.hotels[i]?.nights ?? 1),
+    const stayCount = Math.max(rowCount, t.stays?.length ?? 0, t.hotels?.length ?? 0);
+    const sourceStays = t.stays?.length
+      ? t.stays
+      : Array.from({ length: stayCount }, (_, i) => ({
+          location: `Stop ${i + 1}`,
+          hotel: t.hotels?.[i]?.hotel ?? "",
+          nights: Math.max(1, t.hotels?.[i]?.nights ?? 1),
+        }));
+
+    const stays = Array.from({ length: stayCount }, (_, i) => ({
+      location: sourceStays[i]?.location ?? `Stop ${i + 1}`,
+      hotel: sourceStays[i]?.hotel ?? t.hotels?.[i]?.hotel ?? "",
+      nights: Math.max(1, sourceStays[i]?.nights ?? t.hotels?.[i]?.nights ?? 1),
     }));
-    return { ...t, hotels };
+
+    return { ...t, stays };
   });
 }
 
@@ -36,11 +54,19 @@ export function tiersToPackagesForPdf(
         : "PKR —",
     vehicle: t.vehicle?.trim() || undefined,
     note: t.note?.trim() || undefined,
-    stays: rows.map((r, i) => ({
-      location: (r.location || `Stop ${i + 1}`).trim(),
-      hotel: t.hotels[i]?.hotel ?? "",
-      nights: clamp(Math.floor(t.hotels[i]?.nights ?? 1), 1, 365),
-    })),
+    stays:
+      (t.stays?.length
+        ? t.stays
+        : rows.map((r, i) => ({
+            location: (r.location || `Stop ${i + 1}`).trim(),
+            hotel: t.hotels?.[i]?.hotel ?? "",
+            nights: clamp(Math.floor(t.hotels?.[i]?.nights ?? 1), 1, 365),
+          }))
+      ).map((stay, i) => ({
+        location: (stay.location || rows[i]?.location || `Stop ${i + 1}`).trim(),
+        hotel: stay.hotel ?? "",
+        nights: clamp(Math.floor(stay.nights ?? 1), 1, 365),
+      })),
   }));
 }
 

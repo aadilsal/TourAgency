@@ -170,6 +170,12 @@ export function AdminItinerariesTable() {
                       },
                     },
                     {
+                      label: "Download Word",
+                      onClick: () => {
+                        window.open(`/admin/itineraries/${r._id}/download-word`, "_blank");
+                      },
+                    },
+                    {
                       label: "Delete",
                       tone: "danger",
                       onClick: () => {
@@ -257,6 +263,18 @@ export function AdminItinerariesTable() {
                       }
                     >
                       <Download className="h-4 w-4" aria-hidden />
+                    </button>
+
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-lg border border-border bg-panel px-3 py-2 text-xs font-semibold text-foreground hover:bg-panel-elevated"
+                      aria-label="Download Word"
+                      title="Download Word"
+                      onClick={() =>
+                        window.open(`/admin/itineraries/${r._id}/download-word`, "_blank")
+                      }
+                    >
+                      Word
                     </button>
 
                     <button

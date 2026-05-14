@@ -480,7 +480,7 @@ export default defineSchema({
         }),
       ),
     ),
-    /** Shared stay rows (locations) for package matrix in simple layout. */
+    /** Legacy shared stay rows (locations) for older package-matrix drafts. */
     packageStayRows: v.optional(
       v.array(
         v.object({
@@ -488,7 +488,7 @@ export default defineSchema({
         }),
       ),
     ),
-    /** Package tiers; hotels array aligns by index with packageStayRows. */
+    /** Package tiers; modern drafts prefer per-tier stays, legacy drafts may still send hotels. */
     packageTiers: v.optional(
       v.array(
         v.object({
@@ -496,6 +496,15 @@ export default defineSchema({
           pricePkr: v.optional(v.number()),
           vehicle: v.optional(v.string()),
           note: v.optional(v.string()),
+          stays: v.optional(
+            v.array(
+              v.object({
+                location: v.string(),
+                hotel: v.string(),
+                nights: v.number(),
+              }),
+            ),
+          ),
           hotels: v.array(
             v.object({
               hotel: v.string(),

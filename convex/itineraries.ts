@@ -84,6 +84,15 @@ const packageTierValidator = v.object({
   pricePkr: v.optional(v.number()),
   vehicle: v.optional(v.string()),
   note: v.optional(v.string()),
+  stays: v.optional(
+    v.array(
+      v.object({
+        location: v.string(),
+        hotel: v.string(),
+        nights: v.number(),
+      }),
+    ),
+  ),
   hotels: v.array(
     v.object({
       hotel: v.string(),
@@ -285,6 +294,7 @@ export const patchDraft = mutation({
       if (k === "packageTiers" && Array.isArray(val)) {
         next[k] = (val as unknown[]).map((item) => {
           const t = item as Record<string, unknown>;
+          const stays = Array.isArray(t.stays) ? t.stays : [];
           const hotels = Array.isArray(t.hotels) ? t.hotels : [];
           return {
             name: String(t.name ?? "").trim(),
@@ -300,6 +310,14 @@ export const patchDraft = mutation({
               typeof t.note === "string" && t.note.trim()
                 ? t.note.trim()
                 : undefined,
+            stays: stays.map((s) => {
+              const row = s as Record<string, unknown>;
+              return {
+                location: String(row.location ?? "").trim(),
+                hotel: String(row.hotel ?? "").trim(),
+                nights: Math.max(1, Math.floor(Number(row.nights) || 1)),
+              };
+            }),
             hotels: (hotels as unknown[]).map((h) => {
               const row = h as Record<string, unknown>;
               return {

@@ -322,6 +322,13 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
             </PDFDownloadLink>
           ) : null}
 
+          <Link
+            href={`/admin/itineraries/${itin._id}/download-word`}
+            className="inline-flex items-center justify-center rounded-xl border border-border bg-panel px-4 py-2 text-sm font-semibold text-foreground hover:bg-panel-elevated"
+          >
+            Download Word
+          </Link>
+
           <div className="sm:hidden">
             <PopoverMenu
               buttonLabel="More actions"
@@ -346,6 +353,12 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
                         setMsg(toUserFacingErrorMessage(e));
                       }
                     })();
+                  },
+                },
+                {
+                  label: "Download Word",
+                  onClick: () => {
+                    window.open(`/admin/itineraries/${itin._id}/download-word`, "_blank");
                   },
                 },
                 {
@@ -374,6 +387,12 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
             <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
               Preview
             </Button>
+            <Link
+              href={`/admin/itineraries/${itin._id}/download-word`}
+              className="inline-flex items-center justify-center rounded-xl border border-border bg-panel px-4 py-2 text-sm font-semibold text-foreground hover:bg-panel-elevated"
+            >
+              Download Word
+            </Link>
             <Button
               type="button"
               variant="secondary"
