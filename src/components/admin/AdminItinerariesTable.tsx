@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { CheckCircle2, Download, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { CheckCircle2, Download, Pencil, RotateCcw, Trash2, FileText } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
@@ -243,7 +243,7 @@ export function AdminItinerariesTable() {
                 </td>
                 <td className="px-4 py-3 text-muted tabular-nums">{fmt(r.updatedAt)}</td>
                 <td className="px-4 py-3 text-right">
-                  <div className="inline-flex items-center gap-2">
+                  <div className="hidden md:inline-flex items-center gap-2 whitespace-nowrap">
                     <Link
                       href={`/admin/itineraries/${r._id}`}
                       className="inline-flex items-center justify-center rounded-lg border border-border bg-panel p-2 text-brand-cta hover:bg-panel-elevated"
@@ -267,14 +267,14 @@ export function AdminItinerariesTable() {
 
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-lg border border-border bg-panel px-3 py-2 text-xs font-semibold text-foreground hover:bg-panel-elevated"
+                      className="inline-flex items-center justify-center rounded-lg border border-border bg-panel p-2 text-foreground hover:bg-panel-elevated"
                       aria-label="Download Word"
                       title="Download Word"
                       onClick={() =>
                         window.open(`/admin/itineraries/${r._id}/download-word`, "_blank")
                       }
                     >
-                      Word
+                      <FileText className="h-4 w-4" aria-hidden />
                     </button>
 
                     <button
@@ -337,6 +337,63 @@ export function AdminItinerariesTable() {
                     >
                       <Trash2 className="h-4 w-4" aria-hidden />
                     </button>
+                  </div>
+
+                  {/* More menu for small screens */}
+                  <div className="inline-flex md:hidden">
+                    <PopoverMenu
+                      buttonLabel="More"
+                      buttonClassName="inline-flex items-center justify-center rounded-lg border border-border bg-panel p-2 text-foreground"
+                      items={[
+                        {
+                          label: "Open",
+                          onClick: () => (window.location.href = `/admin/itineraries/${r._id}`),
+                        },
+                        {
+                          label: "Download PDF",
+                          onClick: () => window.open(`/admin/itineraries/${r._id}/download`, "_blank"),
+                        },
+                        {
+                          label: "Download Word",
+                          onClick: () => window.open(`/admin/itineraries/${r._id}/download-word`, "_blank"),
+                        },
+                        {
+                          label: r.status === "final" ? "Mark draft" : "Mark final",
+                          onClick: () => {
+                            if (!canQuery) return;
+                            void (async () => {
+                              try {
+                                if (r.status === "final") {
+                                  await markDraft({ sessionToken, itineraryId: r._id as Id<"itineraries"> });
+                                } else {
+                                  await markFinal({ sessionToken, itineraryId: r._id as Id<"itineraries"> });
+                                }
+                              } catch (e) {
+                                setMsg(toUserFacingErrorMessage(e));
+                              }
+                            })();
+                          },
+                        },
+                        {
+                          label: "Delete",
+                          tone: "danger",
+                          onClick: () => {
+                            if (!canQuery) return;
+                            const ok = window.confirm(
+                              `Delete itinerary "${r.title}" for ${r.clientName || "—"}? This cannot be undone.`,
+                            );
+                            if (!ok) return;
+                            void (async () => {
+                              try {
+                                await deleteItinerary({ sessionToken, itineraryId: r._id as Id<"itineraries"> });
+                              } catch (e) {
+                                setMsg(toUserFacingErrorMessage(e));
+                              }
+                            })();
+                          },
+                        },
+                      ]}
+                    />
                   </div>
                 </td>
               </tr>

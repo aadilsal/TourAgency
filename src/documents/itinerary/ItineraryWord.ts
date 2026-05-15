@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   BorderStyle,
   Document,
@@ -8,6 +9,7 @@ import {
   TableCell,
   TableRow,
   TextRun,
+  ImageRun,
   WidthType,
 } from "docx";
 import type { ItineraryPdfModel } from "@/documents/itinerary/ItineraryPdf";
@@ -94,7 +96,38 @@ function smallTable(rows: Array<[string, string]>) {
 }
 
 export async function buildItineraryWordBlob(model: ItineraryPdfModel) {
-  const children: Array<Paragraph | Table> = [
+  async function fetchImageBuffer(url?: string | null) {
+    if (!url) return null;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      return await res.arrayBuffer();
+    } catch {
+      return null;
+    }
+  }
+
+  const children: Array<Paragraph | Table> = [];
+
+  // Try to embed a cover image if available. Fail silently on errors.
+  try {
+    const coverBuf = await fetchImageBuffer(model.coverImageUrl ?? null);
+    if (coverBuf) {
+      children.push(
+        new Paragraph({
+          children: [
+            // Convert to Uint8Array and coerce to ImageRun options to satisfy types
+            new ImageRun(({ data: new Uint8Array(coverBuf), transformation: { width: 600, height: 300 } } as any)),
+          ],
+          spacing: { after: 240 },
+        }),
+      );
+    }
+  } catch {
+    // ignore image embedding errors and continue with text-only content
+  }
+
+  children.push(
     textParagraph(model.companyName || "JunketTours", { bold: true, spacingAfter: 60 }),
     new Paragraph({
       text: model.headline?.trim() || "Your Dream Trip Awaits —",
@@ -110,7 +143,7 @@ export async function buildItineraryWordBlob(model: ItineraryPdfModel) {
     labelValue("Pickup & drop-off", model.pickupDropoff),
     labelValue("Compliance", model.complianceLine),
     labelValue("Licence", model.licenceNumber ? `#${model.licenceNumber}` : undefined),
-  ];
+  );
 
   if (model.coverSubtitle?.trim()) children.push(textParagraph(model.coverSubtitle.trim()));
 

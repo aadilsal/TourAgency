@@ -9,7 +9,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { FieldHint, FieldLabel, SelectField, TextAreaField, TextInput } from "@/components/ui/FormField";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { isoDateRangeLabel } from "@/lib/dates";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
 import { toAbsoluteUrl } from "@/lib/absoluteUrl";
@@ -150,6 +150,7 @@ type ExistingItinerary = {
   atGlanceDays?: AtGlanceDay[];
   packageStayRows?: Array<{ location: string }>;
   packageTiers?: PackageTier[];
+  coverImageStorageId?: Id<"_storage">;
   included?: string[];
   notIncluded?: string[];
   // Legacy fields (pre-simple-builder).
@@ -323,6 +324,8 @@ export function AdminItinerarySimpleBuilder({
   const createDraft = useMutation(api.itineraries.createDraft);
   const patchDraft = useMutation(api.itineraries.patchDraft);
   const markFinal = useMutation(api.itineraries.markFinal);
+  const generateUploadUrl = useMutation(api.media.generateItineraryImageUploadUrl);
+  const addItineraryImageAsset = useMutation(api.media.addItineraryImageAsset);
 
   const [itineraryId, setItineraryId] = useState<Id<"itineraries"> | null>(
     itineraryIdProp ? (itineraryIdProp as Id<"itineraries">) : null,
@@ -346,6 +349,7 @@ export function AdminItinerarySimpleBuilder({
   const [headline, setHeadline] = useState("Your Dream Trip Awaits —");
   const [variantLabel, setVariantLabel] = useState("Customised");
   const [coverSubtitle, setCoverSubtitle] = useState("");
+  const [coverStorageId, setCoverStorageId] = useState<Id<"_storage"> | null>(null);
   const [complianceLine, setComplianceLine] = useState(
     "JunketTours — Government Registered Tourism Company | DTS",
   );
@@ -449,6 +453,7 @@ export function AdminItinerarySimpleBuilder({
         "JunketTours — Government Registered Tourism Company | DTS",
     );
     setPickupDropoff(existing.pickupDropoff ?? "");
+    setCoverStorageId(existing.coverImageStorageId ?? null);
 
     if (existing.atGlanceDays?.length) {
       setAtGlanceDays(
@@ -647,6 +652,17 @@ export function AdminItinerarySimpleBuilder({
     );
   }, [defaultHotelNights]);
 
+  // Resolve cover storage id to a URL for previewing/embedding
+  const coverResolve = useQuery(
+    api.media.resolveStorageIdsForAdmin,
+    canMutate && coverStorageId ? { sessionToken, ids: [coverStorageId] } : "skip",
+  ) as (string | null)[] | undefined;
+  const coverUrlResolved = coverResolve?.[0] ?? undefined;
+  let coverPreviewSrc = toAbsoluteUrl(`/maps/${mapFallback}`) ?? "";
+  if (coverUrlResolved) {
+    coverPreviewSrc = toAbsoluteUrl(coverUrlResolved) ?? coverPreviewSrc;
+  }
+
   const pdfModel: ItineraryPdfModel = useMemo(() => {
     const included = includedInput
       .split("\n")
@@ -685,7 +701,7 @@ export function AdminItinerarySimpleBuilder({
         website: (settings as { website?: string })?.website?.trim() || undefined,
         officeAddress: settings?.officeAddress?.trim() || undefined,
       },
-      coverImageUrl: toAbsoluteUrl(`/maps/${mapFallback}`),
+      coverImageUrl: coverUrlResolved ? toAbsoluteUrl(coverUrlResolved) : toAbsoluteUrl(`/maps/${mapFallback}`),
       logoUrl: defaultLogoUrlAbs,
       atGlanceDays,
       dayPlans: [],
@@ -715,7 +731,36 @@ export function AdminItinerarySimpleBuilder({
     endDate,
     title,
     variantLabel,
+    coverUrlResolved,
   ]);
+  
+
+  async function uploadCoverImage(file: File) {
+    if (!canMutate) throw new Error("Not authenticated");
+    if (!itineraryId) throw new Error("Create the draft first.");
+    const folderKey = `itineraries/${String(itineraryId)}`;
+    const postUrl = await generateUploadUrl({ sessionToken, folderKey });
+    const contentType = file.type || "application/octet-stream";
+    const res = await fetch(postUrl, {
+      method: "POST",
+      headers: { "Content-Type": contentType },
+      body: file,
+    });
+    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+    const data = (await res.json()) as { storageId?: Id<"_storage"> };
+    if (!data.storageId) throw new Error("No storageId returned");
+    try {
+      await addItineraryImageAsset({ sessionToken, itineraryId, folderKey, storageId: data.storageId });
+    } catch (e) {
+      console.warn("Failed to index itinerary image asset", e);
+    }
+    setCoverStorageId(data.storageId);
+    try {
+      await patchDraft({ sessionToken, itineraryId, coverImageStorageId: data.storageId });
+    } catch (e) {
+      console.warn("Failed to persist coverImageStorageId", e);
+    }
+  }
 
   const [previewModel, setPreviewModel] = useState<ItineraryPdfModel>(pdfModel);
   const previewTimer = useRef<number | null>(null);
@@ -811,6 +856,7 @@ export function AdminItinerarySimpleBuilder({
       headline,
       variantLabel,
       coverSubtitle,
+      coverImageStorageId: coverStorageId ?? null,
       complianceLine,
       pickupDropoff,
       title,
@@ -835,6 +881,7 @@ export function AdminItinerarySimpleBuilder({
     headline,
     variantLabel,
     coverSubtitle,
+    coverStorageId,
     complianceLine,
     pickupDropoff,
     title,
@@ -952,12 +999,21 @@ export function AdminItinerarySimpleBuilder({
           </Button>
           {itineraryId ? (
             <PDFDownloadLink
-              document={<ItineraryPdf model={pdfModel} />}
+              document={<ItineraryPdf model={previewModel} />}
               fileName={`${(title || "itinerary").replace(/\s+/g, "-").toLowerCase()}.pdf`}
               className="inline-flex items-center justify-center rounded-xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white"
             >
               Download PDF
             </PDFDownloadLink>
+          ) : null}
+          {itineraryId ? (
+            <ButtonLink
+              href={`/admin/itineraries/${itineraryId}/download-word`}
+              variant="ghost"
+              className="px-4 py-2"
+            >
+              Download Word
+            </ButtonLink>
           ) : null}
         </div>
       </div>
@@ -1103,8 +1159,61 @@ export function AdminItinerarySimpleBuilder({
                     />
                   </div>
                   <div>
+                    <FieldLabel>Cover image</FieldLabel>
+                    <div className="mt-2 flex items-center gap-3">
+                      {coverStorageId ? (
+                        <img
+                          src={coverPreviewSrc}
+                          alt="Cover preview"
+                          className="h-16 w-28 rounded-md object-cover"
+                        />
+                      ) : (
+                        <div className="h-16 w-28 rounded-md bg-panel flex items-center justify-center text-sm text-muted">
+                          Map fallback
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2">
+                        <input
+                          id="cover-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            setCreatingDraft(true);
+                            try {
+                              await uploadCoverImage(f);
+                              setMsg("Cover image uploaded.");
+                              window.setTimeout(() => setMsg(null), 2000);
+                            } catch (err) {
+                              setMsg(toUserFacingErrorMessage(err));
+                            } finally {
+                              setCreatingDraft(false);
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                              onClick={async () => {
+                            if (!itineraryId) return;
+                            try {
+                              await patchDraft({ sessionToken, itineraryId, coverImageStorageId: undefined });
+                            } catch (e) {
+                              console.warn(e);
+                            }
+                            setCoverStorageId(null);
+                          }}
+                        >
+                          Use map fallback
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
                     <FieldLabel>Compliance line</FieldLabel>
-                    <TextInput
+                    <TextAreaField
+                      rows={2}
                       value={complianceLine}
                       onChange={(e) => setComplianceLine(e.target.value)}
                     />

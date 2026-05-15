@@ -1330,7 +1330,8 @@ export function AdminItineraryWizard({
                 </div>
                 <div className="sm:col-span-2">
                   <FieldLabel>Compliance line</FieldLabel>
-                  <TextInput
+                  <TextAreaField
+                    rows={2}
                     value={complianceLine}
                     onChange={(e) => {
                       setComplianceLine(e.target.value);
