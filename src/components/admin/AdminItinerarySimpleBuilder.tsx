@@ -34,6 +34,7 @@ type SimpleBuilderDraftSnapshot = {
   clientName: string;
   startDate: string;
   endDate: string;
+  dayCount: number;
   theme: Theme;
   headline: string;
   variantLabel: string;
@@ -142,8 +143,8 @@ type ExistingItinerary = {
   pickupDropoff?: string;
   title: string;
   clientName: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
   days: number;
   theme: Theme;
   layoutVariant?: "simple" | "advanced";
@@ -345,6 +346,7 @@ export function AdminItinerarySimpleBuilder({
   const [clientName, setClientName] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [dayCount, setDayCount] = useState(5);
   const [theme, setTheme] = useState<Theme>("luxury");
   const [headline, setHeadline] = useState("Your Dream Trip Awaits —");
   const [variantLabel, setVariantLabel] = useState("Customised");
@@ -382,7 +384,7 @@ export function AdminItinerarySimpleBuilder({
   const localDraftHydratedKey = useRef<string | null>(null);
   const localDraftJsonRef = useRef<string>("");
 
-  const computedDays = useMemo(() => {
+  const computedDaysFromDates = useMemo(() => {
     if (!startDate || !endDate) return null;
     const s = new Date(`${startDate}T00:00:00`);
     const e = new Date(`${endDate}T00:00:00`);
@@ -392,41 +394,36 @@ export function AdminItinerarySimpleBuilder({
     return clamp(diff, 1, 60);
   }, [startDate, endDate]);
 
-  const displayDays = useMemo(() => {
-    if (computedDays != null) return computedDays;
-    if (existing?.days) return clamp(existing.days, 1, 60);
-    return clamp(atGlanceDays.length || 1, 1, 60);
-  }, [atGlanceDays.length, computedDays, existing?.days]);
-
-  const adjustDayCountBy = useCallback(
-    (delta: number) => {
-      if (delta === 0) return;
-      const currentDays = displayDays;
-      const targetDays = clamp(currentDays + delta, 1, 60);
-      if (targetDays === currentDays) return;
-
+  const syncDatesToDayCount = useCallback(
+    (targetDays: number) => {
+      if (!startDate && !endDate) return;
       const baseStart = parseYmdLocal(startDate)
         ? startDate
         : parseYmdLocal(endDate)
           ? endDate
           : minDate;
-
       if (!startDate || startDate !== baseStart) {
         setStartDate(baseStart);
       }
-
       const nextEndDate = addDaysToYmd(baseStart, targetDays - 1);
       if (nextEndDate) {
         setEndDate(nextEndDate);
       }
     },
-    [displayDays, endDate, minDate, startDate],
+    [endDate, minDate, startDate],
   );
 
-  useEffect(() => {
-    if (computedDays == null) return;
-    setAtGlanceDays((prev) => syncAtGlanceToDayCount(prev, computedDays));
-  }, [computedDays]);
+  const setDayCountAndSync = useCallback(
+    (next: number) => {
+      const safe = clamp(next, 1, 60);
+      setDayCount(safe);
+      setAtGlanceDays((prev) => syncAtGlanceToDayCount(prev, safe));
+      if (startDate || endDate) {
+        syncDatesToDayCount(safe);
+      }
+    },
+    [syncDatesToDayCount, startDate, endDate],
+  );
 
   useEffect(() => {
     if (!itineraryIdProp) return;
@@ -444,6 +441,7 @@ export function AdminItinerarySimpleBuilder({
     setClientName(existing.clientName ?? "");
     setStartDate(existing.startDate ?? "");
     setEndDate(existing.endDate ?? "");
+    setDayCount(clamp(existing.days ?? existing.atGlanceDays?.length ?? 5, 1, 60));
     setTheme(existing.theme ?? "luxury");
     setHeadline(existing.headline ?? "Your Dream Trip Awaits —");
     setVariantLabel(existing.variantLabel ?? "Customised");
@@ -561,6 +559,9 @@ export function AdminItinerarySimpleBuilder({
     if (typeof snapshot.clientName === "string") setClientName(snapshot.clientName);
     if (typeof snapshot.startDate === "string") setStartDate(snapshot.startDate);
     if (typeof snapshot.endDate === "string") setEndDate(snapshot.endDate);
+    if (typeof snapshot.dayCount === "number") {
+      setDayCount(clamp(snapshot.dayCount, 1, 60));
+    }
     if (snapshot.theme) setTheme(snapshot.theme);
     if (typeof snapshot.headline === "string") setHeadline(snapshot.headline);
     if (typeof snapshot.variantLabel === "string") setVariantLabel(snapshot.variantLabel);
@@ -626,7 +627,7 @@ export function AdminItinerarySimpleBuilder({
     };
   }, []);
 
-  const safeDays = clamp(computedDays ?? (existing?.days ?? 5), 1, 60);
+  const safeDays = clamp(dayCount, 1, 60);
   const nights = Math.max(0, safeDays - 1);
   const defaultHotelNights = Math.max(1, nights || 1);
   const mapFallback = pickMapFallbackImage(
@@ -771,6 +772,7 @@ export function AdminItinerarySimpleBuilder({
       clientName,
       startDate,
       endDate,
+      dayCount,
       theme,
       headline,
       variantLabel,
@@ -787,6 +789,7 @@ export function AdminItinerarySimpleBuilder({
       clientName,
       startDate,
       endDate,
+      dayCount,
       theme,
       headline,
       variantLabel,
@@ -861,8 +864,8 @@ export function AdminItinerarySimpleBuilder({
       pickupDropoff,
       title,
       clientName,
-      startDate,
-      endDate,
+      startDate: startDate.trim() || undefined,
+      endDate: endDate.trim() || undefined,
       days: safeDays,
       theme,
       atGlanceDays,
@@ -902,14 +905,13 @@ export function AdminItinerarySimpleBuilder({
     setCreatingDraft(true);
     setMsg(null);
     try {
-      const d = computedDays ?? 5;
       const id = await createDraft({
         sessionToken,
         title: title || "Untitled itinerary",
         clientName: clientName || "Client",
-        startDate: startDate || minDate,
-        endDate: endDate || minDate,
-        days: d,
+        startDate: startDate.trim() || undefined,
+        endDate: endDate.trim() || undefined,
+        days: safeDays,
         theme,
       });
       setItineraryId(id);
@@ -1074,7 +1076,7 @@ export function AdminItinerarySimpleBuilder({
                 <TextInput value={clientName} onChange={(e) => setClientName(e.target.value)} />
               </div>
               <div>
-                <FieldLabel required>Start date</FieldLabel>
+                <FieldLabel>Start date (optional)</FieldLabel>
                 <TextInput
                   type="date"
                   min={minDate}
@@ -1083,7 +1085,7 @@ export function AdminItinerarySimpleBuilder({
                 />
               </div>
               <div>
-                <FieldLabel required>End date</FieldLabel>
+                <FieldLabel>End date (optional)</FieldLabel>
                 <TextInput
                   type="date"
                   min={startDate || minDate}
@@ -1092,10 +1094,22 @@ export function AdminItinerarySimpleBuilder({
                 />
               </div>
               <div>
-                <FieldLabel>Days</FieldLabel>
-                <TextInput type="number" readOnly value={displayDays} />
+                <FieldLabel required>Number of days</FieldLabel>
+                <TextInput
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={safeDays}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    if (!Number.isFinite(n)) return;
+                    setDayCountAndSync(Math.floor(n));
+                  }}
+                />
                 <FieldHint>
-                  Day count stays synced with your date range.
+                  {computedDaysFromDates != null && computedDaysFromDates !== safeDays
+                    ? `Date range spans ${computedDaysFromDates} days — day count is set independently.`
+                    : "Leave dates blank to hide them on the PDF."}
                 </FieldHint>
               </div>
               <div>
@@ -1119,14 +1133,7 @@ export function AdminItinerarySimpleBuilder({
               <div className="mt-4">
                 <Button
                   type="button"
-                  disabled={
-                    creatingDraft ||
-                    !title.trim() ||
-                    !clientName.trim() ||
-                    !startDate ||
-                    !endDate ||
-                    computedDays == null
-                  }
+                  disabled={creatingDraft || !title.trim() || !clientName.trim()}
                   onClick={() => void handleCreateDraft()}
                 >
                   {creatingDraft ? "Creating…" : "Create itinerary draft"}
@@ -1227,27 +1234,21 @@ export function AdminItinerarySimpleBuilder({
                     Itinerary at a glance
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-muted">{displayDays} days</span>
+                    <span className="text-xs text-muted">{safeDays} days</span>
                     <Button
                       type="button"
                       variant="secondary"
-                      onClick={() => adjustDayCountBy(-1)}
-                      disabled={displayDays <= 1}
+                      onClick={() => setDayCountAndSync(safeDays - 1)}
+                      disabled={safeDays <= 1}
                     >
                       Remove Day
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => adjustDayCountBy(1)}
-                      disabled={displayDays >= 60}
-                    >
-                      + Add Day
                     </Button>
                   </div>
                 </div>
                 <FieldHint>
-                  Buttons adjust the date range automatically to keep day count and dates in sync.
+                  {startDate || endDate
+                    ? "If dates are set, changing day count updates the end date to match."
+                    : "Add as many days as you need; dates are optional."}
                 </FieldHint>
                 <div className="mt-3 space-y-4">
                   {atGlanceDays.map((d, idx) => (
@@ -1294,6 +1295,16 @@ export function AdminItinerarySimpleBuilder({
                       </div>
                     </div>
                   ))}
+                </div>
+                <div className="mt-4">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => setDayCountAndSync(safeDays + 1)}
+                    disabled={safeDays >= 60}
+                  >
+                    + Add Day
+                  </Button>
                 </div>
               </div>
 

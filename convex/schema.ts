@@ -334,8 +334,8 @@ export default defineSchema({
 
     title: v.string(),
     clientName: v.string(),
-    startDate: v.string(),
-    endDate: v.string(),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
     days: v.number(),
     theme: v.union(
       v.literal("luxury"),

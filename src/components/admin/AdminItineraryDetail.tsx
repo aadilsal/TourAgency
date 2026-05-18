@@ -8,7 +8,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
-import { isoDateRangeLabel } from "@/lib/dates";
+import { formatItineraryDatesLabel, isoDateRangeLabel } from "@/lib/dates";
 import { Modal } from "@/components/ui/Modal";
 import { PDFViewer, PDFDownloadLink } from "@react-pdf/renderer";
 import { ItineraryPdf, type ItineraryPdfModel } from "@/documents/itinerary/ItineraryPdf";
@@ -53,8 +53,8 @@ type ItineraryDoc = {
   pickupDropoff: string;
   title: string;
   clientName: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
   days: number;
   status: "draft" | "final";
   coverImageStorageId?: Id<"_storage">;
@@ -298,7 +298,7 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
         <div>
           <h1 className="text-2xl font-bold text-brand-ink">{itin.title}</h1>
           <p className="mt-1 text-sm text-brand-muted">
-            {itin.clientName || "—"} · {isoDateRangeLabel(itin.startDate, itin.endDate)} ·{" "}
+            {itin.clientName || "—"} · {formatItineraryDatesLabel(itin.startDate, itin.endDate)} ·{" "}
             {itin.days} days
           </p>
         </div>

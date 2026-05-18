@@ -177,6 +177,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#f8fafc",
   },
   payPct: { fontSize: 18, fontWeight: 700 },
+  bankLine: { marginTop: 4, lineHeight: 1.5, color: "#334155" },
   glanceNum: {
     width: 28,
     height: 22,
@@ -510,29 +511,37 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
           </View>
         )}
 
-        {/* 4. Payment & How to Book */}
+        {/* 4. Payment & How to Book — kept together on one page */}
         {(showEmptySections || (model.paymentTerms ?? []).length > 0 || Boolean(model.bankDetails?.bankName || model.bankDetails?.accountTitle || model.bankDetails?.accountNumber || model.bankDetails?.iban || model.bankDetails?.instruction)) && (
-          <View style={{ marginTop: 30 }}>
+          <View break wrap={false} style={{ marginTop: 30 }}>
             <Text style={styles.sectionTitle}>Payment Terms &amp; How to Book</Text>
-            <View style={styles.payRow}>
-              {(model.paymentTerms ?? []).slice(0, 3).map((t, idx) => (
-                <View key={`pt-${idx}`} style={styles.payBox} wrap={false}>
-                  <Text style={styles.payPct}>{`${t.percent}%`}</Text>
-                  <Text style={{ marginTop: 6, fontWeight: 700 }}>{t.title}</Text>
-                  <Text style={[styles.muted, { marginTop: 4, lineHeight: 1.4 }]}>
-                    {t.description?.trim() || "—"}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            <View style={[styles.card, { marginTop: 14 }]} wrap={false}>
+            {(model.paymentTerms ?? []).length > 0 ? (
+              <View style={styles.payRow}>
+                {(model.paymentTerms ?? []).slice(0, 3).map((t, idx) => (
+                  <View key={`pt-${idx}`} style={styles.payBox}>
+                    <Text style={styles.payPct}>{`${t.percent}%`}</Text>
+                    <Text style={{ marginTop: 6, fontWeight: 700 }}>{t.title}</Text>
+                    <Text style={[styles.muted, { marginTop: 4, lineHeight: 1.4 }]}>
+                      {t.description?.trim() || "—"}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            <View style={[styles.card, { marginTop: 14 }]}>
               <Text style={[styles.smallCaps, styles.muted]}>Bank transfer</Text>
-              <Text style={{ marginTop: 8, lineHeight: 1.5 }}>
-                {(model.bankDetails?.bankName && `Bank: ${model.bankDetails.bankName} | `) || ""}
-                {(model.bankDetails?.accountTitle && `Account: ${model.bankDetails.accountTitle} | `) || ""}
-                {(model.bankDetails?.accountNumber && `Acc No: ${model.bankDetails.accountNumber} | `) || ""}
-                {(model.bankDetails?.iban && `IBAN: ${model.bankDetails.iban}`) || ""}
-              </Text>
+              {model.bankDetails?.bankName?.trim() ? (
+                <Text style={styles.bankLine}>{`Bank name: ${model.bankDetails.bankName.trim()}`}</Text>
+              ) : null}
+              {model.bankDetails?.accountTitle?.trim() ? (
+                <Text style={styles.bankLine}>{`Account title: ${model.bankDetails.accountTitle.trim()}`}</Text>
+              ) : null}
+              {model.bankDetails?.accountNumber?.trim() ? (
+                <Text style={styles.bankLine}>{`Account number: ${model.bankDetails.accountNumber.trim()}`}</Text>
+              ) : null}
+              {model.bankDetails?.iban?.trim() ? (
+                <Text style={styles.bankLine}>{`IBAN: ${model.bankDetails.iban.trim()}`}</Text>
+              ) : null}
               {model.bankDetails?.instruction?.trim() ? (
                 <Text style={[styles.muted, { marginTop: 8, lineHeight: 1.4 }]}>
                   {model.bankDetails.instruction}
@@ -559,7 +568,7 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
 
         {/* 5. Terms & Conditions */}
         {(showEmptySections || (model.termsBlocks ?? []).length > 0) && (
-          <View style={{ marginTop: 30 }}>
+          <View break wrap={false} style={{ marginTop: 30 }}>
             <Text style={styles.sectionTitle}>Terms &amp; Conditions</Text>
             <View style={{ marginTop: 12 }}>
               {(model.termsBlocks ?? []).slice(0, 10).map((b, idx) => (

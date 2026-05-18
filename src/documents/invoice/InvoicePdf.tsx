@@ -270,8 +270,8 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
           </View>
         </View>
 
-        <View style={[styles.row, { gap: 12, marginTop: 18 }]}>
-          <View style={[styles.box, { flex: 1 }]}>
+        <View wrap={false} style={{ marginTop: 18 }}>
+          <View style={styles.box}>
             <Text style={[styles.label, styles.muted]}>Payment</Text>
             <Text style={{ marginTop: 8, fontSize: 12, fontWeight: 700 }}>
               {model.payment.method === "bank"
@@ -282,17 +282,6 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
             </Text>
             <Text style={[styles.muted, { marginTop: 6, lineHeight: 1.5 }]}>
               {model.payment.details?.trim() ? model.payment.details : "—"}
-            </Text>
-          </View>
-          <View style={[styles.box, { flex: 1 }]}>
-            <Text style={[styles.label, styles.muted]}>Notes</Text>
-            <Text style={[styles.muted, { marginTop: 8, lineHeight: 1.5 }]}>
-              {model.notes?.terms?.trim() ? `Terms: ${model.notes.terms}` : "Terms: —"}
-            </Text>
-            <Text style={[styles.muted, { marginTop: 6, lineHeight: 1.5 }]}>
-              {model.notes?.cancellationPolicy?.trim()
-                ? `Cancellation: ${model.notes.cancellationPolicy}`
-                : "Cancellation: —"}
             </Text>
           </View>
         </View>

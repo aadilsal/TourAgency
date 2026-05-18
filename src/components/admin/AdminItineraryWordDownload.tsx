@@ -38,8 +38,8 @@ type ItineraryDoc = {
   pickupDropoff: string;
   title: string;
   clientName: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
   days: number;
   status: "draft" | "final";
   coverImageStorageId?: Id<"_storage">;

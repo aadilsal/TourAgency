@@ -10,6 +10,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { TextInput } from "@/components/ui/FormField";
+import { formatItineraryDatesLabel } from "@/lib/dates";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { cn } from "@/lib/cn";
 import { PopoverMenu } from "@/components/ui/PopoverMenu";
@@ -18,8 +19,8 @@ type Row = {
   _id: Id<"itineraries">;
   title: string;
   clientName: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
   days: number;
   status: "draft" | "final";
   createdAt: number;
@@ -113,7 +114,7 @@ export function AdminItinerariesTable() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-semibold text-foreground">{r.title}</p>
                   <p className="mt-1 text-xs text-muted">
-                    {r.clientName || "—"} · {r.startDate} → {r.endDate} · {r.days}d
+                    {r.clientName || "—"} · {formatItineraryDatesLabel(r.startDate, r.endDate)} · {r.days}d
                   </p>
                 </div>
                 <span
@@ -225,7 +226,7 @@ export function AdminItinerariesTable() {
                 <td className="px-4 py-3 font-semibold text-foreground">
                   {r.title}
                   <div className="mt-0.5 text-xs text-muted">
-                    {r.startDate} → {r.endDate}
+                    {formatItineraryDatesLabel(r.startDate, r.endDate)}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-muted">{r.clientName || "—"}</td>

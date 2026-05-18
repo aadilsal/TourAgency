@@ -106,8 +106,8 @@ export const createDraft = mutation({
     sessionToken: v.string(),
     title: v.string(),
     clientName: v.string(),
-    startDate: v.string(),
-    endDate: v.string(),
+    startDate: v.optional(v.string()),
+    endDate: v.optional(v.string()),
     days: v.number(),
     theme: v.union(
       v.literal("luxury"),
@@ -123,8 +123,8 @@ export const createDraft = mutation({
     const now = Date.now();
     const safeDays = Math.max(1, Math.min(60, Math.floor(args.days)));
     const atGlanceDays = Array.from({ length: safeDays }, (_, i) => ({
-      dayNumber: i,
-      title: `Day ${i}`,
+      dayNumber: i + 1,
+      title: "",
       detail: "",
     }));
 
@@ -138,8 +138,8 @@ export const createDraft = mutation({
 
       title: args.title.trim(),
       clientName: args.clientName.trim(),
-      startDate: args.startDate.trim(),
-      endDate: args.endDate.trim(),
+      startDate: args.startDate?.trim() || undefined,
+      endDate: args.endDate?.trim() || undefined,
       days: safeDays,
       theme: args.theme,
       status: "draft",
@@ -233,6 +233,11 @@ export const patchDraft = mutation({
     const next: Record<string, unknown> = {};
     for (const [k, val] of Object.entries(patch)) {
       if (val === undefined) continue;
+      if (k === "startDate" || k === "endDate") {
+        next[k] =
+          typeof val === "string" && val.trim() ? val.trim() : undefined;
+        continue;
+      }
       if (
         (k === "headline" ||
           k === "variantLabel" ||
@@ -242,8 +247,6 @@ export const patchDraft = mutation({
           k === "pickupDropoff" ||
           k === "title" ||
           k === "clientName" ||
-          k === "startDate" ||
-          k === "endDate" ||
           k === "companyDescription" ||
           k === "contactPhone" ||
           k === "contactEmail" ||
