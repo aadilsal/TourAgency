@@ -9,7 +9,7 @@ import { FieldHint, FieldLabel, TextAreaField, TextInput } from "@/components/ui
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 
-export function AdminSettingsPanel({ role: _role }: { role?: "admin" | "super_admin" }) {
+export function AdminSettingsPanel() {
   const sessionToken = useConvexSessionToken();
   const canQuery = typeof sessionToken === "string";
   const snap = useQuery(

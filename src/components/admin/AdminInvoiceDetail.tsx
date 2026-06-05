@@ -58,6 +58,10 @@ export function AdminInvoiceDetail({ invoiceId }: { invoiceId: string }) {
 
   const markPaid = useMutation(api.invoices.markPaid);
 
+  const governmentLicenseNo2 = (
+    publicSettings as { governmentLicenseNo2?: string } | undefined
+  )?.governmentLicenseNo2;
+
   const pdfModel: InvoicePdfModel | null = useMemo(() => {
     if (!inv) return null;
     return {
@@ -70,7 +74,7 @@ export function AdminInvoiceDetail({ invoiceId }: { invoiceId: string }) {
       companyName: "JunketTours",
       companyAddress: publicSettings?.officeAddress?.trim() || undefined,
       licenceNumber: publicSettings?.governmentLicenseNo?.trim() || undefined,
-      licenceNumber2: (publicSettings as { governmentLicenseNo2?: string })?.governmentLicenseNo2?.trim() || undefined,
+      licenceNumber2: governmentLicenseNo2?.trim() || undefined,
       contact: {
         phone: publicSettings?.whatsappPhone?.trim() || undefined,
         email: publicSettings?.contactEmail?.trim() || undefined,
@@ -87,16 +91,7 @@ export function AdminInvoiceDetail({ invoiceId }: { invoiceId: string }) {
       payment: { method: inv.paymentMethod, details: inv.paymentDetails },
       notes: { terms: inv.terms, cancellationPolicy: inv.cancellationPolicy },
     };
-  }, [
-    inv,
-    companyLogoUrl,
-    publicSettings?.officeAddress,
-    publicSettings?.governmentLicenseNo,
-    (publicSettings as { governmentLicenseNo2?: string })?.governmentLicenseNo2,
-    publicSettings?.whatsappPhone,
-    publicSettings?.contactEmail,
-    publicSettings?.website,
-  ]);
+  }, [inv, companyLogoUrl, publicSettings, governmentLicenseNo2]);
 
   if (!canQuery) {
     return (

@@ -261,6 +261,9 @@ export function AdminItineraryWizard({
   const canMutate = typeof sessionToken === "string";
   const minDate = useMemo(() => todayYmdLocal(), []);
   const publicSettings = useQuery(api.siteSettings.getPublicSiteSettings, {});
+  const governmentLicenseNo2 = (
+    publicSettings as { governmentLicenseNo2?: string } | undefined
+  )?.governmentLicenseNo2;
   const defaultLogoUrlAbs = useMemo(() => toAbsoluteUrl(DEFAULT_LOGO_URL), []);
 
   const createDraft = useMutation(api.itineraries.createDraft);
@@ -640,9 +643,7 @@ export function AdminItineraryWizard({
       pickupDropoff: pickupDropoff || undefined,
       complianceLine: complianceLine || undefined,
       licenceNumber: licenceNumber || undefined,
-      licenceNumber2:
-        (publicSettings as { governmentLicenseNo2?: string }).governmentLicenseNo2?.trim() ||
-        undefined,
+      licenceNumber2: governmentLicenseNo2?.trim() || undefined,
       companyName: "JunketTours",
       contact: {
         phone: contactPhone || undefined,
@@ -709,11 +710,11 @@ export function AdminItineraryWizard({
     pickupDropoff,
     complianceLine,
     licenceNumber,
-    (publicSettings as { governmentLicenseNo2?: string }).governmentLicenseNo2,
+    governmentLicenseNo2,
     contactPhone,
     contactEmail,
     contactWebsite,
-    publicSettings?.officeAddress,
+    publicSettings,
     logoStorageId,
     dayPlans,
     includedInput,
@@ -1350,13 +1351,7 @@ export function AdminItineraryWizard({
                 </div>
                 <div>
                   <FieldLabel>Government license # (secondary)</FieldLabel>
-                  <TextInput
-                    value={
-                      (publicSettings as { governmentLicenseNo2?: string }).governmentLicenseNo2?.trim() ||
-                      ""
-                    }
-                    readOnly
-                  />
+                  <TextInput value={governmentLicenseNo2?.trim() || ""} readOnly />
                   <FieldHint>Set both licenses in Admin Settings. Secondary appears on PDFs when filled.</FieldHint>
                 </div>
                 <div>
