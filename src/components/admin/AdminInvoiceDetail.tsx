@@ -70,6 +70,7 @@ export function AdminInvoiceDetail({ invoiceId }: { invoiceId: string }) {
       companyName: "JunketTours",
       companyAddress: publicSettings?.officeAddress?.trim() || undefined,
       licenceNumber: publicSettings?.governmentLicenseNo?.trim() || undefined,
+      licenceNumber2: (publicSettings as { governmentLicenseNo2?: string })?.governmentLicenseNo2?.trim() || undefined,
       contact: {
         phone: publicSettings?.whatsappPhone?.trim() || undefined,
         email: publicSettings?.contactEmail?.trim() || undefined,
@@ -91,6 +92,7 @@ export function AdminInvoiceDetail({ invoiceId }: { invoiceId: string }) {
     companyLogoUrl,
     publicSettings?.officeAddress,
     publicSettings?.governmentLicenseNo,
+    (publicSettings as { governmentLicenseNo2?: string })?.governmentLicenseNo2,
     publicSettings?.whatsappPhone,
     publicSettings?.contactEmail,
     publicSettings?.website,

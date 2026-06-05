@@ -28,6 +28,10 @@ function envDefaults() {
       process.env.NEXT_PUBLIC_GOVERNMENT_LICENSE_NO?.trim() ||
       process.env.NEXT_PUBLIC_GOV_LICENSE_NO?.trim() ||
       "",
+    governmentLicenseNo2:
+      process.env.NEXT_PUBLIC_GOVERNMENT_LICENSE_NO_2?.trim() ||
+      process.env.NEXT_PUBLIC_GOV_LICENSE_NO_2?.trim() ||
+      "",
     mapsEmbedUrl: process.env.NEXT_PUBLIC_GOOGLE_MAPS_EMBED_URL?.trim() || "",
   };
 }
@@ -169,6 +173,7 @@ export const upsertAdminSiteSettings = mutation({
     contactEmail: v.optional(v.string()),
     website: v.optional(v.string()),
     governmentLicenseNo: v.optional(v.string()),
+    governmentLicenseNo2: v.optional(v.string()),
     mapsEmbedUrl: v.optional(v.string()),
     paymentTerms: v.optional(v.array(paymentTermValidator)),
     bankDetails: v.optional(bankDetailsValidator),
@@ -190,14 +195,17 @@ export const upsertAdminSiteSettings = mutation({
       whatsappPhone: args.whatsappPhone?.trim() || undefined,
       contactEmail: args.contactEmail?.trim() || undefined,
       website: args.website?.trim() || undefined,
-      governmentLicenseNo:
-        user.role === "super_admin"
-          ? (args.governmentLicenseNo?.trim() || undefined)
-          : undefined,
       mapsEmbedUrl: args.mapsEmbedUrl?.trim() || undefined,
       updatedAt: now,
       updatedBy: user._id,
     };
+
+    if (args.governmentLicenseNo !== undefined) {
+      patch.governmentLicenseNo = args.governmentLicenseNo.trim() || undefined;
+    }
+    if (args.governmentLicenseNo2 !== undefined) {
+      patch.governmentLicenseNo2 = args.governmentLicenseNo2.trim() || undefined;
+    }
 
     if (args.paymentTerms !== undefined) {
       patch.paymentTerms = args.paymentTerms;

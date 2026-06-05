@@ -1,6 +1,7 @@
 import React from "react";
 /* eslint-disable jsx-a11y/alt-text -- React-PDF Image doesn’t support alt */
 import { Image, StyleSheet, Text, View } from "@react-pdf/renderer";
+import { formatGovernmentLicenceLine } from "@/lib/governmentLicenses";
 
 export type PdfFooterContact = {
   phone?: string;
@@ -56,20 +57,21 @@ export function PdfHeader({
   logoUrl,
   companyName,
   licenceNumber,
+  licenceNumber2,
 }: {
   logoUrl?: string | null;
   companyName?: string;
   licenceNumber?: string;
+  licenceNumber2?: string;
 }) {
+  const licenceLine = formatGovernmentLicenceLine(licenceNumber, licenceNumber2);
   return (
     <View style={styles.header} fixed>
       <View style={styles.headerLeft}>
         <SafeImage src={logoUrl ?? undefined} style={styles.logo} />
         <Text style={styles.companyName}>{companyName?.trim() || "JunketTours"}</Text>
       </View>
-      <Text style={styles.licence}>
-        {licenceNumber?.trim() ? `Licence #${licenceNumber.trim()}` : " "}
-      </Text>
+      <Text style={styles.licence}>{licenceLine || " "}</Text>
     </View>
   );
 }

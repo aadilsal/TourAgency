@@ -17,6 +17,8 @@ async function SiteFooterData() {
     officeAddress?: string;
     whatsappPhone?: string;
     mapsEmbedUrl?: string;
+    governmentLicenseNo?: string;
+    governmentLicenseNo2?: string;
   } | null = null;
 
   try {
@@ -31,6 +33,8 @@ async function SiteFooterData() {
       contactPhone={publicSettings?.whatsappPhone}
       officeAddress={publicSettings?.officeAddress}
       mapsEmbedUrl={publicSettings?.mapsEmbedUrl}
+      governmentLicenseNo={publicSettings?.governmentLicenseNo}
+      governmentLicenseNo2={publicSettings?.governmentLicenseNo2}
     />
   );
 }
@@ -58,6 +62,8 @@ export default function SiteChromeLayout({
             contactPhone={undefined}
             officeAddress={undefined}
             mapsEmbedUrl={undefined}
+            governmentLicenseNo={undefined}
+            governmentLicenseNo2={undefined}
           />
         }
       >

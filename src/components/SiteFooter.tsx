@@ -10,12 +10,15 @@ import {
 } from "lucide-react";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { PageContainer } from "@/components/ui/PageContainer";
+import { GovernmentLicenceText } from "@/components/GovernmentLicenceText";
 
 type Props = {
   whatsappUrl: string | null;
   contactPhone?: string;
   officeAddress?: string;
   mapsEmbedUrl?: string;
+  governmentLicenseNo?: string;
+  governmentLicenseNo2?: string;
 };
 
 export function SiteFooter({
@@ -23,6 +26,8 @@ export function SiteFooter({
   contactPhone,
   officeAddress,
   mapsEmbedUrl,
+  governmentLicenseNo,
+  governmentLicenseNo2,
 }: Props) {
   const phoneDisplay = contactPhone ?? "";
   return (
@@ -40,6 +45,11 @@ export function SiteFooter({
               Premium northern Pakistan travel — AI planning, verified tours,
               and concierge-style support from Hunza to Skardu.
             </p>
+            <GovernmentLicenceText
+              primary={governmentLicenseNo}
+              secondary={governmentLicenseNo2}
+              className="mt-3"
+            />
           </div>
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-havezic-primary">

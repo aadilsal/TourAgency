@@ -2,7 +2,6 @@ import React from "react";
 /* eslint-disable jsx-a11y/alt-text -- React-PDF Image doesn’t support alt */
 import {
   Document,
-  Image,
   Page,
   StyleSheet,
   Text,
@@ -20,6 +19,7 @@ export type InvoicePdfModel = {
   companyAddress?: string;
   tripSummary?: string;
   licenceNumber?: string;
+  licenceNumber2?: string;
   contact?: PdfFooterContact;
   client: {
     name: string;
@@ -52,64 +52,66 @@ export type InvoicePdfModel = {
 
 const styles = StyleSheet.create({
   page: {
-    paddingTop: 68,
-    paddingHorizontal: 44,
-    paddingBottom: 78,
-    fontSize: 11,
+    paddingTop: 48,
+    paddingHorizontal: 40,
+    paddingBottom: 42,
+    fontSize: 9.5,
     color: "#0f172a",
     fontFamily: "Helvetica",
-    lineHeight: 1.35,
+    lineHeight: 1.3,
   },
   row: { flexDirection: "row" },
   muted: { color: "#475569" },
-  h1: { fontSize: 22, fontWeight: 700, letterSpacing: -0.3 },
-  label: { fontSize: 9, letterSpacing: 1.2, textTransform: "uppercase" },
-  companyName: { fontSize: 12, fontWeight: 700 },
+  h1: { fontSize: 20, fontWeight: 700, letterSpacing: -0.3 },
+  label: { fontSize: 8, letterSpacing: 1.1, textTransform: "uppercase" },
+  companyName: { fontSize: 11, fontWeight: 700 },
   box: {
-    borderRadius: 14,
+    borderRadius: 10,
     border: "1px solid #e2e8f0",
-    padding: 14,
+    padding: 10,
     backgroundColor: "#ffffff",
   },
   summaryBox: {
-    borderRadius: 14,
+    borderRadius: 10,
     border: "1px solid #e2e8f0",
-    padding: 14,
+    padding: 10,
     backgroundColor: "#ffffff",
-    minHeight: 148,
+    flex: 1,
   },
   tableHeader: {
     flexDirection: "row",
     borderBottom: "1px solid #e2e8f0",
-    paddingBottom: 8,
-    marginTop: 14,
+    paddingBottom: 5,
+    marginTop: 10,
   },
-  th: { fontSize: 9, fontWeight: 700, color: "#475569", textTransform: "uppercase" },
-  td: { fontSize: 11, color: "#0f172a" },
+  th: { fontSize: 8, fontWeight: 700, color: "#475569", textTransform: "uppercase" },
+  td: { fontSize: 9.5, color: "#0f172a" },
   cellName: { flex: 3 },
-  cellQty: { flex: 1, textAlign: "right" },
-  cellPrice: { flex: 1.4, textAlign: "right" },
-  cellTotal: { flex: 1.4, textAlign: "right" },
+  cellQty: { flex: 0.8, textAlign: "right" },
+  cellPrice: { flex: 1.2, textAlign: "right" },
+  cellTotal: { flex: 1.2, textAlign: "right" },
   lineRow: {
     flexDirection: "row",
     borderBottom: "1px solid #f1f5f9",
-    paddingVertical: 10,
+    paddingVertical: 5,
   },
-  totalsRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 14 },
+  totalsRow: { flexDirection: "row", marginTop: 10 },
   totalsBox: {
-    width: 240,
-    borderRadius: 14,
+    width: 210,
+    borderRadius: 10,
     border: "1px solid #e2e8f0",
-    padding: 14,
+    padding: 10,
     backgroundColor: "#f8fafc",
   },
-  totalsLine: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  grand: { fontSize: 16, fontWeight: 700 },
+  totalsLine: { flexDirection: "row", justifyContent: "space-between", marginBottom: 4 },
+  tripTotal: { fontSize: 10, fontWeight: 700 },
+  amountDue: { fontSize: 14, fontWeight: 700 },
   totalDivider: {
-    marginTop: 10,
-    paddingTop: 10,
+    marginTop: 6,
+    paddingTop: 6,
     borderTop: "1px solid #e2e8f0",
   },
+  paymentText: { fontSize: 8.5, lineHeight: 1.35 },
 });
 
 function money(currency: "PKR" | "USD", n: number) {
@@ -136,27 +138,21 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="A4" style={styles.page} wrap={false}>
         <PdfHeader
           logoUrl={model.companyLogoUrl}
           companyName={model.companyName}
           licenceNumber={model.licenceNumber}
+          licenceNumber2={model.licenceNumber2}
         />
-        <View style={[styles.row, { justifyContent: "space-between", gap: 16 }]}>
+
+        <View style={[styles.row, { justifyContent: "space-between", gap: 12 }]}>
           <View style={{ flex: 1 }}>
-            {model.companyLogoUrl ? (
-              <Image
-                src={model.companyLogoUrl}
-                style={{ width: 90, height: 44, objectFit: "contain" }}
-              />
-            ) : null}
             {model.companyName?.trim() ? (
-              <Text style={[styles.companyName, { marginTop: model.companyLogoUrl ? 8 : 0 }]}>
-                {model.companyName}
-              </Text>
+              <Text style={styles.companyName}>{model.companyName}</Text>
             ) : null}
             {model.companyAddress?.trim() ? (
-              <Text style={[styles.muted, { marginTop: 4, lineHeight: 1.4 }]}>
+              <Text style={[styles.muted, { marginTop: 3, lineHeight: 1.35, fontSize: 8.5 }]}>
                 {model.companyAddress}
               </Text>
             ) : null}
@@ -164,34 +160,34 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
           <View style={{ alignItems: "flex-end" }}>
             <Text style={[styles.h1, { color: brand }]}>Invoice</Text>
             {model.invoiceNumberLabel ? (
-              <Text style={[styles.muted, { marginTop: 8 }]}>
+              <Text style={[styles.muted, { marginTop: 4, fontSize: 8.5 }]}>
                 {model.invoiceNumberLabel}
               </Text>
             ) : null}
-            <Text style={[styles.muted, { marginTop: model.invoiceNumberLabel ? 2 : 8 }]}>
+            <Text style={[styles.muted, { marginTop: 2, fontSize: 8.5 }]}>
               {model.invoiceDateLabel}
             </Text>
           </View>
         </View>
 
-        <View style={[styles.row, { gap: 12, marginTop: 18 }]}>
+        <View style={[styles.row, { gap: 10, marginTop: 12 }]}>
           <View style={[styles.box, { flex: 1 }]}>
             <Text style={[styles.label, styles.muted]}>Client</Text>
-            <Text style={{ marginTop: 8, fontSize: 12, fontWeight: 700 }}>
+            <Text style={{ marginTop: 5, fontSize: 10.5, fontWeight: 700 }}>
               {model.client.name}
             </Text>
-            <Text style={[styles.muted, { marginTop: 4 }]}>
-              {(model.client.phone && `Phone: ${model.client.phone}`) || ""}
-            </Text>
-            <Text style={styles.muted}>
-              {(model.client.email && `Email: ${model.client.email}`) || ""}
-            </Text>
+            {model.client.phone?.trim() ? (
+              <Text style={[styles.muted, { marginTop: 2, fontSize: 8.5 }]}>
+                {`Phone: ${model.client.phone}`}
+              </Text>
+            ) : null}
+            {model.client.email?.trim() ? (
+              <Text style={[styles.muted, { fontSize: 8.5 }]}>{`Email: ${model.client.email}`}</Text>
+            ) : null}
           </View>
-          <View style={[styles.box, { width: 220 }]}>
+          <View style={[styles.box, { width: 100 }]}>
             <Text style={[styles.label, styles.muted]}>Currency</Text>
-            <Text style={{ marginTop: 8, fontSize: 12, fontWeight: 700 }}>
-              {model.currency}
-            </Text>
+            <Text style={{ marginTop: 5, fontSize: 10.5, fontWeight: 700 }}>{model.currency}</Text>
           </View>
         </View>
 
@@ -208,83 +204,75 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
             <View key={`${i.name}-${idx}`} style={styles.lineRow}>
               <View style={styles.cellName}>
                 <Text style={[styles.td, { fontWeight: 700 }]}>{i.name}</Text>
-                {i.description ? (
-                  <Text style={[styles.muted, { marginTop: 2 }]}>{i.description}</Text>
+                {i.description?.trim() ? (
+                  <Text style={[styles.muted, { marginTop: 1, fontSize: 8 }]}>{i.description}</Text>
                 ) : null}
               </View>
               <Text style={[styles.td, styles.cellQty]}>{i.quantity}</Text>
-              <Text style={[styles.td, styles.cellPrice]}>
-                {money(model.currency, i.price)}
-              </Text>
-              <Text style={[styles.td, styles.cellTotal]}>
-                {money(model.currency, lineTotal)}
-              </Text>
+              <Text style={[styles.td, styles.cellPrice]}>{money(model.currency, i.price)}</Text>
+              <Text style={[styles.td, styles.cellTotal]}>{money(model.currency, lineTotal)}</Text>
             </View>
           );
         })}
 
-        {/* Keep totals readable for long invoices */}
         <View style={styles.totalsRow}>
-          <View style={{ flexDirection: "row", gap: 12, width: "100%" }}>
-            <View style={[styles.summaryBox, { flex: 1 }]}>
-              <Text style={[styles.label, styles.muted]}>Trip summary</Text>
-              <Text style={[styles.muted, { marginTop: 8, lineHeight: 1.6 }]}>
-                {model.tripSummary?.trim() ? model.tripSummary.trim() : "—"}
+          <View style={[styles.summaryBox, { marginRight: 10 }]}>
+            <Text style={[styles.label, styles.muted]}>Trip summary</Text>
+            <Text style={[styles.muted, { marginTop: 5, lineHeight: 1.4, fontSize: 8.5 }]}>
+              {model.tripSummary?.trim() ? model.tripSummary.trim() : "—"}
+            </Text>
+          </View>
+
+          <View style={styles.totalsBox}>
+            <View style={styles.totalsLine}>
+              <Text style={styles.muted}>Subtotal</Text>
+              <Text>{money(model.currency, subtotal)}</Text>
+            </View>
+            {discountPct > 0 ? (
+              <View style={styles.totalsLine}>
+                <Text style={styles.muted}>{`Discount (${discountPct}%)`}</Text>
+                <Text>{money(model.currency, discountAmount)}</Text>
+              </View>
+            ) : null}
+            {taxPct > 0 ? (
+              <View style={styles.totalsLine}>
+                <Text style={styles.muted}>{`Tax (${taxPct}%)`}</Text>
+                <Text>{money(model.currency, taxAmount)}</Text>
+              </View>
+            ) : null}
+            <View style={[styles.totalsLine, styles.totalDivider]}>
+              <Text style={styles.tripTotal}>Trip total</Text>
+              <Text style={styles.tripTotal}>{money(model.currency, total)}</Text>
+            </View>
+            {advance > 0 ? (
+              <View style={styles.totalsLine}>
+                <Text style={styles.muted}>Already paid</Text>
+                <Text>{money(model.currency, Math.min(advance, total))}</Text>
+              </View>
+            ) : null}
+            <View style={[styles.totalsLine, { marginTop: 4 }]}>
+              <Text style={[styles.amountDue, { color: brand }]}>Amount due</Text>
+              <Text style={[styles.amountDue, { color: brand }]}>
+                {showPaid ? "Paid" : money(model.currency, remaining)}
               </Text>
             </View>
-
-            <View style={styles.totalsBox}>
-              <View style={styles.totalsLine}>
-                <Text style={styles.muted}>Subtotal</Text>
-                <Text>{money(model.currency, subtotal)}</Text>
-              </View>
-              {discountPct > 0 ? (
-                <View style={styles.totalsLine}>
-                  <Text style={styles.muted}>{`Discount (${discountPct}%)`}</Text>
-                  <Text>{money(model.currency, discountAmount)}</Text>
-                </View>
-              ) : null}
-              {taxPct > 0 ? (
-                <View style={styles.totalsLine}>
-                  <Text style={styles.muted}>{`Tax (${taxPct}%)`}</Text>
-                  <Text>{money(model.currency, taxAmount)}</Text>
-                </View>
-              ) : null}
-              {advance > 0 ? (
-                <View style={styles.totalsLine}>
-                  <Text style={styles.muted}>Advance amount</Text>
-                  <Text>{money(model.currency, Math.min(advance, total))}</Text>
-                </View>
-              ) : null}
-              <View style={styles.totalsLine}>
-                <Text style={styles.muted}>Remaining balance</Text>
-                <Text>{money(model.currency, remaining)}</Text>
-              </View>
-              <View style={[styles.totalsLine, styles.totalDivider]}>
-                <Text style={[styles.grand, { color: brand }]}>Total</Text>
-                <Text style={styles.grand}>
-                  {showPaid ? "Paid" : money(model.currency, total)}
-                </Text>
-              </View>
-            </View>
           </View>
         </View>
 
-        <View wrap={false} style={{ marginTop: 18 }}>
-          <View style={styles.box}>
-            <Text style={[styles.label, styles.muted]}>Payment</Text>
-            <Text style={{ marginTop: 8, fontSize: 12, fontWeight: 700 }}>
-              {model.payment.method === "bank"
-                ? "Bank transfer"
-                : model.payment.method === "easypaisa"
-                  ? "Easypaisa"
-                  : "JazzCash"}
-            </Text>
-            <Text style={[styles.muted, { marginTop: 6, lineHeight: 1.5 }]}>
-              {model.payment.details?.trim() ? model.payment.details : "—"}
-            </Text>
-          </View>
+        <View style={[styles.box, { marginTop: 12 }]}>
+          <Text style={[styles.label, styles.muted]}>Payment</Text>
+          <Text style={{ marginTop: 5, fontSize: 10, fontWeight: 700 }}>
+            {model.payment.method === "bank"
+              ? "Bank transfer"
+              : model.payment.method === "easypaisa"
+                ? "Easypaisa"
+                : "JazzCash"}
+          </Text>
+          <Text style={[styles.muted, styles.paymentText, { marginTop: 4 }]}>
+            {model.payment.details?.trim() ? model.payment.details : "—"}
+          </Text>
         </View>
+
         <PdfFooterStrip
           contact={{
             ...(model.contact ?? {}),
@@ -295,4 +283,3 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
     </Document>
   );
 }
-

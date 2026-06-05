@@ -191,6 +191,7 @@ export default defineSchema({
     contactEmail: v.optional(v.string()),
     website: v.optional(v.string()),
     governmentLicenseNo: v.optional(v.string()),
+    governmentLicenseNo2: v.optional(v.string()),
     mapsEmbedUrl: v.optional(v.string()),
     /** Global itinerary PDF boilerplate (same on every proposal). */
     paymentTerms: v.optional(

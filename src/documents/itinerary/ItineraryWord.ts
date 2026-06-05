@@ -13,6 +13,7 @@ import {
   WidthType,
 } from "docx";
 import type { ItineraryPdfModel } from "@/documents/itinerary/ItineraryPdf";
+import { governmentLicenceParts } from "@/lib/governmentLicenses";
 
 function textParagraph(text: string, options: { bold?: boolean; spacingAfter?: number } = {}) {
   return new Paragraph({
@@ -142,7 +143,13 @@ export async function buildItineraryWordBlob(model: ItineraryPdfModel) {
     labelValue("Nights", model.nightsLabel),
     labelValue("Pickup & drop-off", model.pickupDropoff),
     labelValue("Compliance", model.complianceLine),
-    labelValue("Licence", model.licenceNumber ? `#${model.licenceNumber}` : undefined),
+    labelValue(
+      "Licence",
+      (() => {
+        const parts = governmentLicenceParts(model.licenceNumber, model.licenceNumber2);
+        return parts.length ? parts.join(" · ") : undefined;
+      })(),
+    ),
   );
 
   if (model.coverSubtitle?.trim()) children.push(textParagraph(model.coverSubtitle.trim()));

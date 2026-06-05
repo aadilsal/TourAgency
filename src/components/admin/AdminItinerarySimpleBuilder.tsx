@@ -680,6 +680,9 @@ export function AdminItinerarySimpleBuilder({
     const licence =
       (settings as { governmentLicenseNo?: string })?.governmentLicenseNo?.trim() ||
       "";
+    const licence2 =
+      (settings as { governmentLicenseNo2?: string })?.governmentLicenseNo2?.trim() ||
+      "";
 
     return {
       layoutVariant: "simple",
@@ -695,6 +698,7 @@ export function AdminItinerarySimpleBuilder({
       pickupDropoff: pickupDropoff || undefined,
       complianceLine: complianceLine || undefined,
       licenceNumber: licence || undefined,
+      licenceNumber2: licence2 || undefined,
       companyName: "JunketTours",
       contact: {
         phone: settings?.whatsappPhone?.trim() || undefined,

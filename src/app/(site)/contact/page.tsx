@@ -17,6 +17,7 @@ import {
   TextInput,
 } from "@/components/ui/FormField";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
+import { GovernmentLicenceText } from "@/components/GovernmentLicenceText";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 
 const PHONE = process.env.NEXT_PUBLIC_CONTACT_PHONE ?? "+92 320 9973486";
@@ -39,6 +40,10 @@ export default function ContactPage() {
   const resolvedEmail = siteSettings?.contactEmail?.trim() || EMAIL;
   const resolvedOfficeAddress = siteSettings?.officeAddress?.trim() || OFFICE_ADDRESS;
   const resolvedMapEmbedUrl = siteSettings?.mapsEmbedUrl?.trim() || MAPS_EMBED;
+  const governmentLicenseNo = siteSettings?.governmentLicenseNo?.trim();
+  const governmentLicenseNo2 = (
+    siteSettings as { governmentLicenseNo2?: string } | undefined
+  )?.governmentLicenseNo2?.trim();
   const whatsappUrl = `https://wa.me/${resolvedPhone.replace(/\D/g, "") || "923209973486"}`;
 
   async function onSubmit(e: React.FormEvent) {
@@ -170,6 +175,11 @@ export default function ContactPage() {
               <p className="mt-2 text-sm leading-relaxed text-muted">
                 {resolvedOfficeAddress || "Address not set yet. Add it in admin contact settings."}
               </p>
+              <GovernmentLicenceText
+                primary={governmentLicenseNo}
+                secondary={governmentLicenseNo2}
+                className="mt-3"
+              />
               {resolvedMapEmbedUrl ? (
                 <div className="mt-4 overflow-hidden rounded-xl border border-border bg-havezic-background-light">
                   <iframe

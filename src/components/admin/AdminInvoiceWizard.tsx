@@ -144,6 +144,9 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
   const governmentLicenseNo =
     (publicSettings as { governmentLicenseNo?: string } | undefined)?.governmentLicenseNo?.trim() ||
     undefined;
+  const governmentLicenseNo2 =
+    (publicSettings as { governmentLicenseNo2?: string } | undefined)?.governmentLicenseNo2?.trim() ||
+    undefined;
 
   const invoiceDoc = useQuery(
     api.invoices.getForAdmin,
@@ -253,6 +256,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
       companyName: "JunketTours",
       companyAddress: officeAddress,
       licenceNumber: governmentLicenseNo,
+      licenceNumber2: governmentLicenseNo2,
       contact: {
         phone: whatsappPhone,
         email: contactEmail,
@@ -287,6 +291,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
     contactEmail,
     website,
     governmentLicenseNo,
+    governmentLicenseNo2,
     items,
     discountPct,
     taxPct,
@@ -682,37 +687,39 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                     {money(currency, taxAmount)}
                   </span>
                 </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <FieldLabel>Advance amount</FieldLabel>
-                    <TextInput
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={advanceAmount}
-                      onChange={(e) => {
-                        const v = Number(e.target.value);
-                        const safe = Number.isFinite(v) ? Math.max(0, v) : 0;
-                        setAdvanceAmount(safe);
-                        queuePatch({ advanceAmount: safe });
-                      }}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div className="rounded-xl border border-border bg-white/70 px-3 py-2">
-                    <p className="text-xs font-bold uppercase tracking-wide text-muted">
-                      Remaining balance
-                    </p>
-                    <p className="mt-1 text-lg font-extrabold tabular-nums text-slate-900">
-                      {money(currency, remainingBalance)}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between rounded-xl bg-white/70 px-3 py-2">
-                  <span className="text-sm font-bold text-slate-900">Grand total</span>
-                  <span className="text-lg font-extrabold tabular-nums text-slate-900">
-                    {remainingBalance <= 0.00001 ? "Paid" : money(currency, total)}
+                <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
+                  <span className="text-sm font-semibold text-foreground">Trip total</span>
+                  <span className="text-sm font-semibold tabular-nums text-foreground">
+                    {money(currency, total)}
                   </span>
+                </div>
+                <div className="mt-3">
+                  <FieldLabel>Already paid (advance)</FieldLabel>
+                  <TextInput
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={advanceAmount}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      const safe = Number.isFinite(v) ? Math.max(0, v) : 0;
+                      setAdvanceAmount(safe);
+                      queuePatch({ advanceAmount: safe });
+                    }}
+                    placeholder="0"
+                  />
+                  <FieldHint>Deposit or payment already received from the customer.</FieldHint>
+                </div>
+                <div className="mt-4 rounded-xl border-2 border-havezic-primary/40 bg-havezic-primary/5 px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-havezic-primary">
+                    Amount due
+                  </p>
+                  <p className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">
+                    {remainingBalance <= 0.00001 ? "Paid" : money(currency, remainingBalance)}
+                  </p>
+                  <p className="mt-1 text-xs text-muted">
+                    What the customer pays now (trip total minus any advance).
+                  </p>
                 </div>
               </div>
             </div>

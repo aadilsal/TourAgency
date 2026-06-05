@@ -640,6 +640,9 @@ export function AdminItineraryWizard({
       pickupDropoff: pickupDropoff || undefined,
       complianceLine: complianceLine || undefined,
       licenceNumber: licenceNumber || undefined,
+      licenceNumber2:
+        (publicSettings as { governmentLicenseNo2?: string }).governmentLicenseNo2?.trim() ||
+        undefined,
       companyName: "JunketTours",
       contact: {
         phone: contactPhone || undefined,
@@ -706,6 +709,7 @@ export function AdminItineraryWizard({
     pickupDropoff,
     complianceLine,
     licenceNumber,
+    (publicSettings as { governmentLicenseNo2?: string }).governmentLicenseNo2,
     contactPhone,
     contactEmail,
     contactWebsite,
@@ -1341,9 +1345,19 @@ export function AdminItineraryWizard({
                   />
                 </div>
                 <div>
-                  <FieldLabel>Government license #</FieldLabel>
+                  <FieldLabel>Government license # (primary)</FieldLabel>
                   <TextInput value={licenceNumber} readOnly />
-                  <FieldHint>Set in Admin Settings (super admin only).</FieldHint>
+                </div>
+                <div>
+                  <FieldLabel>Government license # (secondary)</FieldLabel>
+                  <TextInput
+                    value={
+                      (publicSettings as { governmentLicenseNo2?: string }).governmentLicenseNo2?.trim() ||
+                      ""
+                    }
+                    readOnly
+                  />
+                  <FieldHint>Set both licenses in Admin Settings. Secondary appears on PDFs when filled.</FieldHint>
                 </div>
                 <div>
                   <FieldLabel>Pickup & drop-off</FieldLabel>

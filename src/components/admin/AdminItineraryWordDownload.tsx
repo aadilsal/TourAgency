@@ -157,6 +157,9 @@ export function AdminItineraryWordDownload({ itineraryId }: { itineraryId: strin
           (adminSettings as { governmentLicenseNo?: string }).governmentLicenseNo?.trim() ||
           itin.licenceNumber?.trim() ||
           undefined,
+        licenceNumber2:
+          (adminSettings as { governmentLicenseNo2?: string }).governmentLicenseNo2?.trim() ||
+          undefined,
         companyName: "JunketTours",
         contact: {
           phone: adminSettings.whatsappPhone?.trim() || undefined,
@@ -196,6 +199,9 @@ export function AdminItineraryWordDownload({ itineraryId }: { itineraryId: strin
       licenceNumber:
         itin.licenceNumber?.trim() ||
         (publicSettings as { governmentLicenseNo?: string } | undefined)?.governmentLicenseNo?.trim() ||
+        undefined,
+      licenceNumber2:
+        (publicSettings as { governmentLicenseNo2?: string } | undefined)?.governmentLicenseNo2?.trim() ||
         undefined,
       contact: {
         phone: itin.contactPhone,

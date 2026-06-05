@@ -5,11 +5,11 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { FieldLabel, TextAreaField, TextInput } from "@/components/ui/FormField";
+import { FieldHint, FieldLabel, TextAreaField, TextInput } from "@/components/ui/FormField";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 
-export function AdminSettingsPanel({ role }: { role?: "admin" | "super_admin" }) {
+export function AdminSettingsPanel({ role: _role }: { role?: "admin" | "super_admin" }) {
   const sessionToken = useConvexSessionToken();
   const canQuery = typeof sessionToken === "string";
   const snap = useQuery(
@@ -22,6 +22,7 @@ export function AdminSettingsPanel({ role }: { role?: "admin" | "super_admin" })
   const [contactEmail, setContactEmail] = useState("");
   const [website, setWebsite] = useState("");
   const [governmentLicenseNo, setGovernmentLicenseNo] = useState("");
+  const [governmentLicenseNo2, setGovernmentLicenseNo2] = useState("");
   const [mapsEmbedUrl, setMapsEmbedUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export function AdminSettingsPanel({ role }: { role?: "admin" | "super_admin" })
     setContactEmail(snap.contactEmail ?? "");
     setWebsite((snap as { website?: string }).website ?? "");
     setGovernmentLicenseNo((snap as { governmentLicenseNo?: string }).governmentLicenseNo ?? "");
+    setGovernmentLicenseNo2((snap as { governmentLicenseNo2?: string }).governmentLicenseNo2 ?? "");
     setMapsEmbedUrl(snap.mapsEmbedUrl ?? "");
   }, [snap]);
 
@@ -85,16 +87,26 @@ export function AdminSettingsPanel({ role }: { role?: "admin" | "super_admin" })
             <FieldLabel>Website</FieldLabel>
             <TextInput value={website} onChange={(e) => setWebsite(e.target.value)} />
           </div>
-          <div className="sm:col-span-2">
-            <FieldLabel>Government license number</FieldLabel>
+          <div>
+            <FieldLabel>Government license number (primary)</FieldLabel>
             <TextInput
               value={governmentLicenseNo}
-              disabled={role !== "super_admin"}
               onChange={(e) => setGovernmentLicenseNo(e.target.value)}
+              placeholder="e.g. DTS registration"
             />
-            <p className="mt-1 text-xs text-muted">
-              Only super admins can change this.
-            </p>
+          </div>
+          <div>
+            <FieldLabel>Government license number (secondary)</FieldLabel>
+            <TextInput
+              value={governmentLicenseNo2}
+              onChange={(e) => setGovernmentLicenseNo2(e.target.value)}
+              placeholder="e.g. second registration"
+            />
+          </div>
+          <div className="sm:col-span-2">
+            <FieldHint>
+              Shared across all admin and super admin accounts — shown on invoices and itinerary PDFs.
+            </FieldHint>
           </div>
           <div className="sm:col-span-2">
             <FieldLabel>Google Maps embed URL</FieldLabel>
@@ -121,6 +133,7 @@ export function AdminSettingsPanel({ role }: { role?: "admin" | "super_admin" })
                     contactEmail,
                     website,
                     governmentLicenseNo,
+                    governmentLicenseNo2,
                     mapsEmbedUrl,
                   });
                   setMsg("Saved.");
@@ -139,4 +152,3 @@ export function AdminSettingsPanel({ role }: { role?: "admin" | "super_admin" })
     </div>
   );
 }
-

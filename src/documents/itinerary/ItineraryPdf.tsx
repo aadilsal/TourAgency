@@ -9,6 +9,7 @@ import {
   View,
 } from "@react-pdf/renderer";
 import { PdfFooterStrip, PdfHeader } from "@/documents/shared/PdfChrome";
+import { formatGovernmentLicenceLine } from "@/lib/governmentLicenses";
 
 export type ItineraryPdfModel = {
   includeEmptySections?: boolean;
@@ -25,6 +26,7 @@ export type ItineraryPdfModel = {
   pickupDropoff?: string;
   complianceLine?: string;
   licenceNumber?: string;
+  licenceNumber2?: string;
 
   companyName?: string;
   contact?: {
@@ -219,6 +221,7 @@ function Chrome({ model }: { model: ItineraryPdfModel }) {
         logoUrl={model.logoUrl}
         companyName={model.companyName}
         licenceNumber={model.licenceNumber}
+        licenceNumber2={model.licenceNumber2}
       />
       <PdfFooterStrip
         contact={{
@@ -277,9 +280,9 @@ export function ItineraryPdf({ model }: { model: ItineraryPdfModel }) {
                 {model.complianceLine}
               </Text>
             ) : null}
-            {model.licenceNumber?.trim() ? (
+            {formatGovernmentLicenceLine(model.licenceNumber, model.licenceNumber2) ? (
               <Text style={[styles.muted, { color: "rgba(255,255,255,0.9)", marginTop: 2 }]}>
-                {`Licence #${model.licenceNumber.trim()}`}
+                {formatGovernmentLicenceLine(model.licenceNumber, model.licenceNumber2)}
               </Text>
             ) : null}
             {dateRange ? (
