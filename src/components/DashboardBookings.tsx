@@ -25,6 +25,11 @@ type BookingRow = {
   tour: { title: string } | null;
 };
 
+function formatBookingTotal(totalPrice: number, currency?: CurrencyCode) {
+  if (totalPrice <= 0) return "Quote pending";
+  return formatMoney(totalPrice, currency === "PKR" ? "PKR" : "USD");
+}
+
 function statusStyles(status: string) {
   if (status === "confirmed")
     return "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200";
@@ -61,7 +66,7 @@ export function DashboardBookings() {
       <div className="mt-8 rounded-2xl border border-dashed border-white/20 bg-white/5 p-10 text-center backdrop-blur-sm">
         <Compass className="mx-auto h-10 w-10 text-slate-500" aria-hidden />
         <p className="mt-3 text-sm text-slate-400">
-          No bookings yet.{" "}
+          No customisation requests yet.{" "}
           <Link href="/tours" className="font-semibold text-brand-accent underline">
             Browse tours
           </Link>
@@ -117,7 +122,7 @@ export function DashboardBookings() {
                     ) : null}
                     <p className="mt-1 text-sm text-brand-muted">
                       {b.peopleCount} travelers ·{" "}
-                      {formatMoney(b.totalPrice, b.currency === "PKR" ? "PKR" : "USD")}
+                      {formatBookingTotal(b.totalPrice, b.currency)}
                     </p>
                     {(b.preferredStart || b.preferredEnd || b.departureCity) && (
                       <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-brand-muted">
@@ -153,7 +158,7 @@ export function DashboardBookings() {
               <tr className="border-b border-white/10 bg-white/5 text-xs font-semibold uppercase tracking-wide text-slate-400">
                 <th className="px-4 py-3">Tour</th>
                 <th className="px-4 py-3">Travelers</th>
-                <th className="px-4 py-3">Total</th>
+                <th className="px-4 py-3">Quote</th>
                 <th className="px-4 py-3">Booked</th>
                 <th className="px-4 py-3 text-right">Status</th>
               </tr>

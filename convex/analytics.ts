@@ -33,7 +33,7 @@ export const getAnalyticsSnapshot = query({
     for (const g of guestBookings) {
       if (g.status !== "confirmed") continue;
       const t = tourById.get(g.tourId);
-      if (t) revenuePkr += t.price * g.peopleCount;
+      if (t) revenuePkr += (t.price ?? 0) * g.peopleCount;
     }
 
     const totalBookings = guestBookings.length + userBookings.length;

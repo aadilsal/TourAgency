@@ -2,6 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { loadDestinationDetailPageData } from "@/lib/destinations-server";
+import { isCultureDestinationSlug } from "@/lib/destinations-data";
+import { getDestinationProvinceSlug } from "@/lib/provinces-server";
+import { getProvince } from "@/lib/provinces-data";
 import { RelatedToursCarousel } from "@/components/destinations/RelatedToursCarousel";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -16,8 +19,11 @@ type Props = { params: { slug: string } };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const d = await loadDestinationDetailPageData(params.slug);
   if (!d) return { title: "Destination" };
+  const titleSuffix = isCultureDestinationSlug(params.slug)
+    ? "heritage tours & travel guide"
+    : "tours & travel";
   return {
-    title: `${d.name} tours & travel`,
+    title: `${d.name} ${titleSuffix}`,
     description: d.description.slice(0, 160),
   };
 }
@@ -27,6 +33,8 @@ export default async function DestinationPage({ params }: Props) {
   if (!d) notFound();
 
   const related = d.related;
+  const provinceSlug = getDestinationProvinceSlug(params.slug);
+  const provinceName = provinceSlug ? getProvince(provinceSlug)?.name : null;
 
   return (
     <main className="min-h-screen">
@@ -60,6 +68,17 @@ export default async function DestinationPage({ params }: Props) {
           <p className="mt-4 max-w-2xl text-lg leading-relaxed text-white/90">
             {d.description}
           </p>
+          {provinceSlug && provinceName ? (
+            <p className="mt-4 text-sm text-white/85">
+              Part of{" "}
+              <Link
+                href={`/guides/${provinceSlug}`}
+                className="font-semibold text-white underline underline-offset-4 hover:text-havezic-primary"
+              >
+                {provinceName} province guide →
+              </Link>
+            </p>
+          ) : null}
           <div className="mt-8 flex flex-wrap gap-3">
             <ButtonLink href="/tours" variant="primary" className="py-3">
               Browse tours

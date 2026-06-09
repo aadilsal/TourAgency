@@ -4,8 +4,6 @@ type TourLike = {
   title: string;
   description: string;
   slug: string;
-  price: number;
-  priceUsd?: number;
   durationDays: number;
   location: string;
   images: string[];
@@ -23,17 +21,10 @@ export function TourJsonLd({ tour }: { tour: TourLike }) {
       "@type": "ItemList",
       numberOfItems: tour.durationDays,
     },
-    offers: {
-      "@type": "Offer",
-      // Prefer USD for consistent SEO across regions.
-      priceCurrency: "USD",
-      price: tour.priceUsd ?? tour.price,
-      availability: "https://schema.org/InStock",
-      url: `${base}/tours/${tour.slug}`,
-    },
     image: tour.images.map((src) =>
       src.startsWith("http") ? src : `${base}${src}`,
     ),
+    url: `${base}/tours/${tour.slug}`,
   };
   return (
     <script

@@ -166,7 +166,7 @@ export function AdminBookingsTable() {
                   <span className="mt-1 block text-xs text-slate-500">
                     {r.peopleCount}{" "}
                     {r.peopleCount === 1 ? "person" : "people"}
-                    {typeof r.totalPrice === "number"
+                    {typeof r.totalPrice === "number" && r.totalPrice > 0
                       ? ` · ${formatMoney(r.totalPrice, r.currency === "PKR" ? "PKR" : "USD")}`
                       : null}
                     {tripSummary(r) !== "—" ? ` · ${tripSummary(r)}` : null}
@@ -203,10 +203,10 @@ export function AdminBookingsTable() {
           </tbody>
         </table>
         {rows.length === 0 ? (
-          <p className="p-4 text-sm text-slate-500">No bookings yet.</p>
+          <p className="p-4 text-sm text-slate-500">No customisation requests yet.</p>
         ) : filtered.length === 0 ? (
           <p className="p-4 text-sm text-slate-500">
-            No bookings match this filter.
+            No customisation requests match this filter.
           </p>
         ) : null}
       </div>

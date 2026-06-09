@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     template: "%s | JunketTours",
   },
   description:
-    "Personalized AI itineraries, verified northern Pakistan tours, and instant booking. Hunza, Skardu, Swat & more.",
+    "Culture & history tours across Pakistan — Mughal cities, Gandhara sites, and northern valley heritage. AI planning & instant booking.",
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",

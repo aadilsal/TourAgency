@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Destinations",
   description:
-    "Explore Hunza, Skardu, Swat, Naran — guides and tours for each region across northern Pakistan.",
+    "Heritage destinations across Pakistan — Lahore, Taxila, Swat, Hunza, Skardu, and more. Guides and tours for each region.",
 };
 
 export default async function DestinationsIndexPage() {
@@ -23,9 +23,9 @@ export default async function DestinationsIndexPage() {
       <PageContainer>
         <SectionHeader
           variant="onDark"
-          eyebrow="Northern Pakistan"
+          eyebrow="Culture & History"
           title="Destinations"
-          description="Choose a region for the full guide and every tour we list for that area. Hero imagery comes from Convex when you seed regions and upload tour photos."
+          description="From Mughal cities and Gandhara archaeology to northern forts and valley traditions — choose a region for the full guide and every tour we list."
         />
 
         <ul className="mt-12 grid items-stretch gap-8 md:grid-cols-2 xl:gap-10">

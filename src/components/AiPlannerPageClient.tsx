@@ -366,7 +366,7 @@ export function AiPlannerPageClient() {
                 </div>
               </div>
               <p className="text-center font-medium text-slate-200">
-                Crafting your northern Pakistan route…
+                Crafting your heritage route…
               </p>
               <p className="max-w-md text-center text-sm text-slate-400">
                 Matching live tours, building day-by-day notes, and checking

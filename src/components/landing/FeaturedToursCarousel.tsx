@@ -26,9 +26,9 @@ export function FeaturedToursCarousel({ tours }: Props) {
     <section className="py-10 md:py-14">
       <PageContainer>
         <SectionHeader
-          eyebrow="Weekly Tour Packages"
-          title={"Hot deals on\nselect expedition departures"}
-          description="Exclusive discounts on group tour departures—based on your travel date, you can score massive savings on your dream destinations."
+          eyebrow="Curated expeditions"
+          title={"Culture-first journeys\nacross Pakistan"}
+          description="Handpicked routes through heritage cities, ancient sites, and northern valleys — tell us your dates and we'll tailor a quote."
         />
         <div className="mt-12 md:mt-16">
           <EmblaRow slideClassName="min-w-0 flex-[0_0_90%] sm:flex-[0_0_55%] lg:flex-[0_0_36%] xl:flex-[0_0_32%]">

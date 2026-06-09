@@ -159,8 +159,7 @@ export const createTour = mutation({
     types: v.optional(v.array(v.string())),
     destinationIds: v.optional(v.array(v.id("destinations"))),
     destinationId: v.optional(v.id("destinations")),
-    pricePkr: v.number(),
-    priceUsd: v.number(),
+    provinceIds: v.optional(v.array(v.id("provinces"))),
     durationDays: v.number(),
     location: v.string(),
     maxPeople: v.optional(v.number()),
@@ -203,8 +202,7 @@ export const createTour = mutation({
       slug: normalizedSlug,
       imageFolderKey,
       createdAt: now,
-      // Keep legacy `price` populated for older code paths and migrations.
-      price: args.pricePkr,
+      price: 0,
       destinationIds:
         args.destinationIds ?? (args.destinationId ? [args.destinationId] : undefined),
     });
@@ -229,6 +227,7 @@ export const updateTour = mutation({
     types: v.optional(v.array(v.string())),
     destinationIds: v.optional(v.array(v.id("destinations"))),
     destinationId: v.optional(v.id("destinations")),
+    provinceIds: v.optional(v.array(v.id("provinces"))),
     pricePkr: v.optional(v.number()),
     priceUsd: v.optional(v.number()),
     durationDays: v.optional(v.number()),
@@ -332,7 +331,7 @@ export const bulkUpsert = mutation({
         types: v.optional(v.array(v.string())),
         destinationIds: v.optional(v.array(v.id("destinations"))),
         destinationId: v.optional(v.id("destinations")),
-        price: v.number(),
+        price: v.optional(v.number()),
         durationDays: v.number(),
         location: v.string(),
         maxPeople: v.optional(v.number()),
@@ -393,6 +392,7 @@ export const bulkUpsert = mutation({
           description: row.description.trim(),
           types: row.types ?? [],
           imageFolderKey,
+          price: row.price ?? 0,
           destinationIds:
             row.destinationIds ??
             (row.destinationId ? [row.destinationId] : undefined),

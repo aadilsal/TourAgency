@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import gsap from "gsap";
 import { useReducedMotion } from "framer-motion";
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { SCROLLY_CHAPTERS } from "./scrollyConfig";
 import { RouteStage2D } from "./RouteStage2D";
@@ -213,6 +214,18 @@ export function ScrollyJourneyReelMobile({ className }: { className?: string }) 
                             </li>
                           ))}
                         </ul>
+                        {c.previewSites?.length ? (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {c.previewSites.slice(0, 3).map((site) => (
+                              <span
+                                key={site.name}
+                                className="rounded-full border border-border bg-havezic-background-light px-2.5 py-1 text-[10px] font-semibold text-foreground/80"
+                              >
+                                {site.name}
+                              </span>
+                            ))}
+                          </div>
+                        ) : null}
                         {c.stats?.length ? (
                           <div className="mt-4 flex flex-wrap gap-2">
                             {c.stats.slice(0, 3).map((s) => (
@@ -224,6 +237,14 @@ export function ScrollyJourneyReelMobile({ className }: { className?: string }) 
                               </span>
                             ))}
                           </div>
+                        ) : null}
+                        {c.guideHref ? (
+                          <Link
+                            href={c.guideHref}
+                            className="mt-4 inline-flex rounded-full bg-havezic-primary px-4 py-2 text-xs font-bold text-white"
+                          >
+                            {c.ctaLabel ?? "Explore guide"}
+                          </Link>
                         ) : null}
                       </div>
                     </div>

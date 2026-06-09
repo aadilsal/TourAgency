@@ -42,8 +42,9 @@ export function SiteFooter({
               JunketTours
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-muted">
-              Premium northern Pakistan travel — AI planning, verified tours,
-              and concierge-style support from Hunza to Skardu.
+              Culture, history &amp; northern heritage tours across Pakistan —
+              from Lahore and Taxila to Hunza and Swat. AI planning and
+              concierge-style support.
             </p>
             <GovernmentLicenceText
               primary={governmentLicenseNo}
@@ -76,11 +77,20 @@ export function SiteFooter({
               </li>
               <li>
                 <Link
+                  href="/guides"
+                  className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
+                >
+                  <MapPin className="h-4 w-4 shrink-0 opacity-80" />
+                  Province guides
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/destinations"
                   className="inline-flex items-center gap-2 text-muted hover:text-havezic-primary"
                 >
                   <MapPin className="h-4 w-4 shrink-0 opacity-80" />
-                  Destinations
+                  City destinations
                 </Link>
               </li>
               <li>
@@ -209,7 +219,7 @@ export function SiteFooter({
           </div>
         )}
         <p className="mt-14 border-t border-border pt-8 text-center text-xs text-muted">
-          © {new Date().getFullYear()} JunketTours. Northern Pakistan tours.
+          © {new Date().getFullYear()} JunketTours. Culture &amp; heritage tours across Pakistan.
         </p>
       </PageContainer>
     </footer>

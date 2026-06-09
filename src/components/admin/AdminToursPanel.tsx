@@ -146,11 +146,11 @@ export function AdminToursPanel() {
   );
   const seed = useMutation(api.seed.seedSampleTours);
   const destinations = useQuery(api.destinations.listForTourAssignment, {});
+  const provinces = useQuery(api.provinces.listForTourAssignment, {});
   const createTour = useMutation(api.tours.createTour);
   const deleteTour = useMutation(api.tours.deleteTour);
   const updateTour = useMutation(api.tours.updateTour);
   const bulkUpsert = useMutation(api.tours.bulkUpsert);
-  const backfillTourUsdPrices = useMutation(api.migrations.backfillTourUsdPrices);
   const generateUploadUrl = useMutation(api.media.generateTourImageUploadUrl);
   const ingestRemote = useAction(api.mediaActions.ingestImageFromUrl);
 
@@ -161,8 +161,7 @@ export function AdminToursPanel() {
   const [description, setDescription] = useState("");
   const [types, setTypes] = useState<TourTypeFilter[]>([]);
   const [destinationIds, setDestinationIds] = useState<Id<"destinations">[]>([]);
-  const [pricePkr, setPricePkr] = useState(150000);
-  const [priceUsd, setPriceUsd] = useState(599);
+  const [provinceIds, setProvinceIds] = useState<Id<"provinces">[]>([]);
   const [durationDays, setDurationDays] = useState(5);
   const [location, setLocation] = useState("Gilgit-Baltistan");
   const [maxPeople, setMaxPeople] = useState<number | "">("");
@@ -242,8 +241,7 @@ export function AdminToursPanel() {
     setDescription("");
     setTypes([]);
     setDestinationIds([]);
-    setPricePkr(150000);
-    setPriceUsd(599);
+    setProvinceIds([]);
     setDurationDays(5);
     setLocation("Gilgit-Baltistan");
     setMaxPeople("");
@@ -279,14 +277,15 @@ export function AdminToursPanel() {
         ...(t.destinationId ? [t.destinationId] : []),
       ].filter((id, index, all) => all.indexOf(id) === index),
     );
+    setProvinceIds(
+      Array.isArray(t.provinceIds) ? [...t.provinceIds] : [],
+    );
     setTypes(
       (Array.isArray(t.types) ? t.types : []).filter(
         (x): x is TourTypeFilter =>
           TOUR_TYPE_OPTIONS.some((opt) => opt.value === x),
       ),
     );
-    setPricePkr(t.pricePkr ?? t.price);
-    setPriceUsd(t.priceUsd ?? 0);
     setDurationDays(t.durationDays);
     setLocation(t.location);
     setMaxPeople(typeof t.maxPeople === "number" ? t.maxPeople : "");
@@ -334,16 +333,6 @@ export function AdminToursPanel() {
       setMsg(
         r.skipped ? "Tours already exist." : `Inserted ${r.inserted} tours.`,
       );
-    } catch (e) {
-      setMsg(toUserFacingErrorMessage(e));
-    }
-  }
-
-  async function onBackfillUsd() {
-    setMsg(null);
-    try {
-      const r = await backfillTourUsdPrices({ dryRun: false });
-      setMsg(`Backfilled USD/PKR for ${r.patched} tours.`);
     } catch (e) {
       setMsg(toUserFacingErrorMessage(e));
     }
@@ -524,6 +513,7 @@ export function AdminToursPanel() {
     setSaving(true);
     try {
       const uniqueDestinationIds = Array.from(new Set(destinationIds));
+      const uniqueProvinceIds = Array.from(new Set(provinceIds));
       if (editingId) {
         await updateTour({
           tourId: editingId,
@@ -533,8 +523,7 @@ export function AdminToursPanel() {
           types,
           destinationIds: uniqueDestinationIds,
           destinationId: uniqueDestinationIds[0],
-          pricePkr,
-          priceUsd,
+          provinceIds: uniqueProvinceIds,
           durationDays,
           location,
           maxPeople: maxPeople === "" ? undefined : maxPeople,
@@ -562,8 +551,7 @@ export function AdminToursPanel() {
           types,
           destinationIds: uniqueDestinationIds,
           destinationId: uniqueDestinationIds[0],
-          pricePkr,
-          priceUsd,
+          provinceIds: uniqueProvinceIds,
           durationDays,
           location,
           maxPeople: maxPeople === "" ? undefined : maxPeople,
@@ -617,9 +605,6 @@ export function AdminToursPanel() {
         <Button type="button" variant="secondary" onClick={() => void onSeed()}>
           Seed sample tours
         </Button>
-        <Button type="button" variant="secondary" onClick={() => void onBackfillUsd()}>
-          Backfill USD prices
-        </Button>
         {msg && !modalOpen ? (
           <span className="text-sm text-brand-muted">{msg}</span>
         ) : null}
@@ -634,8 +619,6 @@ export function AdminToursPanel() {
               <th className="px-4 py-3">Location</th>
               <th className="px-4 py-3">Destination</th>
               <th className="px-4 py-3">Types</th>
-              <th className="px-4 py-3">Price (PKR)</th>
-              <th className="px-4 py-3">Price (USD)</th>
               <th className="px-4 py-3">Days</th>
               <th className="px-4 py-3">Active</th>
               <th className="px-4 py-3 text-right">Actions</th>
@@ -668,12 +651,6 @@ export function AdminToursPanel() {
                   {Array.isArray(t.types) && t.types.length > 0
                     ? t.types.join(", ")
                     : "-"}
-                </td>
-                <td className="px-4 py-3 tabular-nums text-slate-700">
-                  {(t.pricePkr ?? t.price).toLocaleString()}
-                </td>
-                <td className="px-4 py-3 tabular-nums text-slate-700">
-                  {Number(t.priceUsd ?? 0).toLocaleString()}
                 </td>
                 <td className="px-4 py-3 text-slate-600">{t.durationDays}</td>
                 <td className="px-4 py-3">
@@ -851,29 +828,37 @@ export function AdminToursPanel() {
               })}
             </div>
           </fieldset>
-          <div className="grid gap-3 sm:grid-cols-4">
-            <label className="block text-xs font-semibold text-slate-600">
-              Price (PKR)
-              <input
-                type="number"
-                required
-                min={0}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={pricePkr}
-                onChange={(e) => setPricePkr(Number(e.target.value))}
-              />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Price (USD)
-              <input
-                type="number"
-                required
-                min={0}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={priceUsd}
-                onChange={(e) => setPriceUsd(Number(e.target.value))}
-              />
-            </label>
+          <fieldset className="rounded-lg border border-slate-200 p-3">
+            <legend className="px-1 text-xs font-semibold text-slate-600">
+              Provinces
+            </legend>
+            <div className="mt-1 grid gap-2 sm:grid-cols-2">
+              {(provinces ?? []).map((p) => {
+                const checked = provinceIds.includes(p._id);
+                return (
+                  <label
+                    key={p._id}
+                    className="flex items-center gap-2 text-sm text-slate-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        setProvinceIds((prev) => {
+                          if (e.target.checked) {
+                            return prev.includes(p._id) ? prev : [...prev, p._id];
+                          }
+                          return prev.filter((id) => id !== p._id);
+                        });
+                      }}
+                    />
+                    {p.name}
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+          <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-xs font-semibold text-slate-600">
               Duration (days)
               <input
@@ -1205,7 +1190,7 @@ export function AdminToursPanel() {
           <div className="space-y-1">
             <p className="font-semibold">Required keys</p>
             <p className="font-mono text-xs">
-              title, slug, description, price, durationDays, location, images, itinerary, isActive
+              title, slug, description, durationDays, location, images, itinerary, isActive
             </p>
             <p className="text-xs text-slate-600">
               For XLSX: put <span className="font-mono">images</span> as newline/comma text, and{" "}
@@ -1217,14 +1202,13 @@ export function AdminToursPanel() {
           const title = asString(row.title);
           const slug = asString(row.slug);
           const description = asString(row.description);
-          const price = asNumber(row.price);
+          const price = asNumber(row.price) ?? 0;
           const durationDays = asNumber(row.durationDays);
           const location = asString(row.location);
           const isActive = asBoolean(row.isActive);
           if (!title) throw new Error("Missing title");
           if (!slug) throw new Error("Missing slug");
           if (!description) throw new Error("Missing description");
-          if (price === undefined) throw new Error("Missing price");
           if (durationDays === undefined) throw new Error("Missing durationDays");
           if (!location) throw new Error("Missing location");
           if (isActive === undefined) throw new Error("Missing isActive");

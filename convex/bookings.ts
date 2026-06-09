@@ -18,16 +18,6 @@ function normalizeCurrency(raw: unknown): CurrencyCode {
   return raw === "USD" ? "USD" : "PKR";
 }
 
-function tourUnitPrice(
-  tour: { price: number; pricePkr?: number; priceUsd?: number },
-  currency: CurrencyCode,
-): number {
-  if (currency === "USD") {
-    return Number.isFinite(tour.priceUsd) ? (tour.priceUsd as number) : 0;
-  }
-  return Number.isFinite(tour.pricePkr) ? (tour.pricePkr as number) : tour.price;
-}
-
 export const getGuestBookingDoc = internalQuery({
   args: { id: v.id("guestBookings") },
   handler: async (ctx, { id }) => {
@@ -74,7 +64,6 @@ export const createGuestBooking = mutation({
     const now = Date.now();
     const phoneNormalized = normalizePhone(args.phone);
     const currency = normalizeCurrency(args.currency);
-    const unitPrice = tourUnitPrice(tour as any, currency);
     const guestBookingId = await ctx.db.insert("guestBookings", {
       name: args.name.trim(),
       phone: args.phone.trim(),
@@ -83,7 +72,7 @@ export const createGuestBooking = mutation({
       tourId: args.tourId,
       peopleCount: args.peopleCount,
       currency,
-      unitPrice,
+      unitPrice: undefined,
       notes: args.notes,
       preferredStart: args.preferredStart?.trim() || undefined,
       preferredEnd: args.preferredEnd?.trim() || undefined,
@@ -94,16 +83,18 @@ export const createGuestBooking = mutation({
       status: "pending",
       createdAt: now,
     });
+    const start = args.preferredStart?.trim() || "—";
     const window =
       args.preferredStart || args.preferredEnd
-        ? ` | window ${args.preferredStart ?? "?"}–${args.preferredEnd ?? "?"}`
+        ? `, window ${args.preferredStart ?? "?"}–${args.preferredEnd ?? "?"}`
         : "";
-    const city = args.departureCity ? ` | from ${args.departureCity}` : "";
+    const city = args.departureCity ? `, from ${args.departureCity}` : "";
+    const notes = args.notes?.trim() ? `, notes: ${args.notes.trim()}` : "";
     await ctx.db.insert("leads", {
       name: args.name.trim(),
       phone: args.phone.trim(),
-      source: "Booking",
-      message: `Guest booking for ${tour.title} (${args.peopleCount} people)${window}${city}`,
+      source: "Tour customisation",
+      message: `Customisation request for ${tour.title} — ${args.peopleCount} travelers, start ${start}${window}${city}${notes}`,
       createdAt: now,
     });
     await ctx.scheduler.runAfter(
@@ -138,16 +129,14 @@ export const createBooking = mutation({
     const tour = await ctx.db.get(tourId);
     if (!tour || !tour.isActive) throw new Error("Tour not available");
     const currency = normalizeCurrency(args.currency);
-    const unitPrice = tourUnitPrice(tour as any, currency);
-    const totalPrice = unitPrice * peopleCount;
     const now = Date.now();
     const bookingId = await ctx.db.insert("bookings", {
       userId: user._id,
       tourId,
       peopleCount,
       currency,
-      unitPrice,
-      totalPrice,
+      unitPrice: undefined,
+      totalPrice: 0,
       status: "pending",
       notes,
       preferredStart: args.preferredStart?.trim() || undefined,
@@ -156,6 +145,20 @@ export const createBooking = mutation({
       adults: args.adults,
       children: args.children,
       specialNeeds: args.specialNeeds?.trim() || undefined,
+      createdAt: now,
+    });
+    const start = args.preferredStart?.trim() || "—";
+    const window =
+      args.preferredStart || args.preferredEnd
+        ? `, window ${args.preferredStart ?? "?"}–${args.preferredEnd ?? "?"}`
+        : "";
+    const city = args.departureCity ? `, from ${args.departureCity}` : "";
+    const noteLine = notes?.trim() ? `, notes: ${notes.trim()}` : "";
+    await ctx.db.insert("leads", {
+      name: user.name,
+      phone: user.phone?.trim() || "—",
+      source: "Tour customisation",
+      message: `Member customisation for ${tour.title} — ${peopleCount} travelers, start ${start}${window}${city}${noteLine}`,
       createdAt: now,
     });
     await ctx.scheduler.runAfter(0, internal.email.sendUserBookingNotification, {
@@ -202,13 +205,11 @@ export const getUserBookings = query({
       linkedGuests.map(async (g) => {
         const tour = await ctx.db.get(g.tourId);
         const currency = normalizeCurrency((g as any).currency);
-        const unitPrice =
-          Number.isFinite((g as any).unitPrice)
-            ? ((g as any).unitPrice as number)
-            : tour
-              ? tourUnitPrice(tour as any, currency)
-              : 0;
-        const totalPrice = unitPrice * g.peopleCount;
+        const unitPrice = Number.isFinite((g as any).unitPrice)
+          ? ((g as any).unitPrice as number)
+          : undefined;
+        const totalPrice =
+          unitPrice != null ? unitPrice * g.peopleCount : 0;
         return {
           source: "guest" as const,
           _id: g._id,
@@ -283,12 +284,9 @@ export const getAllBookings = query({
       guests.map(async (g) => {
         const tour = await ctx.db.get(g.tourId);
         const currency = normalizeCurrency((g as any).currency);
-        const unitPrice =
-          Number.isFinite((g as any).unitPrice)
-            ? ((g as any).unitPrice as number)
-            : tour
-              ? tourUnitPrice(tour as any, currency)
-              : 0;
+        const unitPrice = Number.isFinite((g as any).unitPrice)
+          ? ((g as any).unitPrice as number)
+          : undefined;
         return {
           kind: "guest" as const,
           id: g._id,
@@ -298,7 +296,8 @@ export const getAllBookings = query({
           tourTitle: tour?.title ?? "Unknown",
           peopleCount: g.peopleCount,
           status: g.status,
-          totalPrice: unitPrice * g.peopleCount,
+          totalPrice:
+            unitPrice != null ? unitPrice * g.peopleCount : 0,
           createdAt: g.createdAt,
           preferredStart: g.preferredStart,
           preferredEnd: g.preferredEnd,

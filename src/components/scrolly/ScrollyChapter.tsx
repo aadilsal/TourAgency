@@ -1,7 +1,15 @@
 "use client";
 
 import type { ScrollyChapterConfig } from "./scrollyConfig";
+import { ButtonLink } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+
+const SITE_TYPE_LABELS: Record<ScrollyChapterConfig["previewSites"][0]["type"], string> = {
+  historical: "Historical",
+  cultural: "Cultural",
+  natural: "Natural",
+  adventure: "Adventure",
+};
 
 export function ScrollyChapter({
   chapter,
@@ -45,6 +53,26 @@ export function ScrollyChapter({
             </li>
           ))}
         </ul>
+        {chapter.previewSites?.length ? (
+          <div data-chapter-sites className="mt-7 space-y-2">
+            {chapter.previewSites.slice(0, 4).map((site) => (
+              <div
+                key={site.name}
+                className="rounded-xl border border-border bg-havezic-background-light/60 px-3 py-2.5"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-bold uppercase tracking-wide text-havezic-primary">
+                    {SITE_TYPE_LABELS[site.type]}
+                  </span>
+                  <span className="text-sm font-semibold text-foreground">{site.name}</span>
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted">
+                  {site.summary}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {chapter.stats?.length ? (
           <div data-chapter-stats className="mt-7 flex flex-wrap gap-2">
             {chapter.stats.map((s) => (
@@ -55,6 +83,13 @@ export function ScrollyChapter({
                 {s}
               </span>
             ))}
+          </div>
+        ) : null}
+        {chapter.guideHref ? (
+          <div data-chapter-cta className="mt-8">
+            <ButtonLink href={chapter.guideHref} variant="primary" className="py-3">
+              {chapter.ctaLabel ?? "Explore province guide"}
+            </ButtonLink>
           </div>
         ) : null}
       </div>

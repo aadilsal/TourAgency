@@ -9,7 +9,7 @@ import { ButtonLink } from "@/components/ui/Button";
 export const metadata: Metadata = {
   title: "Best tour operators in Pakistan",
   description:
-    "How to evaluate tour operators in Pakistan — what to ask, common red flags, and how JunketTours runs northern Pakistan trips with clear itineraries and support.",
+    "How to evaluate tour operators in Pakistan — what to ask, common red flags, and how JunketTours runs culture, history, and northern heritage trips with clear itineraries and support.",
   alternates: { canonical: "/best-tour-operators-in-pakistan" },
   openGraph: {
     title: "Best tour operators in Pakistan | JunketTours",
@@ -30,8 +30,8 @@ const faqs = [
     a: "Vague itineraries, unclear pricing, no written policies, unwillingness to share inclusions/exclusions, or slow/unreliable communication before booking.",
   },
   {
-    q: "Do you offer northern Pakistan group tours and private tours?",
-    a: "JunketTours offers tour packages for northern Pakistan and can help with custom planning. Browse tours or contact us to match dates and style.",
+    q: "Do you offer heritage tours and northern valley packages?",
+    a: "JunketTours offers culture and history tours across Pakistan — including northern heritage packages for Hunza, Skardu, and Swat — plus custom planning. Browse tours or contact us to match dates and style.",
   },
 ];
 
@@ -95,18 +95,22 @@ export default function BestTourOperatorsPakistanPage() {
           <Card className="p-6 md:p-8">
             <h2 className="text-lg font-bold text-foreground">How JunketTours operates</h2>
             <p className="mt-4 text-sm leading-relaxed text-muted">
-              We focus on northern Pakistan tours (Hunza, Skardu, Swat and more) with a catalog you
-              can browse and book. If you’re unsure what fits, message us — we’ll recommend the best
-              option for your dates and budget.
+              We lead with culture and history — Lahore, Taxila, Multan — and northern heritage
+              tours (Hunza, Skardu, Swat) with a catalog you can browse and book. Message us if
+              you’re unsure what fits.
             </p>
             <p className="mt-4 text-sm text-muted">
-              Start with destinations like{" "}
+              Start with{" "}
+              <Link href="/destinations/lahore" className="font-semibold text-havezic-primary underline">
+                Lahore
+              </Link>
+              ,{" "}
               <Link href="/destinations/hunza" className="font-semibold text-havezic-primary underline">
                 Hunza
-              </Link>{" "}
-              and{" "}
-              <Link href="/destinations/skardu" className="font-semibold text-havezic-primary underline">
-                Skardu
+              </Link>
+              , or{" "}
+              <Link href="/destinations/swat" className="font-semibold text-havezic-primary underline">
+                Swat
               </Link>
               .
             </p>
@@ -144,7 +148,7 @@ export default function BestTourOperatorsPakistanPage() {
 
         <section className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-10">
           <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">
-            Book a northern Pakistan tour
+            Book a culture &amp; heritage tour
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
             Browse tours by destination, compare durations and prices, and book — or use the AI

@@ -20,7 +20,7 @@ const SAMPLE_POSTS = [
     title: "Skardu and Shigar Travel Tips",
     slug: "skardu-shigar-travel-tips",
     content:
-      "<h2>Planning Skardu the smart way</h2><p>Skardu itineraries are strongest when you leave room for weather, flights, and jeep transfers. This guide is a good fit for adventure tours and multi-day northern Pakistan trips.</p><p>Shigar Fort, Upper Kachura, and Deosai should be pre-planned so travelers know what is included.</p>",
+      "<h2>Planning Skardu the smart way</h2><p>Skardu itineraries are strongest when you lead with Shigar Fort heritage, then leave room for weather, flights, and jeep transfers to lakes and Deosai.</p><p>Shigar Fort, Upper Kachura, and Deosai should be pre-planned so travelers know what is included.</p>",
     metaTitle: "Skardu and Shigar travel tips | JunketTours",
     metaDescription:
       "Build a better Skardu itinerary with weather, road, and transfer tips.",
@@ -34,6 +34,36 @@ const SAMPLE_POSTS = [
     metaTitle: "Best time to visit Swat and Naran | JunketTours",
     metaDescription:
       "Compare the best travel seasons for Swat and Naran before booking.",
+    published: true,
+  },
+  {
+    title: "Lahore Heritage Weekend Guide",
+    slug: "lahore-heritage-weekend-guide",
+    content:
+      "<h2>A culture-first Lahore weekend</h2><p>Start with Badshahi Mosque and Lahore Fort, then slow-walk the Walled City for food streets and hidden havelis. This is our most requested heritage city circuit.</p><p>October–March is ideal for comfortable walking tours.</p>",
+    metaTitle: "Lahore heritage weekend guide | JunketTours",
+    metaDescription:
+      "Plan a Lahore heritage weekend — forts, mosques, Walled City walks, and food streets.",
+    published: true,
+  },
+  {
+    title: "Taxila & Gandhara Itinerary",
+    slug: "taxila-gandhara-itinerary",
+    content:
+      "<h2>Gandhara in a day</h2><p>Taxila Museum plus stupa sites make an excellent day trip from Islamabad. Pair with Swat for a longer Buddhist heritage trail across Khyber Pakhtunkhwa.</p>",
+    metaTitle: "Taxila & Gandhara itinerary | JunketTours",
+    metaDescription:
+      "A practical Taxila day trip and Gandhara heritage itinerary from Islamabad.",
+    published: true,
+  },
+  {
+    title: "Hunza Forts & Culture Guide",
+    slug: "hunza-forts-culture-guide",
+    content:
+      "<h2>Northern heritage in Hunza</h2><p>Lead with Baltit and Altit forts, Karimabad bazaars, and apricot culture before chasing viewpoints. Hunza is our signature northern heritage chapter — forts first, peaks second.</p>",
+    metaTitle: "Hunza forts & culture guide | JunketTours",
+    metaDescription:
+      "Heritage-focused Hunza itinerary — forts, bazaars, valley culture, and practical tips.",
     published: true,
   },
 ];

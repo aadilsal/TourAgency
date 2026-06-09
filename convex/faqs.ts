@@ -187,7 +187,7 @@ export const seedSampleFaqs = mutation({
       {
         question: "Is it safe to travel in Pakistan?",
         answer:
-          "Yes, most northern areas are safe for tourism when traveled with local guidance. We operate in secure regions and plan routes with current conditions in mind.",
+          "Yes, heritage and mountain routes across Pakistan are safe for tourism when traveled with local guidance. We operate in secure regions and plan routes with current conditions in mind.",
         category: DEFAULT_CATEGORY,
         sortOrder: 5,
         isActive: true,
@@ -222,6 +222,38 @@ export const seedSampleFaqs = mutation({
           "You can book via WhatsApp, phone, or the website inquiry form. We confirm availability and share payment details and timelines before confirming your reservation.",
         category: DEFAULT_CATEGORY,
         sortOrder: 9,
+        isActive: true,
+      },
+      {
+        question: "Do you offer culture and history tours?",
+        answer:
+          "Yes. We offer heritage tours across Pakistan — Lahore and Multan city circuits, Taxila archaeology, Swat Buddhist sites, Kalash culture, and northern fort towns in Hunza and Skardu.",
+        category: DEFAULT_CATEGORY,
+        sortOrder: 10,
+        isActive: true,
+      },
+      {
+        question: "What is included in a heritage tour?",
+        answer:
+          "Typically guided site visits, transport, accommodation, and meals where listed. Museum entry, shrine etiquette briefings, and licensed guides are included on culture-focused itineraries.",
+        category: DEFAULT_CATEGORY,
+        sortOrder: 11,
+        isActive: true,
+      },
+      {
+        question: "When is the best time for Lahore heritage walks?",
+        answer:
+          "October through March offers the most comfortable weather for Walled City walks and fort visits. Spring festivals add extra cultural interest in February and March.",
+        category: DEFAULT_CATEGORY,
+        sortOrder: 12,
+        isActive: true,
+      },
+      {
+        question: "What should I wear at shrines and archaeological sites?",
+        answer:
+          "Modest dress is recommended — covered shoulders and knees at shrines; comfortable walking shoes for archaeological sites. Remove shoes where required at religious sites.",
+        category: DEFAULT_CATEGORY,
+        sortOrder: 13,
         isActive: true,
       },
     ];

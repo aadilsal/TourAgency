@@ -2,16 +2,13 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
-import { useCurrency } from "@/hooks/useCurrency";
-import { formatMoney } from "@/lib/money";
-import { getTourUnitPrice } from "@/lib/tourPricing";
 
 export type TourCardData = {
   slug: string;
   title: string;
   description: string;
   types?: string[];
-  price: number; // legacy PKR
+  price: number; // legacy — not shown publicly
   pricePkr?: number;
   priceUsd?: number;
   durationDays: number;
@@ -26,8 +23,6 @@ type Props = {
 };
 
 export function TourCard({ tour, badge, className }: Props) {
-  const currency = useCurrency();
-  const unitPrice = getTourUnitPrice(tour, currency);
   return (
     <Card
       hover
@@ -63,23 +58,25 @@ export function TourCard({ tour, badge, className }: Props) {
           {tour.title}
         </h3>
         <p className="mt-2 text-sm font-semibold text-havezic-primary">
-          {formatMoney(unitPrice, currency)} · {tour.durationDays} days
+          {tour.durationDays} days · {tour.location}
         </p>
-        <p className="mt-1 line-clamp-2 text-sm text-muted">{tour.location}</p>
-        <div className="mt-auto flex gap-2 pt-5">
+        <p className="mt-1 line-clamp-2 text-sm text-muted">
+          Tailored quote on request
+        </p>
+        <div className="mt-auto flex flex-col gap-2 pt-5">
           <ButtonLink
             href={`/tours/${tour.slug}`}
             variant="secondary"
-            className="flex-1 justify-center py-2.5 text-center text-sm"
+            className="w-full justify-center py-2.5 text-center text-sm"
           >
             View details
           </ButtonLink>
           <ButtonLink
             href={`/tours/${tour.slug}#book`}
             variant="primary"
-            className="flex-1 justify-center py-2.5 text-center text-sm"
+            className="w-full justify-center whitespace-nowrap py-2.5 text-center text-sm"
           >
-            Book now
+            Customise
           </ButtonLink>
         </div>
       </div>
@@ -89,8 +86,6 @@ export function TourCard({ tour, badge, className }: Props) {
 
 /** Compact card for destination / related tour strips */
 export function TourCardCompact({ tour }: { tour: TourCardData }) {
-  const currency = useCurrency();
-  const unitPrice = getTourUnitPrice(tour, currency);
   return (
     <Link
       href={`/tours/${tour.slug}`}
@@ -116,7 +111,7 @@ export function TourCardCompact({ tour }: { tour: TourCardData }) {
       <div className="p-4 text-left">
         <p className="font-semibold text-foreground">{tour.title}</p>
         <p className="mt-1 text-sm font-medium text-havezic-primary">
-          {formatMoney(unitPrice, currency)} · {tour.durationDays}d
+          {tour.durationDays}d · {tour.location}
         </p>
       </div>
     </Link>

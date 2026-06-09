@@ -2,44 +2,61 @@
 
 import { useEffect, useMemo, useState } from "react";
 import useEmblaCarousel from "embla-carousel-react";
+import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { HomeHeroSearchBar } from "./HomeHeroSearchBar";
+import { ButtonLink } from "@/components/ui/Button";
+import { usePlannerWidget } from "@/components/planner/PlannerWidgetContext";
+import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 
 type Slide = {
   image: string;
   eyebrow: string;
   title: string;
   subtitle: string;
+  featuredGuide?: { label: string; href: string };
 };
 
 const SLIDES: Slide[] = [
   {
     image:
-      "https://demo2wpopal.b-cdn.net/havezic/wp-content/uploads/2024/07/h2_slider1.jpg",
-    eyebrow: "CHASE YOUR PASSION",
-    title: "Seize The Day And\nMake It Yours",
-    subtitle: "Check out the tours below, then get booking today!",
+      "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=2400&q=80",
+    eyebrow: "HERITAGE & HISTORY",
+    title: "Walk Through Centuries\nOf Pakistan",
+    subtitle:
+      "Mughal cities, ancient forts, and living traditions — curated routes with clear pricing.",
+    featuredGuide: { label: "Explore Punjab guide", href: "/guides/punjab" },
   },
   {
     image:
-      "https://demo2wpopal.b-cdn.net/havezic/wp-content/uploads/2024/07/h2_slider2.jpg",
-    eyebrow: "EXPLORE PAKISTAN",
-    title: "Discover Mountains\nAnd Hidden Valleys",
-    subtitle: "Curated routes with clear pricing and quick support.",
+      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2400&q=80",
+    eyebrow: "NORTHERN HERITAGE",
+    title: "Valley Forts, Karakoram Views\n& Living Traditions",
+    subtitle:
+      "Baltit & Altit forts, Swat Gandhara, and northern valley culture — not just the peaks.",
+    featuredGuide: {
+      label: "Explore Gilgit-Baltistan",
+      href: "/guides/gilgit-baltistan",
+    },
   },
   {
     image:
       "https://demo2wpopal.b-cdn.net/havezic/wp-content/uploads/2024/07/h2_slider3.jpg",
-    eyebrow: "WEEKLY DEALS",
-    title: "Plan Faster.\nTravel Better.",
-    subtitle: "Browse popular tours and lock your dates.",
+    eyebrow: "PLAN WITH AI",
+    title: "Your Story,\nDay by Day",
+    subtitle: "Browse heritage tours and lock your dates — or let AI draft your route.",
   },
 ];
 
-export function HomeHero({ className }: { className?: string }) {
+type Props = {
+  className?: string;
+  whatsappUrl?: string | null;
+};
+
+export function HomeHero({ className, whatsappUrl = null }: Props) {
   const slides = useMemo(() => SLIDES, []);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, duration: 28 });
   const [index, setIndex] = useState(0);
+  const { open: openPlanner } = usePlannerWidget();
 
   useEffect(() => {
     if (!emblaApi) return;
@@ -58,6 +75,10 @@ export function HomeHero({ className }: { className?: string }) {
   }, [emblaApi]);
 
   const active = slides[index % slides.length]!;
+  const featuredGuide = active.featuredGuide ?? {
+    label: "Explore provinces",
+    href: "/guides",
+  };
 
   return (
     <section className={cn("relative", className)} aria-label="Hero">
@@ -95,11 +116,47 @@ export function HomeHero({ className }: { className?: string }) {
             {active.subtitle}
           </p>
 
-          <div className="mt-9">
-            <HomeHeroSearchBar />
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={openPlanner}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-gradient-cta px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-black/25 transition hover:brightness-110"
+            >
+              Get my itinerary
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </button>
+            <ButtonLink
+              href="/tours"
+              variant="secondary"
+              className="border-white/40 bg-white/10 py-3.5 text-white backdrop-blur-md hover:bg-white/20"
+            >
+              Browse tours
+            </ButtonLink>
+            <ButtonLink
+              href={featuredGuide.href}
+              variant="secondary"
+              className="border-white/40 bg-white/10 py-3.5 text-white backdrop-blur-md hover:bg-white/20"
+            >
+              {featuredGuide.label}
+            </ButtonLink>
+            {whatsappUrl ? (
+              <a
+                href={whatsappUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 py-3.5 text-sm font-bold text-white shadow-sm transition hover:brightness-110"
+              >
+                <WhatsAppBrandIcon className="h-4 w-4" />
+                Chat on WhatsApp
+              </a>
+            ) : null}
           </div>
 
-          <div className="mt-7 flex items-center justify-center gap-2">
+          <p className="mt-5 text-xs font-medium text-white/65">
+            Heritage routes · Clear pricing · Licensed operator
+          </p>
+
+          <div className="mt-6 flex items-center justify-center gap-2">
             {slides.map((_, i) => (
               <button
                 key={i}
@@ -118,4 +175,3 @@ export function HomeHero({ className }: { className?: string }) {
     </section>
   );
 }
-

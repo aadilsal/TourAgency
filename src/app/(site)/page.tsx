@@ -71,9 +71,11 @@ async function HomePageDeferred() {
 }
 
 export default async function HomePage() {
+  const whatsappUrl = await getWhatsAppClickUrl();
+
   return (
     <main className="min-h-screen">
-      <HomeHero />
+      <HomeHero whatsappUrl={whatsappUrl} />
       <Suspense fallback={null}>
         <HomePageDeferred />
       </Suspense>

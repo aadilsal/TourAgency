@@ -1,6 +1,14 @@
 /** Cover images for blog cards (CMS posts can add slug-specific art later). */
 export function blogCoverImage(slug: string): string {
   const s = slug.toLowerCase();
+  if (s.includes("lahore") || s.includes("mughal"))
+    return "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=900&q=80";
+  if (s.includes("multan") || s.includes("shrine"))
+    return "https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=900&q=80";
+  if (s.includes("taxila") || s.includes("gandhara") || s.includes("archaeolog"))
+    return "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80";
+  if (s.includes("heritage") || s.includes("culture") || s.includes("fort"))
+    return "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=900&q=80";
   if (s.includes("hunza"))
     return "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=900&q=80";
   if (s.includes("skardu") || s.includes("k2"))

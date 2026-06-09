@@ -6,6 +6,21 @@ const TOUR_DESTINATION_MULTI_HINTS: Record<string, string[]> = {
   "skardu-shigar-adventure": ["skardu", "hunza"],
   "swat-summer-retreat": ["swat"],
   "naran-lake-saif-ul-malook": ["naran", "hunza"],
+  "chitral-kalash-culture-trail": ["chitral"],
+  "lahore-heritage-weekend": ["lahore"],
+  "taxila-heritage-day-trip": ["taxila"],
+  "multan-shrines-circuit": ["multan", "lahore"],
+};
+
+const TOUR_PROVINCE_MULTI_HINTS: Record<string, string[]> = {
+  "hunza-valley-explorer": ["gilgit-baltistan", "kpk"],
+  "skardu-shigar-adventure": ["gilgit-baltistan"],
+  "swat-summer-retreat": ["kpk"],
+  "naran-lake-saif-ul-malook": ["kpk", "gilgit-baltistan"],
+  "chitral-kalash-culture-trail": ["kpk"],
+  "lahore-heritage-weekend": ["punjab"],
+  "taxila-heritage-day-trip": ["islamabad"],
+  "multan-shrines-circuit": ["punjab"],
 };
 
 const sampleTours = [
@@ -13,8 +28,8 @@ const sampleTours = [
     title: "Hunza Valley Explorer",
     slug: "hunza-valley-explorer",
     description:
-      "A polished northern Pakistan showcase with Attabad Lake, Karimabad, Baltit Fort, and Passu's glacier viewpoints.",
-    types: ["family", "adventure"],
+      "A heritage-focused Hunza circuit — Baltit Fort, Karimabad bazaars, Attabad Lake, and Karakoram viewpoints.",
+    types: ["family", "adventure", "culture"],
     price: 189000,
     durationDays: 7,
     location: "Gilgit-Baltistan",
@@ -64,7 +79,7 @@ const sampleTours = [
     slug: "skardu-shigar-adventure",
     description:
       "A premium Skardu circuit with cold desert dunes, royal fort heritage, and dramatic Karakoram scenery.",
-    types: ["adventure", "corporate"],
+    types: ["adventure", "corporate", "culture"],
     price: 219000,
     durationDays: 8,
     location: "Skardu",
@@ -240,7 +255,7 @@ const sampleTours = [
     slug: "chitral-kalash-culture-trail",
     description:
       "A culture-first itinerary with valley drives, Kalash heritage, and a distinctive off-the-beaten-path feel.",
-    types: ["adventure", "corporate"],
+    types: ["culture", "adventure"],
     price: 172000,
     durationDays: 7,
     location: "Chitral",
@@ -323,6 +338,97 @@ const sampleTours = [
     ],
     isActive: true,
   },
+  {
+    title: "Lahore Heritage Weekend",
+    slug: "lahore-heritage-weekend",
+    description:
+      "A culture-first Lahore weekend — Badshahi Mosque, Lahore Fort, Walled City walks, and old-city food streets.",
+    types: ["culture", "family"],
+    price: 45000,
+    durationDays: 3,
+    location: "Lahore",
+    images: [
+      "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=1600&q=80",
+    ],
+    imageFolderKey: "tours/lahore-heritage-weekend",
+    itinerary: [
+      {
+        day: 1,
+        title: "Arrive Lahore",
+        description:
+          "Hotel check-in, evening food street walk in the old city.",
+      },
+      {
+        day: 2,
+        title: "Mughal heritage day",
+        description:
+          "Lahore Fort, Badshahi Mosque, and guided Walled City lanes.",
+      },
+      {
+        day: 3,
+        title: "Shalimar & departure",
+        description:
+          "Shalimar Gardens morning visit, then transfer for departure.",
+      },
+    ],
+    isActive: true,
+  },
+  {
+    title: "Taxila & Islamabad Heritage Day Trip",
+    slug: "taxila-heritage-day-trip",
+    description:
+      "Gandhara archaeology day trip — Taxila Museum, Buddhist stupa sites, and Islamabad return.",
+    types: ["culture", "family"],
+    price: 28000,
+    durationDays: 1,
+    location: "Taxila",
+    images: [
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1600&q=80",
+    ],
+    imageFolderKey: "tours/taxila-heritage-day-trip",
+    itinerary: [
+      {
+        day: 1,
+        title: "Taxila heritage circuit",
+        description:
+          "Morning pickup from Islamabad, museum visit, archaeological sites, and evening return.",
+      },
+    ],
+    isActive: true,
+  },
+  {
+    title: "Multan Shrines & Tilework Circuit",
+    slug: "multan-shrines-circuit",
+    description:
+      "A Sufi heritage circuit through Multan — blue-tile shrines, old-city bazaars, and craft traditions.",
+    types: ["culture"],
+    price: 38000,
+    durationDays: 2,
+    location: "Multan",
+    images: [
+      "https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=1600&q=80",
+      "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=1600&q=80",
+    ],
+    imageFolderKey: "tours/multan-shrines-circuit",
+    itinerary: [
+      {
+        day: 1,
+        title: "Arrive Multan",
+        description:
+          "Shrine visits, old-city walk, and local craft bazaar exploration.",
+      },
+      {
+        day: 2,
+        title: "Heritage morning & depart",
+        description:
+          "Sunrise shrine atmosphere, tilework stops, and transfer out.",
+      },
+    ],
+    isActive: true,
+  },
 ];
 
 export const seedSampleTours = mutation({
@@ -330,8 +436,12 @@ export const seedSampleTours = mutation({
   handler: async (ctx) => {
     await requireAdmin(ctx);
     const destinations = await ctx.db.query("destinations").collect();
+    const provinces = await ctx.db.query("provinces").collect();
     const destinationBySlug = new Map(
       destinations.map((d) => [d.slug, d._id] as const),
+    );
+    const provinceBySlug = new Map(
+      provinces.map((p) => [p.slug, p._id] as const),
     );
     const existing = await ctx.db.query("tours").take(1);
     if (existing.length > 0) return { inserted: 0, skipped: true as const };
@@ -342,6 +452,10 @@ export const seedSampleTours = mutation({
       const destinationIds = destinationSlugs
         .map((slug) => destinationBySlug.get(slug))
         .filter((id): id is NonNullable<typeof id> => Boolean(id));
+      const provinceSlugs = TOUR_PROVINCE_MULTI_HINTS[t.slug] ?? [];
+      const provinceIds = provinceSlugs
+        .map((slug) => provinceBySlug.get(slug))
+        .filter((id): id is NonNullable<typeof id> => Boolean(id));
       await ctx.db.insert("tours", {
         ...t,
         pricePkr: (t as any).pricePkr ?? t.price,
@@ -351,6 +465,7 @@ export const seedSampleTours = mutation({
           Math.max(1, Math.round(t.price / 280)),
         destinationIds: destinationIds.length > 0 ? destinationIds : undefined,
         destinationId: destinationIds[0],
+        provinceIds: provinceIds.length > 0 ? provinceIds : undefined,
         createdAt: now,
       });
       inserted++;

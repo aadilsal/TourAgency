@@ -9,7 +9,7 @@ import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 export const metadata: Metadata = {
   title: "Best travel agency in Pakistan",
   description:
-    "A practical guide to choosing a Pakistan travel agency — and how JunketTours plans and runs safe, verified northern Pakistan tours (Hunza, Skardu, Swat and more).",
+    "A practical guide to choosing a Pakistan travel agency — and how JunketTours plans culture, history, and northern heritage tours (Lahore, Taxila, Hunza, Skardu and more).",
   alternates: { canonical: "/best-travel-agency-in-pakistan" },
   openGraph: {
     title: "Best travel agency in Pakistan | JunketTours",
@@ -27,7 +27,7 @@ const faqs = [
   },
   {
     q: "Do you arrange Hunza and Skardu tours?",
-    a: "Yes. JunketTours offers northern Pakistan tours including Hunza and Skardu, plus other destinations like Swat and Naran. You can browse packages and request a custom plan.",
+    a: "Yes. JunketTours offers heritage tours across Pakistan — Lahore and Taxila, plus northern packages for Hunza, Skardu, Swat, and Naran. Browse packages or request a custom plan.",
   },
   {
     q: "Can I book via WhatsApp?",
@@ -101,9 +101,9 @@ export default function BestTravelAgencyPakistanPage() {
           <Card className="p-6 md:p-8">
             <h2 className="text-lg font-bold text-foreground">Why travelers pick JunketTours</h2>
             <p className="mt-4 text-sm leading-relaxed text-muted">
-              We focus on northern Pakistan with a catalog you can browse and book — plus custom
-              planning when you want something specific. If you message us, we’ll suggest the right
-              tour based on dates, budget, and travel style.
+              We specialize in culture and history across Pakistan — Mughal cities, Gandhara sites,
+              and northern valley heritage — with a catalog you can browse and book. Message us for
+              custom planning matched to your dates, budget, and travel style.
             </p>
             <p className="mt-4 text-sm text-muted">
               Office: Johar Town, Lahore. Phone/WhatsApp support is available through{" "}
@@ -137,8 +137,8 @@ export default function BestTravelAgencyPakistanPage() {
             <Card className="p-6 md:p-8">
               <h3 className="text-base font-bold text-foreground">3) Verify support and escalation</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted">
-                In northern Pakistan, conditions can change. You want an operator who stays
-                responsive and can adjust routes without ruining your trip.
+                On heritage and mountain routes alike, conditions can change. You want an operator
+                who stays responsive and can adjust routes without ruining your trip.
               </p>
             </Card>
           </div>

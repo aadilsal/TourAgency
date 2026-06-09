@@ -9,7 +9,7 @@ import { BlogPostCard } from "@/components/blog/BlogPostCard";
 export const dynamic = "force-dynamic";
 
 const desc =
-  "Travel guides for Hunza, Skardu, Swat, and northern Pakistan — costs, seasons, routes, and trip planning from JunketTours.";
+  "Heritage travel guides across Pakistan — Lahore, Taxila, Swat, Hunza, and northern valley culture. Costs, seasons, routes, and trip planning from JunketTours.";
 
 export const metadata: Metadata = {
   title: "Travel Guides",
@@ -51,7 +51,7 @@ export default async function BlogIndexPage() {
       <PageContainer>
         <SectionHeader
           variant="onDark"
-          eyebrow="Northern Pakistan"
+          eyebrow="Culture & Heritage"
           title="Travel Guides"
           description={desc}
         />

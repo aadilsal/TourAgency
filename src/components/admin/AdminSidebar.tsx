@@ -49,6 +49,8 @@ export function AdminSidebar({
         label: "Catalog",
         links: [
           { href: "/admin/tours", label: "Tours", icon: MapPinned },
+          { href: "/admin/provinces", label: "Provinces", icon: Map },
+          { href: "/admin/sites", label: "Sites", icon: Map },
           { href: "/admin/destinations", label: "Destinations", icon: Map },
         ],
       },
@@ -56,7 +58,7 @@ export function AdminSidebar({
         id: "inbox",
         label: "Inbox",
         links: [
-          { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
+          { href: "/admin/bookings", label: "Customisation", icon: CalendarCheck },
           { href: "/admin/contact", label: "Leads", icon: MessageSquare },
         ],
       },

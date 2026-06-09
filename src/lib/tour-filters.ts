@@ -3,7 +3,8 @@ export type TourTypeFilter =
   | "honeymoon"
   | "adventure"
   | "corporate"
-  | "budget";
+  | "budget"
+  | "culture";
 
 export const TOUR_TYPE_OPTIONS: ReadonlyArray<{
   value: TourTypeFilter;
@@ -14,6 +15,7 @@ export const TOUR_TYPE_OPTIONS: ReadonlyArray<{
   { value: "adventure", label: "Adventure" },
   { value: "corporate", label: "Corporate" },
   { value: "budget", label: "Budget" },
+  { value: "culture", label: "Heritage & Culture" },
 ];
 
 const TYPE_KEYWORDS: Record<TourTypeFilter, string[]> = {
@@ -22,6 +24,17 @@ const TYPE_KEYWORDS: Record<TourTypeFilter, string[]> = {
   adventure: ["adventure", "trek", "trekking", "hike", "hiking", "jeep", "expedition"],
   corporate: ["corporate", "team", "business", "company", "retreat"],
   budget: ["budget", "economy", "affordable", "value"],
+  culture: [
+    "culture",
+    "heritage",
+    "history",
+    "fort",
+    "archaeological",
+    "mughal",
+    "gandhara",
+    "kalash",
+    "shrine",
+  ],
 };
 
 export function tourMatchesType(
@@ -46,7 +59,8 @@ export function parseTourType(raw: string | undefined): TourTypeFilter | null {
     t === "honeymoon" ||
     t === "adventure" ||
     t === "corporate" ||
-    t === "budget"
+    t === "budget" ||
+    t === "culture"
   ) {
     return t;
   }

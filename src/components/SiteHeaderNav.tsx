@@ -36,6 +36,25 @@ type DestinationIndexRow = {
   tourCount: number;
 };
 
+type ProvinceIndexRow = {
+  slug: string;
+  name: string;
+  tagline: string;
+  heroUrl: string;
+  tourCount: number;
+  siteCount: number;
+};
+
+const STATIC_PROVINCE_NAV = [
+  { slug: "sindh", name: "Sindh" },
+  { slug: "balochistan", name: "Balochistan" },
+  { slug: "punjab", name: "Punjab" },
+  { slug: "islamabad", name: "Islamabad & Heritage Belt" },
+  { slug: "kpk", name: "Khyber Pakhtunkhwa" },
+  { slug: "gilgit-baltistan", name: "Gilgit-Baltistan" },
+  { slug: "azad-kashmir", name: "Azad Kashmir" },
+];
+
 type SessionInfo = {
   email?: string;
   role?: string;
@@ -191,9 +210,11 @@ function AccountDropdown({
 function DestinationsMegaDropdown({
   pathname,
   destinations,
+  provinces,
 }: {
   pathname: string | null;
   destinations: DestinationIndexRow[] | undefined;
+  provinces: ProvinceIndexRow[] | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -227,10 +248,24 @@ function DestinationsMegaDropdown({
 
   const active =
     pathname === "/destinations" ||
-    pathname?.startsWith("/destinations/");
+    pathname?.startsWith("/destinations/") ||
+    pathname === "/guides" ||
+    pathname?.startsWith("/guides/");
 
-  const items = destinations ?? [];
-  const showSpinner = destinations === undefined;
+  const cityItems = destinations ?? [];
+  const provinceItems =
+    provinces && provinces.length > 0
+      ? provinces
+      : STATIC_PROVINCE_NAV.map((p) => ({
+          slug: p.slug,
+          name: p.name,
+          tagline: "",
+          heroUrl: "",
+          tourCount: 0,
+          siteCount: 0,
+        }));
+  const showSpinner =
+    destinations === undefined || provinces === undefined;
 
   return (
     <div
@@ -282,7 +317,7 @@ function DestinationsMegaDropdown({
             <div
               className="overflow-hidden rounded-2xl border border-border bg-background shadow-[0_22px_56px_rgba(0,0,0,0.14)]"
               role="menu"
-              aria-label="Destinations"
+              aria-label="Destinations and provinces"
             >
               <div className="border-b border-border bg-havezic-background-light px-5 py-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-havezic-primary">
@@ -292,11 +327,11 @@ function DestinationsMegaDropdown({
                   Destinations
                 </p>
                 <p className="mt-1 text-sm text-muted">
-                  Pick a region — each page lists matching tours and tips.
+                  Province guides south to north, plus city tour hubs.
                 </p>
               </div>
 
-              <div className="max-h-[min(70vh,420px)] overflow-y-auto p-4">
+              <div className="max-h-[min(70vh,480px)] overflow-y-auto p-4">
                 {showSpinner ? (
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {Array.from({ length: 6 }).map((_, i) => (
@@ -312,55 +347,109 @@ function DestinationsMegaDropdown({
                       </div>
                     ))}
                   </div>
-                ) : items.length === 0 ? (
-                  <p className="py-6 text-center text-sm text-muted">
-                    No destinations yet.
-                  </p>
                 ) : (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {items.map((d) => (
-                      <Link
-                        key={d.slug}
-                        href={`/destinations/${d.slug}`}
-                        role="menuitem"
-                        className="group flex gap-3 rounded-xl border border-border bg-background p-2.5 text-left transition hover:border-havezic-primary/45 hover:bg-havezic-background-light hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)]"
-                        onClick={() => setOpen(false)}
-                      >
-                        <div className="relative h-[4.5rem] w-[5.25rem] shrink-0 overflow-hidden rounded-lg bg-havezic-background-light">
-                          <Image
-                            src={d.heroUrl}
-                            alt=""
-                            fill
-                            sizes="120px"
-                            className="object-cover transition duration-300 group-hover:scale-105"
-                          />
-                        </div>
-                        <div className="min-w-0 flex-1 py-0.5">
-                          <p className="font-semibold leading-snug text-foreground">
-                            {d.name}
-                          </p>
-                          <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted">
-                            {d.line}
-                          </p>
-                          <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-havezic-primary">
-                            {d.tourCount}{" "}
-                            {d.tourCount === 1 ? "tour" : "tours"}
-                          </p>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
+                  <>
+                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-muted">
+                      Provinces
+                    </p>
+                    <div className="mb-6 grid gap-2 sm:grid-cols-2">
+                      {provinceItems.map((p) => (
+                        <Link
+                          key={p.slug}
+                          href={`/guides/${p.slug}`}
+                          role="menuitem"
+                          className="group flex items-center gap-3 rounded-xl border border-border bg-background px-3 py-2.5 text-left transition hover:border-havezic-primary/45 hover:bg-havezic-background-light"
+                          onClick={() => setOpen(false)}
+                        >
+                          {p.heroUrl ? (
+                            <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-havezic-background-light">
+                              <Image
+                                src={p.heroUrl}
+                                alt=""
+                                fill
+                                sizes="48px"
+                                className="object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-havezic-primary/10 text-xs font-bold text-havezic-primary">
+                              {p.name.slice(0, 2)}
+                            </span>
+                          )}
+                          <div className="min-w-0">
+                            <p className="font-semibold text-sm text-foreground">
+                              {p.name}
+                            </p>
+                            {p.tagline ? (
+                              <p className="line-clamp-1 text-xs text-muted">
+                                {p.tagline}
+                              </p>
+                            ) : null}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+
+                    <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-muted">
+                      City tour hubs
+                    </p>
+                    {cityItems.length === 0 ? (
+                      <p className="py-4 text-center text-sm text-muted">
+                        No city destinations yet.
+                      </p>
+                    ) : (
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        {cityItems.map((d) => (
+                          <Link
+                            key={d.slug}
+                            href={`/destinations/${d.slug}`}
+                            role="menuitem"
+                            className="group flex gap-3 rounded-xl border border-border bg-background p-2.5 text-left transition hover:border-havezic-primary/45 hover:bg-havezic-background-light hover:shadow-[0_10px_28px_rgba(0,0,0,0.06)]"
+                            onClick={() => setOpen(false)}
+                          >
+                            <div className="relative h-[4.5rem] w-[5.25rem] shrink-0 overflow-hidden rounded-lg bg-havezic-background-light">
+                              <Image
+                                src={d.heroUrl}
+                                alt=""
+                                fill
+                                sizes="120px"
+                                className="object-cover transition duration-300 group-hover:scale-105"
+                              />
+                            </div>
+                            <div className="min-w-0 flex-1 py-0.5">
+                              <p className="font-semibold leading-snug text-foreground">
+                                {d.name}
+                              </p>
+                              <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted">
+                                {d.line}
+                              </p>
+                              <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-havezic-primary">
+                                {d.tourCount}{" "}
+                                {d.tourCount === 1 ? "tour" : "tours"}
+                              </p>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
-              <div className="border-t border-border bg-havezic-background-light px-4 py-3">
+              <div className="grid gap-2 border-t border-border bg-havezic-background-light px-4 py-3 sm:grid-cols-2">
+                <Link
+                  href="/guides"
+                  className="flex items-center justify-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition hover:border-havezic-primary/40"
+                  onClick={() => setOpen(false)}
+                >
+                  All province guides
+                </Link>
                 <Link
                   href="/destinations"
                   className="flex items-center justify-center gap-2 rounded-xl bg-havezic-primary px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-havezic-primary-hover"
                   onClick={() => setOpen(false)}
                 >
-                  View all destinations
-                  <ChevronDown className="h-4 w-4 -rotate-90" aria-hidden />
+                  All city destinations
                 </Link>
               </div>
             </div>
@@ -374,22 +463,28 @@ function DestinationsMegaDropdown({
 function MobileDestinationsAccordion({
   pathname,
   destinations,
+  provinces,
   expanded,
   onToggle,
   onPick,
 }: {
   pathname: string | null;
   destinations: DestinationIndexRow[] | undefined;
+  provinces: ProvinceIndexRow[] | undefined;
   expanded: boolean;
   onToggle: () => void;
   onPick: () => void;
 }) {
   const active =
     pathname === "/destinations" ||
-    pathname?.startsWith("/destinations/");
+    pathname?.startsWith("/destinations/") ||
+    pathname === "/guides" ||
+    pathname?.startsWith("/guides/");
 
-  const items = destinations ?? [];
-  const loading = destinations === undefined;
+  const cityItems = destinations ?? [];
+  const provinceItems =
+    provinces && provinces.length > 0 ? provinces : STATIC_PROVINCE_NAV;
+  const loading = destinations === undefined || provinces === undefined;
 
   return (
     <div className="rounded-xl border border-white/15 bg-white/5">
@@ -423,28 +518,53 @@ function MobileDestinationsAccordion({
             transition={{ duration: 0.2 }}
             className="overflow-hidden border-t border-white/10"
           >
-            <div className="flex max-h-[50vh] flex-col gap-1 overflow-y-auto px-2 pb-2 pt-1">
+            <div className="flex max-h-[55vh] flex-col gap-1 overflow-y-auto px-2 pb-2 pt-1">
+              <p className="px-3 pt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
+                Provinces
+              </p>
+              <Link
+                href="/guides"
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-white/95 hover:bg-white/10"
+                onClick={onPick}
+              >
+                All province guides
+              </Link>
+              {loading ? (
+                <p className="px-3 py-2 text-xs text-white/60">Loading…</p>
+              ) : (
+                provinceItems.map((p) => (
+                  <Link
+                    key={p.slug}
+                    href={`/guides/${p.slug}`}
+                    className="rounded-lg px-3 py-2 text-sm text-white/90 hover:bg-white/10"
+                    onClick={onPick}
+                  >
+                    {p.name}
+                  </Link>
+                ))
+              )}
+              <p className="mt-2 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
+                Cities
+              </p>
               <Link
                 href="/destinations"
                 className="rounded-lg px-3 py-2 text-sm font-semibold text-white/95 hover:bg-white/10"
                 onClick={onPick}
               >
-                All destinations
+                All city destinations
               </Link>
-              {loading ? (
-                <p className="px-3 py-2 text-xs text-white/60">Loading…</p>
-              ) : (
-                items.map((d) => (
-                  <Link
-                    key={d.slug}
-                    href={`/destinations/${d.slug}`}
-                    className="rounded-lg px-3 py-2 text-sm text-white/90 hover:bg-white/10"
-                    onClick={onPick}
-                  >
-                    {d.name}
-                  </Link>
-                ))
-              )}
+              {!loading
+                ? cityItems.map((d) => (
+                    <Link
+                      key={d.slug}
+                      href={`/destinations/${d.slug}`}
+                      className="rounded-lg px-3 py-2 text-sm text-white/90 hover:bg-white/10"
+                      onClick={onPick}
+                    >
+                      {d.name}
+                    </Link>
+                  ))
+                : null}
             </div>
           </motion.div>
         ) : null}
@@ -473,6 +593,10 @@ export function SiteHeaderNav({
   useEffect(() => {
     setLiveSession(initialSession);
   }, [initialSession]);
+
+  const provinceNavItems = useQuery(api.provinces.listForIndex, {}) as
+    | ProvinceIndexRow[]
+    | undefined;
 
   useEffect(() => {
     if (!open) setMobileDestOpen(false);
@@ -552,7 +676,7 @@ export function SiteHeaderNav({
                 Junket Tours
               </span>
               <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-white/65">
-                Destination Management Company
+                Pakistan, province by province
               </span>
             </span>
           </Link>
@@ -575,6 +699,7 @@ export function SiteHeaderNav({
             <DestinationsMegaDropdown
               pathname={pathname}
               destinations={indexDestinations}
+              provinces={provinceNavItems}
             />
             {links.map(({ href, label }) => {
               const active = pathname === href || pathname?.startsWith(href + "/");
@@ -665,6 +790,7 @@ export function SiteHeaderNav({
                 <MobileDestinationsAccordion
                   pathname={pathname}
                   destinations={indexDestinations}
+                  provinces={provinceNavItems}
                   expanded={mobileDestOpen}
                   onToggle={() => setMobileDestOpen((o) => !o)}
                   onPick={() => {

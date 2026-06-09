@@ -51,7 +51,7 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
         id: "inbox",
         label: "Inbox",
         links: [
-          { href: "/admin/bookings", label: "Bookings" },
+          { href: "/admin/bookings", label: "Customisation" },
           { href: "/admin/contact", label: "Leads" },
         ],
       },

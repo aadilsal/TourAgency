@@ -22,7 +22,7 @@ import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { blogCoverImage } from "@/lib/blog-covers";
 import { SceneCut } from "@/components/ui/SceneCut";
 import { ScrollyJourneyReel } from "@/components/scrolly/ScrollyJourneyReel";
-import { DESTINATION_DETAILS } from "@/lib/destinations-data";
+import { getHomepageDestinations } from "@/lib/destinations-data";
 
 type BlogPostInput = {
   slug: string;
@@ -37,51 +37,38 @@ type Props = {
   whatsappUrl: string | null;
 };
 
-const DESTINATIONS: { name: string; slug: string; blurb: string; image: string }[] = [
-  {
-    name: "Hunza",
-    slug: "hunza",
-    blurb: "Rakaposhi views, ancient forts, and cherry blossoms.",
-    image: DESTINATION_DETAILS.hunza.heroImage,
-  },
-  {
-    name: "Skardu",
-    slug: "skardu",
-    blurb: "Gateway to K2 base camp and surreal blue lakes.",
-    image: DESTINATION_DETAILS.skardu.heroImage,
-  },
-  {
-    name: "Swat",
-    slug: "swat",
-    blurb: "Alpine valleys, rivers, and rich heritage.",
-    image: DESTINATION_DETAILS.swat.heroImage,
-  },
-  {
-    name: "Naran",
-    slug: "naran",
-    blurb: "Lake Saif-ul-Malook and the Babusar route.",
-    image: DESTINATION_DETAILS.naran.heroImage,
-  },
-];
+const DESTINATIONS: { name: string; slug: string; blurb: string; image: string }[] =
+  getHomepageDestinations().map((d) => ({
+    name: d.name,
+    slug: d.slug,
+    blurb: d.line,
+    image: d.heroImage,
+  }));
 
 const FALLBACK_GUIDES: GuideItem[] = [
+  {
+    href: "/blog",
+    title: "Lahore heritage weekend guide",
+    description: "Forts, mosques, and Walled City walks.",
+    image: blogCoverImage("lahore-heritage-weekend-guide"),
+  },
+  {
+    href: "/blog",
+    title: "Taxila & Gandhara itinerary",
+    description: "Archaeology day trips from Islamabad.",
+    image: blogCoverImage("taxila-gandhara-itinerary"),
+  },
+  {
+    href: "/blog",
+    title: "Hunza forts & culture guide",
+    description: "Northern heritage — forts, bazaars, and valley life.",
+    image: blogCoverImage("hunza-forts-culture-guide"),
+  },
   {
     href: "/blog",
     title: "Hunza trip cost guide",
     description: "Budget ranges, transport, and where to save.",
     image: blogCoverImage("hunza-trip-cost-guide"),
-  },
-  {
-    href: "/blog",
-    title: "Best time to visit Skardu",
-    description: "Seasons, roads, and weather windows.",
-    image: blogCoverImage("skardu-best-time"),
-  },
-  {
-    href: "/blog",
-    title: "Northern Pakistan packing list",
-    description: "Layers, gear, and altitude basics.",
-    image: blogCoverImage("packing-list-north"),
   },
 ];
 
@@ -131,8 +118,8 @@ export function HomeLanding({ tours, blogPosts, whatsappUrl }: Props) {
           <SectionHeader
             variant="onDark"
             eyebrow="Story"
-            title="A journey that unfolds as you scroll"
-            description="Mountains, culture, desert & coast — pick your style (budget to luxury, private or group)."
+            title="Explore Pakistan province by province"
+            description="Scroll south to north — Sindh through Gilgit-Baltistan — preview major sites and open each province guide to book tours."
           />
         </PageContainer>
         <div className="mt-10">

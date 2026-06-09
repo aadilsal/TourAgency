@@ -79,7 +79,7 @@ export function AboutPageClient({
       body: [
         "Junkettours is one of Pakistan’s top Certified Adventure travel platforms. Junket Tour is a Government Registered Tourism Management Company having NTN No. PA-775557.",
         "We have been providing guided and personalized travel experiences for both domestic and international tourists, including families, students, corporate groups, and solo adventurers, for over 6 years.",
-        "We deliver and manage memorable tourism experiences all over Pakistan, including all the northern areas. To help with the entire booking and travel process, Junkettours’ travel specialists are accessible online 24/7.",
+        "We deliver memorable culture and history experiences across Pakistan — from Mughal cities and Gandhara sites to northern valley heritage. Our travel specialists are accessible online 24/7 for the entire booking process.",
       ],
       image:
         "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1400&q=80",

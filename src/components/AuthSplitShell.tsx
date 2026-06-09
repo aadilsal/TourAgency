@@ -28,7 +28,7 @@ export function AuthSplitShell({
             JunketTours
           </p>
           <h1 className="mt-4 max-w-md font-display text-3xl font-semibold leading-tight xl:text-4xl">
-            Northern Pakistan, planned with clarity.
+            Pakistan&apos;s culture and history — planned with clarity.
           </h1>
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/75">
             AI itineraries, verified tours, and a team on WhatsApp when you

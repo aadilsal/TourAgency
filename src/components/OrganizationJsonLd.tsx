@@ -7,6 +7,14 @@ export function OrganizationJsonLd() {
     "@type": ["Organization", "TravelAgency"],
     "@id": `${base}/#organization`,
     name: "JunketTours",
+    description:
+      "Culture, history and northern heritage tours across Pakistan — heritage cities, ancient sites, and valley traditions.",
+    knowsAbout: [
+      "Cultural tourism",
+      "Heritage travel",
+      "Pakistan history",
+      "Northern Pakistan heritage",
+    ],
     url: base,
     logo: `${base}/public/images-removebg-preview.png`,
     image: `${base}/public/images-removebg-preview.png`,

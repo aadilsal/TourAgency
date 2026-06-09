@@ -2,7 +2,7 @@
 
 import { useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   CalendarDays,
   Mail,
@@ -15,7 +15,10 @@ import {
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import type { Id } from "@convex/_generated/dataModel";
 import { api } from "@convex/_generated/api";
-import { TourMemberBooking } from "@/components/TourMemberBooking";
+import {
+  TourMemberBooking,
+  useMemberProfileForBooking,
+} from "@/components/TourMemberBooking";
 import { TourBookingSuccessModal } from "@/components/tours/TourBookingSuccessModal";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -28,9 +31,11 @@ import {
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
-import { useCurrency } from "@/hooks/useCurrency";
-import { formatMoney } from "@/lib/money";
-import { getTourUnitPrice } from "@/lib/tourPricing";
+import {
+  buildTourCustomisationWhatsAppMessage,
+  type TourCustomisationMessageInput,
+} from "@/lib/tourCustomisationWhatsApp";
+import { useOpenTourCustomisationWhatsApp } from "@/hooks/useOpenTourCustomisationWhatsApp";
 
 type FieldErrors = {
   name?: string;
@@ -43,30 +48,21 @@ type FieldErrors = {
 export function TourStickyBooking({
   tourId,
   tourTitle,
-  price,
-  pricePkr,
-  priceUsd,
   durationDays,
   location,
   whatsappUrl,
 }: {
   tourId: Id<"tours">;
   tourTitle: string;
-  price: number; // legacy PKR
-  pricePkr?: number;
-  priceUsd?: number;
   durationDays: number;
   location: string;
   whatsappUrl: string | null;
 }) {
   const router = useRouter();
   const sessionToken = useConvexSessionToken();
+  const memberProfile = useMemberProfileForBooking();
   const createGuest = useMutation(api.bookings.createGuestBooking);
-  const currency = useCurrency();
-  const unitPrice = useMemo(
-    () => getTourUnitPrice({ price, pricePkr, priceUsd }, currency),
-    [price, pricePkr, priceUsd, currency],
-  );
+  const openWhatsApp = useOpenTourCustomisationWhatsApp();
 
   const [minDate, setMinDate] = useState("");
   useEffect(() => {
@@ -82,10 +78,8 @@ export function TourStickyBooking({
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [successOpen, setSuccessOpen] = useState(false);
-
-  const totalPrice = useMemo(
-    () => unitPrice * Math.max(1, peopleCount),
-    [unitPrice, peopleCount],
+  const [successWhatsappUrl, setSuccessWhatsappUrl] = useState<string | null>(
+    null,
   );
 
   const scrollToBook = useCallback(() => {
@@ -99,17 +93,27 @@ export function TourStickyBooking({
     if (!tourDate) next.tourDate = "Choose your preferred start date.";
     if (peopleCount < 1) next.people = "Add at least one traveler.";
     if (minDate && tourDate && tourDate < minDate) {
-      next.tourDate = "Past dates can’t be selected.";
+      next.tourDate = "Past dates can't be selected.";
     }
     setErrors(next);
     return Object.keys(next).length === 0;
   }, [name, phone, tourDate, peopleCount, minDate]);
 
+  const finishCustomisation = useCallback(
+    async (input: TourCustomisationMessageInput) => {
+      const message = buildTourCustomisationWhatsAppMessage(input);
+      const url = await openWhatsApp(message);
+      setSuccessWhatsappUrl(url ?? whatsappUrl);
+      setSuccessOpen(true);
+    },
+    [openWhatsApp, whatsappUrl],
+  );
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
-    setErrors((e) => ({ ...e, form: undefined }));
+    setErrors((prev) => ({ ...prev, form: undefined }));
     try {
       await createGuest({
         tourId,
@@ -117,11 +121,18 @@ export function TourStickyBooking({
         phone: phone.trim(),
         email: email.trim() || undefined,
         peopleCount,
-        currency,
         notes: notes.trim() || undefined,
         preferredStart: tourDate,
       });
-      setSuccessOpen(true);
+      await finishCustomisation({
+        tourTitle,
+        name: name.trim(),
+        phone: phone.trim(),
+        email: email.trim() || undefined,
+        preferredStart: tourDate,
+        peopleCount,
+        notes: notes.trim() || undefined,
+      });
     } catch (er) {
       setErrors({
         form: toUserFacingErrorMessage(er),
@@ -145,23 +156,20 @@ export function TourStickyBooking({
   }
 
   const loggedIn = typeof sessionToken === "string";
+  const memberName = memberProfile?.name ?? "Member";
+  const memberPhone = memberProfile?.phone;
+  const memberEmail = memberProfile?.email;
 
   return (
     <>
       <Card className="overflow-hidden p-6 ring-1 ring-border lg:sticky lg:top-[100px]">
         <div id="book" className="scroll-mt-28">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted">
-            From
-          </p>
-          <p className="mt-1 text-3xl font-bold tracking-tight text-foreground">
-            {formatMoney(unitPrice, currency)}
-            <span className="text-base font-semibold text-muted">
-              {" "}
-              / person
-            </span>
-          </p>
+          <h2 className="text-lg font-bold text-foreground">Customise your tour</h2>
           <p className="mt-1 text-sm text-muted">
             {durationDays} days · {location}
+          </p>
+          <p className="mt-2 text-sm text-muted">
+            Share your dates and group size — we&apos;ll tailor a quote.
           </p>
 
           {loggedIn ? (
@@ -170,7 +178,15 @@ export function TourStickyBooking({
                 You&apos;re signed in — use the form below. Your request is tied
                 to your account and appears on your dashboard.
               </p>
-              <TourMemberBooking tourId={tourId} plain />
+              <TourMemberBooking
+                tourId={tourId}
+                tourTitle={tourTitle}
+                memberName={memberName}
+                memberPhone={memberPhone}
+                memberEmail={memberEmail}
+                plain
+                onCustomisationSubmitted={finishCustomisation}
+              />
               {whatsappUrl ? (
                 <div className="flex justify-center">
                   <a
@@ -185,7 +201,7 @@ export function TourStickyBooking({
                 </div>
               ) : null}
               <p className="text-center text-xs leading-relaxed text-muted">
-                No payment online — we confirm by phone.
+                No payment online — we&apos;ll follow up with a personalised quote.
               </p>
             </div>
           ) : null}
@@ -248,12 +264,6 @@ export function TourStickyBooking({
                   </button>
                 </div>
               </div>
-              <p className="mt-2 text-sm font-semibold text-foreground">
-                Estimated total:{" "}
-                <span className="text-brand-cta">
-                  PKR {totalPrice.toLocaleString()}
-                </span>
-              </p>
               <FieldError>{errors.people}</FieldError>
             </div>
 
@@ -305,7 +315,7 @@ export function TourStickyBooking({
                 icon={<Mail />}
               />
             <p className="mt-1 text-xs text-muted">
-                Optional — we&apos;ll send a confirmation if provided.
+                Optional — we&apos;ll email your request summary.
               </p>
             </div>
 
@@ -328,7 +338,7 @@ export function TourStickyBooking({
               className="w-full py-3.5 text-base font-semibold"
               disabled={loading}
             >
-              {loading ? "Booking…" : "Book now"}
+              {loading ? "Sending…" : "Customise your tour"}
             </Button>
 
             {whatsappUrl ? (
@@ -346,8 +356,8 @@ export function TourStickyBooking({
             ) : null}
 
             <p className="text-center text-xs leading-relaxed text-muted">
-              No payment online — we confirm by phone. Guest checkout; no account
-              required.
+              No payment online — we&apos;ll follow up with a personalised quote.
+              Guest checkout; no account required.
             </p>
           </form>
           ) : null}
@@ -357,7 +367,7 @@ export function TourStickyBooking({
       <TourBookingSuccessModal
         open={successOpen}
         tourTitle={tourTitle}
-        whatsappUrl={whatsappUrl}
+        whatsappUrl={successWhatsappUrl ?? whatsappUrl}
         onViewBookings={goBookings}
         onClose={onSuccessModalClose}
       />
@@ -372,7 +382,7 @@ export function TourStickyBooking({
           className="w-full py-3.5 text-base font-semibold"
           onClick={scrollToBook}
         >
-          Book now
+          Customise your tour
         </Button>
       </div>
     </>

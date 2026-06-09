@@ -28,26 +28,19 @@ import { TourCard, type TourCardData } from "@/components/shared/TourCard";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Button } from "@/components/ui/Button";
 import { MotionSection } from "@/components/ui/MotionSection";
-import { useCurrency } from "@/hooks/useCurrency";
-import { getTourUnitPrice } from "@/lib/tourPricing";
+import { getProvince, tourMatchesProvince } from "@/lib/provinces-data";
 
 const PAGE_SIZE = 9;
 
 type TourRow = TourCardData & { _id: string; createdAt?: number };
 
-type SortKey =
-  | "popular"
-  | "price-asc"
-  | "price-desc"
-  | "dur-asc"
-  | "dur-desc";
+type SortKey = "popular" | "dur-asc" | "dur-desc";
 
 type Props = {
   initialTours: TourRow[];
   initialType?: string | null;
-  initialMax?: string | null;
-  initialMin?: string | null;
   initialLocation?: string | null;
+  initialProvince?: string | null;
 };
 
 const fieldClass =
@@ -56,10 +49,6 @@ const fieldClass =
 type FilterFormProps = {
   location: string;
   setLocation: (v: string) => void;
-  priceMin: string;
-  setPriceMin: (v: string) => void;
-  priceMax: string;
-  setPriceMax: (v: string) => void;
   durMin: string;
   setDurMin: (v: string) => void;
   durMax: string;
@@ -69,17 +58,12 @@ type FilterFormProps = {
   locations: string[];
   onFilterChange: () => void;
   onReset: () => void;
-  /** Extra actions below reset (e.g. mobile “Apply”) */
   footer?: ReactNode;
 };
 
 function TourFiltersForm({
   location,
   setLocation,
-  priceMin,
-  setPriceMin,
-  priceMax,
-  setPriceMax,
   durMin,
   setDurMin,
   durMax,
@@ -91,7 +75,6 @@ function TourFiltersForm({
   onReset,
   footer,
 }: FilterFormProps) {
-  const currency = useCurrency();
   return (
     <div className="space-y-5">
       <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-havezic-primary">
@@ -117,40 +100,6 @@ function TourFiltersForm({
           ))}
         </select>
       </label>
-
-      <div>
-        <span className="text-sm font-medium text-havezic-text">
-          Price range ({currency})
-        </span>
-        <div className="mt-1 grid grid-cols-2 gap-3">
-          <label className="block text-sm">
-            <span className="text-xs text-havezic-text-light">Min</span>
-            <input
-              className={fieldClass}
-              inputMode="numeric"
-              placeholder="Min"
-              value={priceMin}
-              onChange={(e) => {
-                setPriceMin(e.target.value);
-                onFilterChange();
-              }}
-            />
-          </label>
-          <label className="block text-sm">
-            <span className="text-xs text-havezic-text-light">Max</span>
-            <input
-              className={fieldClass}
-              inputMode="numeric"
-              placeholder="Max"
-              value={priceMax}
-              onChange={(e) => {
-                setPriceMax(e.target.value);
-                onFilterChange();
-              }}
-            />
-          </label>
-        </div>
-      </div>
 
       <div>
         <span className="text-sm font-medium text-havezic-text">Duration (days)</span>
@@ -219,8 +168,6 @@ function TourFiltersForm({
 
 function useActiveFilterCount(
   location: string,
-  priceMin: string,
-  priceMax: string,
   durMin: string,
   durMax: string,
   type: TourTypeFilter | "",
@@ -228,26 +175,21 @@ function useActiveFilterCount(
   return useMemo(() => {
     let n = 0;
     if (location.trim()) n++;
-    if (priceMin.replace(/\D/g, "")) n++;
-    if (priceMax.replace(/\D/g, "")) n++;
     if (durMin.trim()) n++;
     if (durMax.trim()) n++;
     if (type) n++;
     return n;
-  }, [location, priceMin, priceMax, durMin, durMax, type]);
+  }, [location, durMin, durMax, type]);
 }
 
 export function ToursExploreClient({
   initialTours,
   initialType,
-  initialMax,
-  initialMin,
   initialLocation,
+  initialProvince,
 }: Props) {
-  const currency = useCurrency();
   const [location, setLocation] = useState(initialLocation ?? "");
-  const [priceMin, setPriceMin] = useState(initialMin ?? "");
-  const [priceMax, setPriceMax] = useState(initialMax ?? "");
+  const [provinceSlug] = useState(initialProvince ?? "");
   const [durMin, setDurMin] = useState("");
   const [durMax, setDurMax] = useState("");
   const [type, setType] = useState<TourTypeFilter | "">(
@@ -268,8 +210,6 @@ export function ToursExploreClient({
 
   const activeFilterCount = useActiveFilterCount(
     location,
-    priceMin,
-    priceMax,
     durMin,
     durMax,
     type,
@@ -289,33 +229,26 @@ export function ToursExploreClient({
 
   const resetFilters = useCallback(() => {
     setLocation("");
-    setPriceMin("");
-    setPriceMax("");
     setDurMin("");
     setDurMax("");
     setType("");
     setPage(1);
   }, []);
 
+  const provinceFilter = useMemo(
+    () => (provinceSlug ? getProvince(provinceSlug) : null),
+    [provinceSlug],
+  );
+
   const filtered = useMemo(() => {
     let list = [...catalog];
-    const unitPrice = (t: TourRow) => getTourUnitPrice(t, currency);
+    if (provinceFilter) {
+      list = list.filter((t) => tourMatchesProvince(t.location, provinceFilter));
+    }
     if (location) {
       list = list.filter((t) =>
         t.location.toLowerCase().includes(location.toLowerCase()),
       );
-    }
-    const minP = priceMin.replace(/\D/g, "")
-      ? Number(priceMin.replace(/\D/g, ""))
-      : null;
-    const maxP = priceMax.replace(/\D/g, "")
-      ? Number(priceMax.replace(/\D/g, ""))
-      : null;
-    if (minP !== null && !Number.isNaN(minP)) {
-      list = list.filter((t) => unitPrice(t) >= minP);
-    }
-    if (maxP !== null && !Number.isNaN(maxP)) {
-      list = list.filter((t) => unitPrice(t) <= maxP);
     }
     const minD = durMin.trim() ? Number(durMin) : null;
     const maxD = durMax.trim() ? Number(durMax) : null;
@@ -335,23 +268,11 @@ export function ToursExploreClient({
         if (tb !== ta) return tb - ta;
         return a.title.localeCompare(b.title);
       }
-      if (sort === "price-asc") return unitPrice(a) - unitPrice(b);
-      if (sort === "price-desc") return unitPrice(b) - unitPrice(a);
       if (sort === "dur-asc") return a.durationDays - b.durationDays;
       return b.durationDays - a.durationDays;
     });
     return list;
-  }, [
-    catalog,
-    currency,
-    location,
-    priceMin,
-    priceMax,
-    durMin,
-    durMax,
-    type,
-    sort,
-  ]);
+  }, [catalog, provinceFilter, location, durMin, durMax, type, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -380,10 +301,6 @@ export function ToursExploreClient({
   const filterFormProps: FilterFormProps = {
     location,
     setLocation,
-    priceMin,
-    setPriceMin,
-    priceMax,
-    setPriceMax,
     durMin,
     setDurMin,
     durMax,
@@ -442,15 +359,15 @@ export function ToursExploreClient({
           <MotionSection>
             <header className="max-w-3xl">
               <p className="text-xs font-bold uppercase tracking-widest text-white/85">
-                Northern Pakistan
+                Culture &amp; Heritage
               </p>
               <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight text-white md:text-5xl">
                 Explore Tours
               </h1>
               <p className="mt-3 text-base leading-relaxed text-white/80 md:text-lg">
-                A curated set of experiences across Hunza, Skardu, Swat &amp;
-                beyond. Filter by location, days, budget, and travel style — then
-                sort to match how you like to plan.
+                Heritage cities, ancient sites, and northern valley tours —
+                Hunza, Skardu, Swat &amp; beyond. Filter by location, days,
+                and travel style.
               </p>
             </header>
           </MotionSection>
@@ -483,8 +400,6 @@ export function ToursExploreClient({
               onChange={(e) => setSort(e.target.value as SortKey)}
             >
               <option value="popular">Popularity (newest)</option>
-              <option value="price-asc">Price: low to high</option>
-              <option value="price-desc">Price: high to low</option>
               <option value="dur-asc">Duration: shortest</option>
               <option value="dur-desc">Duration: longest</option>
             </select>

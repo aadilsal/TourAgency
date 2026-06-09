@@ -10,7 +10,7 @@ export type BlogPostCardData = {
 
 function excerpt(post: BlogPostCardData): string {
   if (post.metaDescription?.trim()) return post.metaDescription.trim();
-  return "Practical tips and route ideas for northern Pakistan.";
+  return "Heritage routes and cultural travel tips across Pakistan.";
 }
 
 export function BlogPostCard({ post }: { post: BlogPostCardData }) {

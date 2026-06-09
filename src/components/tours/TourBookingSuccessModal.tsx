@@ -24,7 +24,7 @@ export function TourBookingSuccessModal({
     <Modal
       open={open}
       onClose={onClose}
-      title="Booking request submitted"
+      title="Customisation request submitted"
       description={`${tourTitle} — you're all set.`}
       panelClassName="max-w-md"
     >
@@ -36,11 +36,11 @@ export function TourBookingSuccessModal({
           />
           <div>
             <p className="font-semibold text-emerald-900">
-              We&apos;ve received your booking request
+              We&apos;ve received your customisation request
             </p>
             <p className="mt-2 leading-relaxed text-emerald-900/80">
-              Our team will contact you shortly to confirm dates, inclusions, and
-              next steps. Watch your phone — we usually reply the same day.
+              Our team will be in touch to discuss dates, inclusions, and a
+              tailored quote. Watch your phone — we usually reply the same day.
             </p>
           </div>
         </div>
@@ -51,7 +51,7 @@ export function TourBookingSuccessModal({
             className="flex-1 py-3"
             onClick={onViewBookings}
           >
-            View my bookings
+            View my requests
           </Button>
           {whatsappUrl ? (
             <a

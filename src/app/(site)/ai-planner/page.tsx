@@ -23,7 +23,7 @@ const AiPlannerPageClient = dynamic(
 export const metadata: Metadata = {
   title: "AI trip planner",
   description:
-    "Plan your northern Pakistan trip with AI — structured inputs, day-by-day outline, and real tours from our catalog.",
+    "Plan your culture & history trip with AI — heritage cities, ancient sites, northern extensions, and real tours from our catalog.",
 };
 
 export default function AiPlannerPage() {
@@ -40,9 +40,10 @@ export default function AiPlannerPage() {
               Plan Your Trip with AI
             </h1>
             <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">
-              Add your budget, how long you can travel, where you&apos;re leaving
-              from, and what you love — we generate a tailored outline, match
-              live packages, and let you book or save the plan.
+              Heritage cities, ancient sites, or northern valley culture — add
+              your budget, duration, and departure city. Try: &ldquo;Lahore
+              heritage weekend&rdquo;, &ldquo;Hunza forts &amp; valley
+              culture&rdquo;, or &ldquo;Swat Buddhist sites&rdquo;.
             </p>
           </header>
         </MotionSection>

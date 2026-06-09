@@ -11,12 +11,8 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { Card } from "@/components/ui/Card";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import type { TourCardData } from "@/components/shared/TourCard";
-import { Clock, MapPin, Star, Tag } from "lucide-react";
+import { Clock, MapPin, Star } from "lucide-react";
 import { TourDetailTabs } from "@/components/tours/TourDetailTabs";
-import { TourCalendarPrices } from "@/components/tours/TourCalendarPrices";
-import { cookies } from "next/headers";
-import { formatMoney, type CurrencyCode } from "@/lib/money";
-import { getTourUnitPrice } from "@/lib/tourPricing";
 import { loadTourBySlug } from "@/lib/tours-server";
 import { getConvexServer } from "@/lib/convex-server";
 import Image from "next/image";
@@ -152,10 +148,6 @@ export default async function TourDetailPage({ params }: Props) {
   }));
 
   const badge = tourBadge(tour.slug);
-  const currency = ((cookies().get("jt_currency")?.value ?? "USD") === "PKR"
-    ? "PKR"
-    : "USD") as CurrencyCode;
-  const fromPrice = getTourUnitPrice(tour, currency);
 
   return (
     <main className="min-h-screen pb-28 lg:pb-20">
@@ -193,10 +185,6 @@ export default async function TourDetailPage({ params }: Props) {
               {tour.durationDays} days
             </span>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-sm font-medium text-foreground backdrop-blur-sm">
-              <Tag className="h-4 w-4 text-havezic-primary" aria-hidden />
-              From {formatMoney(fromPrice, currency)}
-            </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-sm font-medium text-foreground backdrop-blur-sm">
               <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
               Highly rated experiences
             </span>
@@ -216,9 +204,6 @@ export default async function TourDetailPage({ params }: Props) {
             <TourStickyBooking
               tourId={tour._id}
               tourTitle={tour.title}
-              price={tour.price}
-              pricePkr={tour.pricePkr}
-              priceUsd={tour.priceUsd}
               durationDays={tour.durationDays}
               location={tour.location}
               whatsappUrl={whatsappUrl}
@@ -226,7 +211,7 @@ export default async function TourDetailPage({ params }: Props) {
 
             {relatedCards.length > 0 ? (
               <section className="mt-6 rounded-2xl border border-border bg-panel p-5 shadow-sm">
-                <h3 className="text-base font-bold text-foreground">Last Minute Deals</h3>
+                <h3 className="text-base font-bold text-foreground">Related tours</h3>
                 <div className="mt-4 space-y-3">
                   {relatedCards.slice(0, 3).map((t) => (
                     <a
@@ -248,8 +233,8 @@ export default async function TourDetailPage({ params }: Props) {
                         <p className="truncate text-sm font-semibold text-foreground group-hover:text-havezic-primary">
                           {t.title}
                         </p>
-                        <p className="mt-0.5 text-xs font-bold text-havezic-primary">
-                          PKR {Number(t.price).toLocaleString()}
+                        <p className="mt-0.5 text-xs text-muted">
+                          {t.durationDays} days · {t.location}
                         </p>
                       </div>
                     </a>
@@ -313,14 +298,6 @@ export default async function TourDetailPage({ params }: Props) {
                 </div>
               </div>
             </section>
-
-            <div className="mt-10 md:mt-12">
-              <TourCalendarPrices
-                price={tour.price}
-                pricePkr={tour.pricePkr}
-                priceUsd={tour.priceUsd}
-              />
-            </div>
 
             <section id="tour-plan" className="mt-10 scroll-mt-28 md:mt-12">
               <h2 className="text-2xl font-bold text-foreground">Itinerary</h2>

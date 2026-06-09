@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
@@ -8,24 +8,35 @@ import { useState } from "react";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
-import { useCurrency } from "@/hooks/useCurrency";
 import {
   FieldLabel,
   FieldHint,
   TextInput,
   TextAreaField,
 } from "@/components/ui/FormField";
+import type { TourCustomisationMessageInput } from "@/lib/tourCustomisationWhatsApp";
 
 export function TourMemberBooking({
   tourId,
+  tourTitle,
+  memberName,
+  memberPhone,
+  memberEmail,
   plain = false,
+  onCustomisationSubmitted,
 }: {
   tourId: Id<"tours">;
+  tourTitle: string;
+  memberName: string;
+  memberPhone?: string;
+  memberEmail?: string;
   plain?: boolean;
+  onCustomisationSubmitted?: (
+    input: TourCustomisationMessageInput,
+  ) => void | Promise<void>;
 }) {
   const router = useRouter();
   const sessionToken = useConvexSessionToken();
-  const currency = useCurrency();
   const minDate = todayYmdLocal();
   const createBooking = useMutation(api.bookings.createBooking);
   const [adults, setAdults] = useState(2);
@@ -56,7 +67,6 @@ export function TourMemberBooking({
         sessionToken: token,
         tourId,
         peopleCount,
-        currency,
         notes: notes.trim() || undefined,
         preferredStart: preferredStart.trim() || undefined,
         preferredEnd: preferredEnd.trim() || undefined,
@@ -65,8 +75,25 @@ export function TourMemberBooking({
         children: children > 0 ? children : undefined,
         specialNeeds: specialNeeds.trim() || undefined,
       });
+      const messageInput: TourCustomisationMessageInput = {
+        tourTitle,
+        name: memberName,
+        phone: memberPhone?.trim() || "—",
+        email: memberEmail,
+        preferredStart: preferredStart.trim() || undefined,
+        preferredEnd: preferredEnd.trim() || undefined,
+        peopleCount,
+        notes: notes.trim() || undefined,
+        departureCity: departureCity.trim() || undefined,
+        adults: adults > 0 ? adults : undefined,
+        children: children > 0 ? children : undefined,
+      };
       setNotes("");
-      router.push("/dashboard/bookings");
+      if (onCustomisationSubmitted) {
+        await onCustomisationSubmitted(messageInput);
+      } else {
+        router.push("/dashboard/bookings");
+      }
     } catch (er) {
       setErr(toUserFacingErrorMessage(er));
     } finally {
@@ -80,9 +107,9 @@ export function TourMemberBooking({
 
   return (
     <div className={wrap}>
-      <h2 className="text-base font-bold text-brand-ink">Book as a member</h2>
+      <h2 className="text-base font-bold text-brand-ink">Customise as a member</h2>
       <p className="text-xs text-brand-muted">
-        Per-person rate × party size. Submitted as pending until confirmed.
+        Share your dates and group size — we&apos;ll tailor a quote for you.
       </p>
       <form onSubmit={onSubmit} className="mt-4 space-y-3">
         <div className="grid grid-cols-2 gap-2">
@@ -170,9 +197,19 @@ export function TourMemberBooking({
           disabled={loading}
           className="w-full rounded-xl bg-brand-primary py-2.5 text-sm font-semibold text-white hover:bg-brand-primary-dark disabled:opacity-50"
         >
-          {loading ? "Booking…" : "Confirm booking"}
+          {loading ? "Sending…" : "Customise your tour"}
         </button>
       </form>
     </div>
   );
+}
+
+/** Resolves member profile for TourMemberBooking when embedded in TourStickyBooking. */
+export function useMemberProfileForBooking() {
+  const sessionToken = useConvexSessionToken();
+  const user = useQuery(
+    api.auth.getCurrentUser,
+    sessionToken ? { sessionToken } : "skip",
+  );
+  return user;
 }

@@ -21,10 +21,11 @@ const VIBES: Record<
   }
 > = {
   mountains: {
-    label: "Mountains",
-    eyebrow: "North",
+    label: "Northern Heritage",
+    eyebrow: "Northern Heritage",
     title: "Pakistan, told as a journey.",
-    subtitle: "Hunza mornings, Skardu lakes, and roads worth the detour.",
+    subtitle:
+      "Baltit & Altit forts, apricot valleys, and Karakoram roads worth the detour.",
     hero:
       "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=2400&q=80",
     stills: [
@@ -65,7 +66,7 @@ export function HeroAiPlanner() {
   const reduce = useReducedMotion();
   const { open } = usePlannerWidget();
   const vibeKeys = useMemo(() => Object.keys(VIBES) as VibeKey[], []);
-  const [vibe, setVibe] = useState<VibeKey>("mountains");
+  const [vibe, setVibe] = useState<VibeKey>("culture");
   const active = VIBES[vibe];
 
   return (

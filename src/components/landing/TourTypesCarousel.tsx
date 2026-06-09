@@ -7,6 +7,12 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 
 const SLIDES: { label: string; href: string; image: string }[] = [
   {
+    label: "Heritage tours",
+    href: "/tours?type=culture",
+    image:
+      "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=1200&q=80",
+  },
+  {
     label: "Family tours",
     href: "/tours?type=family",
     image:

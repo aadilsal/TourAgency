@@ -23,10 +23,19 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Explore tours",
-  description: "Filter and book northern Pakistan tours — Hunza, Skardu, Swat, and more.",
+  description:
+    "Culture & history tours across Pakistan — heritage cities, ancient sites, and northern valley packages. Hunza, Skardu, Swat & more.",
 };
 
-type Search = { type?: string; max?: string; min?: string; location?: string; from?: string; guests?: string };
+type Search = {
+  type?: string;
+  max?: string;
+  min?: string;
+  location?: string;
+  province?: string;
+  from?: string;
+  guests?: string;
+};
 
 export default async function ToursPage({
   searchParams,
@@ -63,9 +72,8 @@ export default async function ToursPage({
       <ToursExploreClient
         initialTours={tours}
         initialType={searchParams.type}
-        initialMax={searchParams.max}
-        initialMin={searchParams.min}
         initialLocation={searchParams.location}
+        initialProvince={searchParams.province}
       />
     </main>
   );

@@ -12,7 +12,7 @@ const SLIDES: {
 }[] = [
   {
     title: "Under PKR 50,000",
-    subtitle: "Weekend & shorter northern loops",
+    subtitle: "Heritage weekends & northern valley loops",
     href: "/tours?max=50000",
     image:
       "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80",
