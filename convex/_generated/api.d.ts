@@ -28,6 +28,7 @@ import type * as itineraries from "../itineraries.js";
 import type * as leads from "../leads.js";
 import type * as lib_authHelpers from "../lib/authHelpers.js";
 import type * as lib_countryCodes from "../lib/countryCodes.js";
+import type * as lib_googleMapsEmbed from "../lib/googleMapsEmbed.js";
 import type * as lib_parseTourPdfTemplate from "../lib/parseTourPdfTemplate.js";
 import type * as lib_resolveTourImages from "../lib/resolveTourImages.js";
 import type * as lib_sitesSeed from "../lib/sitesSeed.js";
@@ -76,6 +77,7 @@ declare const fullApi: ApiFromModules<{
   leads: typeof leads;
   "lib/authHelpers": typeof lib_authHelpers;
   "lib/countryCodes": typeof lib_countryCodes;
+  "lib/googleMapsEmbed": typeof lib_googleMapsEmbed;
   "lib/parseTourPdfTemplate": typeof lib_parseTourPdfTemplate;
   "lib/resolveTourImages": typeof lib_resolveTourImages;
   "lib/sitesSeed": typeof lib_sitesSeed;

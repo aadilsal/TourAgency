@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
 import { requireUserFromSession } from "./lib/authHelpers.js";
+import { normalizeGoogleMapsEmbedUrl } from "./lib/googleMapsEmbed.js";
 
 const GLOBAL_SETTINGS_KEY = "global";
 
@@ -126,9 +127,14 @@ export const getPublicSiteSettings = query({
       .query("siteSettings")
       .withIndex("by_key", (q) => q.eq("key", GLOBAL_SETTINGS_KEY))
       .unique();
-    return {
+    const merged = {
       ...envDefaults(),
       ...doc,
+    };
+    const mapsEmbedUrl = normalizeGoogleMapsEmbedUrl(merged.mapsEmbedUrl);
+    return {
+      ...merged,
+      mapsEmbedUrl: mapsEmbedUrl ?? "",
     };
   },
 });
@@ -195,7 +201,8 @@ export const upsertAdminSiteSettings = mutation({
       whatsappPhone: args.whatsappPhone?.trim() || undefined,
       contactEmail: args.contactEmail?.trim() || undefined,
       website: args.website?.trim() || undefined,
-      mapsEmbedUrl: args.mapsEmbedUrl?.trim() || undefined,
+      mapsEmbedUrl:
+        normalizeGoogleMapsEmbedUrl(args.mapsEmbedUrl) || undefined,
       updatedAt: now,
       updatedBy: user._id,
     };

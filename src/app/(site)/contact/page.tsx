@@ -19,6 +19,7 @@ import {
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { GovernmentLicenceText } from "@/components/GovernmentLicenceText";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { normalizeGoogleMapsEmbedUrl } from "@/lib/googleMapsEmbed";
 
 const PHONE = process.env.NEXT_PUBLIC_CONTACT_PHONE ?? "+92 320 9973486";
 const OFFICE_ADDRESS = process.env.NEXT_PUBLIC_OFFICE_ADDRESS ?? "";
@@ -39,7 +40,9 @@ export default function ContactPage() {
   const resolvedPhone = siteSettings?.whatsappPhone?.trim() || PHONE;
   const resolvedEmail = siteSettings?.contactEmail?.trim() || EMAIL;
   const resolvedOfficeAddress = siteSettings?.officeAddress?.trim() || OFFICE_ADDRESS;
-  const resolvedMapEmbedUrl = siteSettings?.mapsEmbedUrl?.trim() || MAPS_EMBED;
+  const resolvedMapEmbedUrl =
+    normalizeGoogleMapsEmbedUrl(siteSettings?.mapsEmbedUrl) ||
+    normalizeGoogleMapsEmbedUrl(MAPS_EMBED);
   const governmentLicenseNo = siteSettings?.governmentLicenseNo?.trim();
   const governmentLicenseNo2 = (
     siteSettings as { governmentLicenseNo2?: string } | undefined

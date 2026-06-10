@@ -12,6 +12,7 @@ import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { GovernmentLicenceText } from "@/components/GovernmentLicenceText";
 import { SiteFooterVisaLink } from "@/components/visa/SiteFooterVisaLink";
+import { normalizeGoogleMapsEmbedUrl } from "@/lib/googleMapsEmbed";
 
 type Props = {
   whatsappUrl: string | null;
@@ -31,6 +32,7 @@ export function SiteFooter({
   governmentLicenseNo2,
 }: Props) {
   const phoneDisplay = contactPhone ?? "";
+  const mapSrc = normalizeGoogleMapsEmbedUrl(mapsEmbedUrl);
   return (
     <footer className="relative mt-auto border-t border-border bg-background text-foreground">
       <PageContainer className="py-16 md:py-20">
@@ -208,12 +210,12 @@ export function SiteFooter({
                 {officeAddress}
               </p>
             ) : null}
-            {mapsEmbedUrl ? (
+            {mapSrc ? (
               <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-havezic-background-light shadow-sm">
                 <iframe
                   title="Office location"
-                  src={mapsEmbedUrl}
-                  className="h-48 w-full max-w-lg"
+                  src={mapSrc}
+                  className="h-48 w-full"
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
                   allowFullScreen
