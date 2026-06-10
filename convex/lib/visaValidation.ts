@@ -21,7 +21,8 @@ export type VisaSubmissionInput = {
   consentGiven: boolean;
 };
 
-const NAME_RE = /^[\p{L}\s'.-]+$/u;
+/** Letters (ASCII + Latin extended), spaces, apostrophe, period, hyphen — no /u flag for TS compat. */
+const NAME_RE = /^[A-Za-z\u00C0-\u024F\s'.-]+$/;
 
 function parseIsoDate(s: string): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
