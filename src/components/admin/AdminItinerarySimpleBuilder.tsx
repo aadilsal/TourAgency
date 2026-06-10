@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
@@ -327,6 +327,7 @@ export function AdminItinerarySimpleBuilder({
   const markFinal = useMutation(api.itineraries.markFinal);
   const generateUploadUrl = useMutation(api.media.generateItineraryImageUploadUrl);
   const addItineraryImageAsset = useMutation(api.media.addItineraryImageAsset);
+  const ingestRemote = useAction(api.mediaActions.ingestImageFromUrl);
 
   const [itineraryId, setItineraryId] = useState<Id<"itineraries"> | null>(
     itineraryIdProp ? (itineraryIdProp as Id<"itineraries">) : null,
@@ -352,6 +353,8 @@ export function AdminItinerarySimpleBuilder({
   const [variantLabel, setVariantLabel] = useState("Customised");
   const [coverSubtitle, setCoverSubtitle] = useState("");
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage"> | null>(null);
+  const [coverUrlInput, setCoverUrlInput] = useState("");
+  const [ingestingRemoteImage, setIngestingRemoteImage] = useState(false);
   const [complianceLine, setComplianceLine] = useState(
     "JunketTours — Government Registered Tourism Company | DTS",
   );
@@ -765,6 +768,26 @@ export function AdminItinerarySimpleBuilder({
     } catch (e) {
       console.warn("Failed to persist coverImageStorageId", e);
     }
+  }
+
+  async function ingestCoverImage(url: string) {
+    if (!canMutate) throw new Error("Not authenticated");
+    if (!itineraryId) throw new Error("Create the draft first.");
+    const folderKey = `itineraries/${String(itineraryId)}`;
+    const storageId = await ingestRemote({ sessionToken, url: url.trim() });
+    try {
+      await addItineraryImageAsset({ sessionToken, itineraryId, folderKey, storageId });
+    } catch (e) {
+      console.warn("Failed to index itinerary image asset", e);
+    }
+    setCoverStorageId(storageId);
+    setCoverUrlInput("");
+    try {
+      await patchDraft({ sessionToken, itineraryId, coverImageStorageId: storageId });
+    } catch (e) {
+      console.warn("Failed to persist coverImageStorageId", e);
+    }
+    return storageId;
   }
 
   const [previewModel, setPreviewModel] = useState<ItineraryPdfModel>(pdfModel);
@@ -1183,7 +1206,7 @@ export function AdminItinerarySimpleBuilder({
                           Map fallback
                         </div>
                       )}
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <input
                           id="cover-upload"
                           type="file"
@@ -1203,6 +1226,36 @@ export function AdminItinerarySimpleBuilder({
                             }
                           }}
                         />
+                        <div className="flex items-center gap-2">
+                          <TextInput
+                            value={coverUrlInput}
+                            onChange={(e) => setCoverUrlInput(e.target.value)}
+                            placeholder="Paste image URL"
+                            className="min-w-[240px]"
+                          />
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            disabled={ingestingRemoteImage || !coverUrlInput.trim()}
+                            onClick={async () => {
+                              if (!coverUrlInput.trim()) return;
+                              setCreatingDraft(true);
+                              setIngestingRemoteImage(true);
+                              try {
+                                await ingestCoverImage(coverUrlInput.trim());
+                                setMsg("Cover image downloaded and saved.");
+                                window.setTimeout(() => setMsg(null), 2000);
+                              } catch (err) {
+                                setMsg(toUserFacingErrorMessage(err));
+                              } finally {
+                                setCreatingDraft(false);
+                                setIngestingRemoteImage(false);
+                              }
+                            }}
+                          >
+                            Download
+                          </Button>
+                        </div>
                         <Button
                           type="button"
                           variant="secondary"

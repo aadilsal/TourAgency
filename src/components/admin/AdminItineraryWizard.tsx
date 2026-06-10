@@ -272,6 +272,7 @@ export function AdminItineraryWizard({
   const exportDocx = useAction(api.documentsActions.exportItineraryDocx);
   const generateUploadUrl = useMutation(api.media.generateItineraryImageUploadUrl);
   const addItineraryImageAsset = useMutation(api.media.addItineraryImageAsset);
+  const ingestRemote = useAction(api.mediaActions.ingestImageFromUrl);
   const resolveUrls = useQuery(
     api.media.resolveStorageIdsForAdmin,
     "skip",
@@ -306,6 +307,8 @@ export function AdminItineraryWizard({
   const [days, setDays] = useState(5);
   const [theme, setTheme] = useState<Theme>("luxury");
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage"> | null>(null);
+  const [dayImageUrlInputs, setDayImageUrlInputs] = useState<Record<number, string>>({});
+  const [ingestingRemoteImage, setIngestingRemoteImage] = useState(false);
   const [tripPresetKey, setTripPresetKey] = useState("");
   const [packagePresetKey, setPackagePresetKey] = useState("");
   const [customTripPresets, setCustomTripPresets] = useState<TripPreset[]>([]);
@@ -574,6 +577,23 @@ export function AdminItineraryWizard({
       console.warn("Failed to index itinerary image asset", e);
     }
     return data.storageId;
+  }
+
+  async function ingestImageFromUrl(url: string): Promise<Id<"_storage">> {
+    if (!canMutate) throw new Error("Not authenticated");
+    if (!itineraryId || !folderKey) throw new Error("Create the draft first.");
+    const storageId = await ingestRemote({ sessionToken, url: url.trim() });
+    try {
+      await addItineraryImageAsset({
+        sessionToken,
+        itineraryId,
+        folderKey,
+        storageId,
+      });
+    } catch (e) {
+      console.warn("Failed to index itinerary image asset", e);
+    }
+    return storageId;
   }
 
   const pdfStorageIds = useMemo(() => {
@@ -1370,45 +1390,47 @@ export function AdminItineraryWizard({
 
             <div>
               <FieldLabel>Cover image (optional)</FieldLabel>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="block w-full text-sm sm:max-w-sm"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (!f) return;
-                    void (async () => {
-                      try {
-                        const id = await uploadOne(f);
-                        setCoverStorageId(id);
-                        queuePatch({ coverImageStorageId: id });
-                      } catch (err) {
-                        setMsg(toUserFacingErrorMessage(err));
-                      } finally {
-                        e.target.value = "";
-                      }
-                    })();
-                  }}
-                />
-                {existingAssets?.length ? (
-                  <SelectField
-                    value={coverStorageId ?? ""}
+              <div className="mt-2 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="block w-full text-sm sm:max-w-sm"
                     onChange={(e) => {
-                      const v = e.target.value;
-                      const id = v ? (v as Id<"_storage">) : null;
-                      setCoverStorageId(id);
-                      if (id) queuePatch({ coverImageStorageId: id });
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      void (async () => {
+                        try {
+                          const id = await uploadOne(f);
+                          setCoverStorageId(id);
+                          queuePatch({ coverImageStorageId: id });
+                        } catch (err) {
+                          setMsg(toUserFacingErrorMessage(err));
+                        } finally {
+                          e.target.value = "";
+                        }
+                      })();
                     }}
-                  >
-                    <option value="">Choose existing…</option>
-                    {existingAssets.map((a) => (
-                      <option key={a.storageId} value={a.storageId}>
-                        {a.storageId}
-                      </option>
-                    ))}
-                  </SelectField>
-                ) : null}
+                  />
+                  {existingAssets?.length ? (
+                    <SelectField
+                      value={coverStorageId ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        const id = v ? (v as Id<"_storage">) : null;
+                        setCoverStorageId(id);
+                        if (id) queuePatch({ coverImageStorageId: id });
+                      }}
+                    >
+                      <option value="">Choose existing…</option>
+                      {existingAssets.map((a) => (
+                        <option key={a.storageId} value={a.storageId}>
+                          {a.storageId}
+                        </option>
+                      ))}
+                    </SelectField>
+                  ) : null}
+                </div>
               </div>
               {coverStorageId ? (
                 <div className="mt-2">
@@ -1827,17 +1849,39 @@ export function AdminItineraryWizard({
 
                   <div className="mt-3">
                     <FieldLabel>Day image (optional)</FieldLabel>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="block w-full text-sm sm:max-w-sm"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (!f) return;
-                          void (async () => {
-                            try {
-                              const id = await uploadOne(f);
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="block w-full text-sm sm:max-w-sm"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (!f) return;
+                            void (async () => {
+                              try {
+                                const id = await uploadOne(f);
+                                setDayPlans((prev) => {
+                                  const next = prev.map((x) =>
+                                    x.dayNumber === d.dayNumber ? { ...x, imageStorageId: id } : x,
+                                  );
+                                  queuePatch({ dayPlans: next });
+                                  return next;
+                                });
+                              } catch (err) {
+                                setMsg(toUserFacingErrorMessage(err));
+                              } finally {
+                                e.target.value = "";
+                              }
+                            })();
+                          }}
+                        />
+                        {existingAssets?.length ? (
+                          <SelectField
+                            value={d.imageStorageId ?? ""}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              const id = v ? (v as Id<"_storage">) : undefined;
                               setDayPlans((prev) => {
                                 const next = prev.map((x) =>
                                   x.dayNumber === d.dayNumber ? { ...x, imageStorageId: id } : x,
@@ -1845,37 +1889,59 @@ export function AdminItineraryWizard({
                                 queuePatch({ dayPlans: next });
                                 return next;
                               });
+                            }}
+                          >
+                            <option value="">Choose existing…</option>
+                            {existingAssets.map((a) => (
+                              <option key={a.storageId} value={a.storageId}>
+                                {a.storageId}
+                              </option>
+                            ))}
+                          </SelectField>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <TextInput
+                          value={dayImageUrlInputs[d.dayNumber] ?? ""}
+                          onChange={(e) =>
+                            setDayImageUrlInputs((prev) => ({
+                              ...prev,
+                              [d.dayNumber]: e.target.value,
+                            }))
+                          }
+                          placeholder="Paste image URL"
+                          className="min-w-[240px]"
+                        />
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={ingestingRemoteImage || !(dayImageUrlInputs[d.dayNumber]?.trim())}
+                          onClick={async () => {
+                            const url = dayImageUrlInputs[d.dayNumber]?.trim();
+                            if (!url) return;
+                            setIngestingRemoteImage(true);
+                            try {
+                              const id = await ingestImageFromUrl(url);
+                              setDayPlans((prev) => {
+                                const next = prev.map((x) =>
+                                  x.dayNumber === d.dayNumber ? { ...x, imageStorageId: id } : x,
+                                );
+                                queuePatch({ dayPlans: next });
+                                return next;
+                              });
+                              setDayImageUrlInputs((prev) => ({ ...prev, [d.dayNumber]: "" }));
+                              setMsg("Day image downloaded and saved.");
+                              window.setTimeout(() => setMsg(null), 2000);
                             } catch (err) {
                               setMsg(toUserFacingErrorMessage(err));
                             } finally {
-                              e.target.value = "";
+                              setIngestingRemoteImage(false);
                             }
-                          })();
-                        }}
-                      />
-                      {existingAssets?.length ? (
-                        <SelectField
-                          value={d.imageStorageId ?? ""}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            const id = v ? (v as Id<"_storage">) : undefined;
-                            setDayPlans((prev) => {
-                              const next = prev.map((x) =>
-                                x.dayNumber === d.dayNumber ? { ...x, imageStorageId: id } : x,
-                              );
-                              queuePatch({ dayPlans: next });
-                              return next;
-                            });
                           }}
                         >
-                          <option value="">Choose existing…</option>
-                          {existingAssets.map((a) => (
-                            <option key={a.storageId} value={a.storageId}>
-                              {a.storageId}
-                            </option>
-                          ))}
-                        </SelectField>
-                      ) : null}
+                          Download
+                        </Button>
+                      </div>
                     </div>
                     {d.imageStorageId ? (
                       <div className="mt-2">
