@@ -9,14 +9,14 @@ import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
-import {
-  TOUR_TYPE_OPTIONS,
-  type TourTypeFilter,
-} from "@/lib/tour-filters";
+import { TOUR_TYPE_OPTIONS } from "@/lib/tour-filters";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
+import { TourPdfImportButton } from "@/components/admin/TourPdfImportButton";
 import { asBoolean, asJson, asNumber, asString, asStringArray } from "@/lib/bulkUpload/coerce";
 import { importInBatches } from "@/lib/bulkUpload/importInBatches";
+import type { TourPdfImportDraft } from "@/lib/tourPdf/types";
+import { parseTourType, type TourTypeFilter } from "@/lib/tour-filters";
 
 type TourTicketGroup = {
   label: string;
@@ -190,6 +190,7 @@ export function AdminToursPanel() {
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [pdfImportWarnings, setPdfImportWarnings] = useState<string[]>([]);
   /** `blob:` URLs for files being uploaded (key = temporary ref in `imageRefs`). */
   const [pendingFilePreviews, setPendingFilePreviews] = useState<
     Record<string, string>
@@ -233,8 +234,70 @@ export function AdminToursPanel() {
       : "skip",
   );
 
+  function openFromPdfDraft(draft: TourPdfImportDraft) {
+    clearAllPendingPreviews();
+    setEditingId(null);
+    setTitle(draft.title);
+    setSlug(draft.slug);
+    setDescription(draft.description);
+    setTypes(
+      draft.types
+        .map((t) => parseTourType(t))
+        .filter((t): t is TourTypeFilter => t !== null),
+    );
+    setDestinationIds(
+      draft.destinationSlugs
+        .map((slug) => destinations?.find((d) => d.slug === slug)?._id)
+        .filter((id): id is NonNullable<typeof id> => Boolean(id)),
+    );
+    setProvinceIds(
+      draft.provinceSlugs
+        .map((slug) => provinces?.find((p) => p.slug === slug)?._id)
+        .filter((id): id is NonNullable<typeof id> => Boolean(id)),
+    );
+    setDurationDays(draft.durationDays);
+    setLocation(draft.location);
+    setMaxPeople(typeof draft.maxPeople === "number" ? draft.maxPeople : "");
+    setMinAge(typeof draft.minAge === "number" ? draft.minAge : "");
+    setTourTypeLabel(draft.tourTypeLabel ?? "Heritage & Culture tours");
+    setRatingAvg("");
+    setReviewsCount("");
+    setOffice(fallbackOffice());
+    setEmail(fallbackEmail(draft.slug || draft.title));
+    setImageRefs([]);
+    setUrlIngestInput("");
+    setPathsInput("");
+    setItineraryJson(JSON.stringify(draft.itinerary, null, 2));
+    setHighlightsInput(draft.highlights.join("\n"));
+    setIncludedInput(draft.included.join("\n"));
+    setExcludedInput(draft.excluded.join("\n"));
+    setTimeSlotsInput(
+      Array.isArray(draft.timeSlots) && draft.timeSlots.length > 0
+        ? draft.timeSlots.join("\n")
+        : "08:00\n10:00\n12:00",
+    );
+    setTicketGroupsInput(
+      Array.isArray(draft.ticketGroups) && draft.ticketGroups.length > 0
+        ? draft.ticketGroups
+            .map((g) =>
+              g.ageRange ? `${g.label} (${g.ageRange})` : String(g.label),
+            )
+            .join("\n")
+        : "Adult (18+)\nYouth (13-17)\nChildren (0-12)",
+    );
+    setIsActive(false);
+    setPdfImportWarnings(draft.warnings);
+    setMsg(
+      draft.enrichedByLlm
+        ? "Imported from PDF — review fields, add price & images, then save."
+        : "Imported from PDF (rules only) — review slug, description, and destinations.",
+    );
+    setModalOpen(true);
+  }
+
   function openNew() {
     clearAllPendingPreviews();
+    setPdfImportWarnings([]);
     setEditingId(null);
     setTitle("");
     setSlug("");
@@ -267,6 +330,7 @@ export function AdminToursPanel() {
 
   function openEdit(t: TourDoc) {
     clearAllPendingPreviews();
+    setPdfImportWarnings([]);
     setEditingId(t._id);
     setTitle(t.title);
     setSlug(t.slug);
@@ -599,6 +663,12 @@ export function AdminToursPanel() {
           <Plus className="h-4 w-4" aria-hidden />
           Add tour
         </Button>
+        <TourPdfImportButton
+          sessionToken={sessionToken}
+          disabled={!hasConvexSessionToken}
+          onDraft={openFromPdfDraft}
+          onError={setMsg}
+        />
         <Button type="button" variant="secondary" onClick={() => setBulkOpen(true)}>
           Bulk upload
         </Button>
@@ -730,6 +800,16 @@ export function AdminToursPanel() {
         panelClassName="max-w-2xl"
       >
         <form onSubmit={onSubmit} className="space-y-3">
+          {pdfImportWarnings.length > 0 ? (
+            <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950">
+              <p className="font-semibold">PDF import checklist</p>
+              <ul className="mt-1 list-inside list-disc text-sky-900">
+                {pdfImportWarnings.map((w) => (
+                  <li key={w}>{w}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {msg && modalOpen ? (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
               {msg}

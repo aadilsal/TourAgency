@@ -17,6 +17,7 @@ import {
   FileText,
   Settings,
   HelpCircle,
+  Stamp,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -60,6 +61,11 @@ export function AdminSidebar({
         links: [
           { href: "/admin/bookings", label: "Customisation", icon: CalendarCheck },
           { href: "/admin/contact", label: "Leads", icon: MessageSquare },
+          {
+            href: "/admin/visa-invitations",
+            label: "Visa invitations",
+            icon: Stamp,
+          },
         ],
       },
       {

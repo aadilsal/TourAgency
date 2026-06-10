@@ -11,6 +11,7 @@ import {
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { GovernmentLicenceText } from "@/components/GovernmentLicenceText";
+import { SiteFooterVisaLink } from "@/components/visa/SiteFooterVisaLink";
 
 type Props = {
   whatsappUrl: string | null;
@@ -119,6 +120,9 @@ export function SiteFooter({
                   <PhoneCall className="h-4 w-4 shrink-0 opacity-80" />
                   Contact us
                 </Link>
+              </li>
+              <li>
+                <SiteFooterVisaLink />
               </li>
             </ul>
           </div>

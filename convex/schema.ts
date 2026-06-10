@@ -697,4 +697,41 @@ export default defineSchema({
 
     updatedAt: v.number(),
   }).index("by_key", ["key"]),
+
+  /** Tourist visa invitation letter requests (multi-traveler). */
+  visaInvitationRequests: defineTable({
+    contactName: v.string(),
+    contactEmail: v.string(),
+    contactPhone: v.string(),
+    contactPhoneNormalized: v.string(),
+    travelers: v.array(
+      v.object({
+        name: v.string(),
+        sex: v.union(
+          v.literal("male"),
+          v.literal("female"),
+          v.literal("other"),
+        ),
+        nationalityCode: v.string(),
+        nationalityLabel: v.string(),
+        dateOfBirth: v.string(),
+        passportNumber: v.string(),
+        passportIssueDate: v.string(),
+        passportExpiryDate: v.string(),
+      }),
+    ),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("processed"),
+      v.literal("rejected"),
+    ),
+    consentGiven: v.boolean(),
+    adminNote: v.optional(v.string()),
+    reviewedAt: v.optional(v.number()),
+    reviewedBy: v.optional(v.id("users")),
+    createdAt: v.number(),
+  })
+    .index("by_status", ["status"])
+    .index("by_created", ["createdAt"])
+    .index("by_contact_email", ["contactEmail"]),
 });

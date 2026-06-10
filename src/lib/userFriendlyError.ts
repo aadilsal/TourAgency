@@ -46,6 +46,15 @@ const EXACT: Record<string, string> = {
     "Check each day in your itinerary JSON has a title and description.",
   "no storageid from upload":
     "Upload didn’t complete properly. Try again or use a smaller image.",
+  "pdf file is empty": "That PDF file is empty. Choose a different file.",
+  "pdf data is empty": "That PDF upload didn’t come through. Try again.",
+  "invalid pdf upload encoding": "That PDF couldn’t be read. Try uploading again.",
+  "no text found in pdf. scanned/image-only pdfs are not supported":
+    "This PDF has no readable text. Export a text-based PDF (not a scan).",
+  "could not find tour title. expected format: \"n days trip to …\"":
+    "This PDF doesn’t match the expected tour format. Check the title line.",
+  "no day itinerary found (expected day 01:, day 02:, …)":
+    "No day-by-day itinerary found in the PDF. Check the Day 01, Day 02 sections.",
 };
 
 const PREFIXES: { test: (s: string) => boolean; message: string }[] = [
@@ -70,6 +79,15 @@ const PREFIXES: { test: (s: string) => boolean; message: string }[] = [
   {
     test: (s) => s.includes("storageid"),
     message: "Upload didn’t finish correctly. Try again.",
+  },
+  {
+    test: (s) => s.includes("pdf is too large"),
+    message: "That PDF is too large. Use a file under 8 MB.",
+  },
+  {
+    test: (s) => s.includes("no text found in pdf"),
+    message:
+      "This PDF has no readable text. Export a text-based PDF (not a scan).",
   },
   {
     test: (s) => s.includes("convex") && s.includes("failed"),

@@ -247,3 +247,81 @@ export const sendCustomItineraryStatusUpdate = internalAction({
     }
   },
 });
+
+function formatSex(sex: string): string {
+  if (sex === "male") return "Male";
+  if (sex === "female") return "Female";
+  return "Other";
+}
+
+export const sendVisaInvitationNotification = internalAction({
+  args: { requestId: v.id("visaInvitationRequests") },
+  handler: async (ctx, { requestId }) => {
+    const req = await ctx.runQuery(internal.visaInvitations.getRequestDoc, {
+      id: requestId,
+    });
+    if (!req) return;
+
+    const resend = getResend();
+    const to = process.env.ADMIN_NOTIFICATION_EMAIL;
+    if (!resend || !to) return;
+
+    const travelerRows = req.travelers
+      .map(
+        (t) =>
+          `<tr>
+            <td style="padding:8px;border:1px solid #e2e8f0;">${esc(t.name)}</td>
+            <td style="padding:8px;border:1px solid #e2e8f0;">${esc(formatSex(t.sex))}</td>
+            <td style="padding:8px;border:1px solid #e2e8f0;">${esc(t.nationalityLabel)}</td>
+            <td style="padding:8px;border:1px solid #e2e8f0;">${esc(t.dateOfBirth)}</td>
+            <td style="padding:8px;border:1px solid #e2e8f0;">${esc(t.passportNumber)}</td>
+            <td style="padding:8px;border:1px solid #e2e8f0;">${esc(t.passportIssueDate)}</td>
+            <td style="padding:8px;border:1px solid #e2e8f0;">${esc(t.passportExpiryDate)}</td>
+          </tr>`,
+      )
+      .join("");
+
+    const adminHtml = `<p style="font-size:16px;margin:0 0 12px;"><strong>New visa invitation request</strong></p>
+      <p style="margin:0 0 4px;"><strong>Contact:</strong> ${esc(req.contactName)}</p>
+      <p style="margin:0 0 4px;">Email: ${esc(req.contactEmail)}</p>
+      <p style="margin:0 0 12px;">Phone: ${esc(req.contactPhone)}</p>
+      <p style="margin:0 0 8px;"><strong>Travelers (${req.travelers.length})</strong></p>
+      <table style="border-collapse:collapse;width:100%;font-size:14px;margin:0 0 16px;">
+        <thead>
+          <tr style="background:#f8fafc;">
+            <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">Name</th>
+            <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">Sex</th>
+            <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">Nationality</th>
+            <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">DOB</th>
+            <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">Passport</th>
+            <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">Issue</th>
+            <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;">Expiry</th>
+          </tr>
+        </thead>
+        <tbody>${travelerRows}</tbody>
+      </table>
+      <p><a href="${esc(process.env.APP_BASE_URL ?? "")}/admin/visa-invitations">Open admin</a></p>`;
+
+    await resend.emails.send({
+      from: process.env.RESEND_FROM ?? "JunketTours <onboarding@resend.dev>",
+      to: [to],
+      subject: `New visa invitation request — ${req.contactName} (${req.travelers.length} traveler${req.travelers.length === 1 ? "" : "s"})`,
+      html: adminHtml,
+    });
+
+    const clientEmail = req.contactEmail.trim();
+    if (clientEmail) {
+      const clientHtml = `<p style="font-size:16px;margin:0 0 12px;">Hi ${esc(req.contactName.split(" ")[0] || req.contactName)},</p>
+        <p style="margin:0 0 12px;">We&apos;ve received your tourist visa invitation request for <strong>${req.travelers.length}</strong> traveler${req.travelers.length === 1 ? "" : "s"}.</p>
+        <p style="margin:0 0 12px;">Our licensed team will review your details and contact you within 24–48 hours to prepare your invitation letter.</p>
+        <p style="margin:0;color:#64748b;font-size:14px;">— JunketTours</p>`;
+
+      await resend.emails.send({
+        from: process.env.RESEND_FROM ?? "JunketTours <onboarding@resend.dev>",
+        to: [clientEmail],
+        subject: "We received your visa invitation request — JunketTours",
+        html: clientHtml,
+      });
+    }
+  },
+});

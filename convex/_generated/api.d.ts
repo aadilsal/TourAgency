@@ -27,9 +27,12 @@ import type * as invoices from "../invoices.js";
 import type * as itineraries from "../itineraries.js";
 import type * as leads from "../leads.js";
 import type * as lib_authHelpers from "../lib/authHelpers.js";
+import type * as lib_countryCodes from "../lib/countryCodes.js";
+import type * as lib_parseTourPdfTemplate from "../lib/parseTourPdfTemplate.js";
 import type * as lib_resolveTourImages from "../lib/resolveTourImages.js";
 import type * as lib_sitesSeed from "../lib/sitesSeed.js";
 import type * as lib_syncTourImageAssets from "../lib/syncTourImageAssets.js";
+import type * as lib_visaValidation from "../lib/visaValidation.js";
 import type * as media from "../media.js";
 import type * as mediaActions from "../mediaActions.js";
 import type * as migrations from "../migrations.js";
@@ -39,8 +42,11 @@ import type * as seed from "../seed.js";
 import type * as siteSettings from "../siteSettings.js";
 import type * as sites from "../sites.js";
 import type * as team from "../team.js";
+import type * as tourPdfImport from "../tourPdfImport.js";
+import type * as tourPdfImportCatalog from "../tourPdfImportCatalog.js";
 import type * as tours from "../tours.js";
 import type * as users from "../users.js";
+import type * as visaInvitations from "../visaInvitations.js";
 import type * as whatsapp from "../whatsapp.js";
 
 import type {
@@ -69,9 +75,12 @@ declare const fullApi: ApiFromModules<{
   itineraries: typeof itineraries;
   leads: typeof leads;
   "lib/authHelpers": typeof lib_authHelpers;
+  "lib/countryCodes": typeof lib_countryCodes;
+  "lib/parseTourPdfTemplate": typeof lib_parseTourPdfTemplate;
   "lib/resolveTourImages": typeof lib_resolveTourImages;
   "lib/sitesSeed": typeof lib_sitesSeed;
   "lib/syncTourImageAssets": typeof lib_syncTourImageAssets;
+  "lib/visaValidation": typeof lib_visaValidation;
   media: typeof media;
   mediaActions: typeof mediaActions;
   migrations: typeof migrations;
@@ -81,8 +90,11 @@ declare const fullApi: ApiFromModules<{
   siteSettings: typeof siteSettings;
   sites: typeof sites;
   team: typeof team;
+  tourPdfImport: typeof tourPdfImport;
+  tourPdfImportCatalog: typeof tourPdfImportCatalog;
   tours: typeof tours;
   users: typeof users;
+  visaInvitations: typeof visaInvitations;
   whatsapp: typeof whatsapp;
 }>;
 

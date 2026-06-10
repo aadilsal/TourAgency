@@ -85,6 +85,11 @@ export function AdminDashboardClient({ role }: Props) {
               View leads
             </Button>
           </Link>
+          <Link href="/admin/visa-invitations">
+            <Button type="button" variant="secondary" className="!px-3 !py-2 !text-xs">
+              Visa invitations
+            </Button>
+          </Link>
           <Link href="/admin/analytics">
             <Button type="button" variant="primary" className="!px-3 !py-2 !text-xs">
               Analytics
@@ -154,7 +159,12 @@ export function AdminDashboardClient({ role }: Props) {
               <p className="mt-2 text-3xl font-bold tabular-nums text-foreground">
                 {kpis?.pendingBookings ?? 0}
               </p>
-              <p className="mt-1 text-xs text-muted">Bookings awaiting review</p>
+              <p className="mt-1 text-xs text-muted">
+                Bookings awaiting review
+                {(kpis?.pendingVisaInvitations ?? 0) > 0
+                  ? ` · ${kpis?.pendingVisaInvitations} visa`
+                  : ""}
+              </p>
             </div>
             <span className={cn("rounded-xl p-2.5", kpiIconWrapClass("violet"))}>
               <ListChecks className="h-6 w-6" aria-hidden />

@@ -56,6 +56,7 @@ export const getAdminDashboardSnapshot = query({
       userBookings,
       leads,
       customPlans,
+      visaInvitations,
       tours,
       blogPosts,
       users,
@@ -64,6 +65,7 @@ export const getAdminDashboardSnapshot = query({
       ctx.db.query("bookings").collect(),
       ctx.db.query("leads").collect(),
       ctx.db.query("customItineraryRequests").collect(),
+      ctx.db.query("visaInvitationRequests").collect(),
       ctx.db.query("tours").collect(),
       ctx.db.query("blogPosts").collect(),
       includeAdmins ? ctx.db.query("users").collect() : Promise.resolve([]),
@@ -168,6 +170,10 @@ export const getAdminDashboardSnapshot = query({
         createdAt: r.createdAt,
       }));
 
+    const pendingVisaInvitations = visaInvitations.filter(
+      (r) => r.status === "pending",
+    ).length;
+
     const activeTours = tours.filter((t) => t.isActive).length;
     const inactiveTours = tours.length - activeTours;
 
@@ -197,6 +203,7 @@ export const getAdminDashboardSnapshot = query({
         revenuePkr: revenue30d,
         pendingBookings,
         pendingCustomPlans: pendingCustomPlans30d,
+        pendingVisaInvitations,
       },
       recent: {
         pendingBookings: recentPendingBookings,

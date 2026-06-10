@@ -29,6 +29,7 @@ import { blogCoverImage } from "@/lib/blog-covers";
 import { SceneCut } from "@/components/ui/SceneCut";
 import { ScrollyJourneyReelLazy } from "./ScrollyJourneyReelLazy";
 import { NewsletterSection } from "@/components/landing/havezic/NewsletterSection";
+import { VisaInvitationSection } from "@/components/visa/VisaInvitationSection";
 import { getHomepageDestinations } from "@/lib/destinations-data";
 
 type BlogPostInput = {
@@ -261,6 +262,9 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
 
       <SceneCut />
       <TestimonialsCarousel />
+
+      <SceneCut />
+      <VisaInvitationSection />
 
       <SceneCut />
       <NewsletterSection />
