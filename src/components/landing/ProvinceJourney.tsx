@@ -68,8 +68,10 @@ export function ProvinceJourney() {
     <section aria-label="Journey through Pakistan's provinces">
       <PageContainer>
         <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] lg:gap-12">
-          {/* Sticky map */}
-          <div className="sticky top-16 z-10 h-[42vh] min-h-[260px] self-start lg:top-24 lg:h-[calc(100vh-8rem)]">
+          {/* Map: a compact intro on mobile, sticky beside the cards on desktop.
+              (A sticky grid item can't travel within its own single-column row,
+              so mobile stays non-sticky by design.) */}
+          <div className="relative h-[38vh] min-h-[240px] lg:sticky lg:top-24 lg:h-[calc(100vh-8rem)]">
             <div
               className="relative h-full overflow-hidden rounded-3xl ring-1 ring-black/10 transition-colors duration-700"
               style={{
@@ -120,7 +122,7 @@ export function ProvinceJourney() {
                         type="button"
                         onClick={() => scrollToCard(i)}
                         aria-label={`Go to ${p.name}`}
-                        className="absolute -translate-x-1/2 -translate-y-1/2"
+                        className="absolute flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center"
                         style={{ left: `${pos.left}%`, top: `${pos.top}%` }}
                       >
                         <span className="relative flex items-center justify-center">
@@ -162,7 +164,7 @@ export function ProvinceJourney() {
                   className="h-11 w-11 shrink-0 rounded-lg object-cover md:h-12 md:w-12"
                 />
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-havezic-primary">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
                     {activeProvince.scrollyEyebrow}
                   </p>
                   <p className="truncate text-sm font-semibold text-slate-900">
@@ -185,11 +187,11 @@ export function ProvinceJourney() {
                   cardRefs.current[i] = el;
                 }}
                 data-idx={i}
-                className="flex min-h-[68vh] items-center py-8"
+                className="flex items-center py-6 lg:min-h-[68vh] lg:py-8"
               >
                 <div
                   className={cn(
-                    "w-full rounded-3xl border bg-panel p-6 shadow-sm transition-all duration-500 md:p-8",
+                    "w-full rounded-3xl border bg-panel p-6 shadow-sm transition duration-500 md:p-8",
                     i === active
                       ? "border-transparent shadow-xl"
                       : "border-border opacity-70",
@@ -209,10 +211,7 @@ export function ProvinceJourney() {
                       loading="lazy"
                     />
                   </div>
-                  <p
-                    className="text-xs font-bold uppercase tracking-[0.22em]"
-                    style={{ color: p.palette.accent }}
-                  >
+                  <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-700">
                     {p.scrollyEyebrow}
                   </p>
                   <h3 className="mt-2 text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
@@ -244,7 +243,7 @@ export function ProvinceJourney() {
                   ) : null}
                   <Link
                     href={`/guides/${p.slug}`}
-                    className="mt-6 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white transition hover:brightness-110"
+                    className="mt-6 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-slate-900 shadow-sm ring-1 ring-black/10 transition hover:brightness-95"
                     style={{ backgroundColor: p.palette.accent }}
                   >
                     Explore {p.name} guide

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { api } from "@convex/_generated/api";
 import type { Metadata } from "next";
 import nextDynamic from "next/dynamic";
@@ -10,39 +11,38 @@ import type { Id } from "@convex/_generated/dataModel";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import type { TourCardData } from "@/components/shared/TourCard";
-import { Clock, MapPin, Star } from "lucide-react";
+import {
+  Clock,
+  Users,
+  Star,
+  ChevronRight,
+  Check,
+  X as XIcon,
+  MapPin,
+  Utensils,
+} from "lucide-react";
 import { TourDetailTabs } from "@/components/tours/TourDetailTabs";
 import { TourReviews } from "@/components/tours/TourReviews";
 import { TourItineraryAccordion } from "@/components/tours/TourItineraryAccordion";
+import { TourHeroGallery } from "@/components/tours/TourHeroGallery";
 import { loadTourBySlug } from "@/lib/tours-server";
 import { getConvexServer } from "@/lib/convex-server";
 import { getServerCurrency } from "@/lib/currency-server";
 import { formatTourPrice, getTourUnitPrice, tourHasPrice } from "@/lib/tourPricing";
-import { Users } from "lucide-react";
-import Image from "next/image";
 
 function lazyBlock(label: string, minH: string) {
   function LoadingBlock() {
     return (
       <div
-        className={`flex ${minH} items-center justify-center rounded-2xl border border-white/10 bg-white/5`}
+        className={`flex ${minH} items-center justify-center rounded-2xl border border-border bg-panel`}
       >
-        <PageLoadingSpinner label={label} variant="dark" size="sm" />
+        <PageLoadingSpinner label={label} size="sm" />
       </div>
     );
   }
-
   LoadingBlock.displayName = `LoadingBlock(${label})`;
   return LoadingBlock;
 }
-
-const TourImageGallery = nextDynamic(
-  () =>
-    import("@/components/TourImageGallery").then((m) => ({
-      default: m.TourImageGallery,
-    })),
-  { loading: lazyBlock("Loading gallery…", "min-h-[220px]"), ssr: false },
-);
 
 const TourStickyBooking = nextDynamic(
   () =>
@@ -65,10 +65,7 @@ const TourDetailRelatedCarousel = nextDynamic(
     import("@/components/tours/TourDetailRelatedCarousel").then((m) => ({
       default: m.TourDetailRelatedCarousel,
     })),
-  {
-    loading: lazyBlock("Loading related tours…", "min-h-[160px]"),
-    ssr: false,
-  },
+  { loading: lazyBlock("Loading related tours…", "min-h-[160px]"), ssr: false },
 );
 
 export const dynamic = "force-dynamic";
@@ -85,6 +82,8 @@ type TourDetail = {
   location: string;
   maxPeople?: number;
   minAge?: number;
+  tourTypeLabel?: string;
+  types?: string[];
   ratingAvg?: number;
   reviewsCount?: number;
   highlights?: string[];
@@ -100,9 +99,7 @@ type Props = { params: { slug: string } };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const tour = await loadTourBySlug(params.slug);
-    if (!tour || !tour.isActive) {
-      return { title: "Tour" };
-    }
+    if (!tour || !tour.isActive) return { title: "Tour" };
     const base = getSiteUrl();
     return {
       title: tour.title,
@@ -118,11 +115,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-function tourBadge(slug: string): "Popular" | "Limited slots" | "Guest favorite" {
-  const h = slug.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
-  if (h % 3 === 0) return "Popular";
-  if (h % 3 === 1) return "Limited slots";
-  return "Guest favorite";
+/** Extract a clean place name from a day title, for Start/End facts. */
+function cleanPlace(raw: string, takeLast = false): string {
+  const base = raw.replace(/^\s*day\s*\d+\s*[:.\-]?\s*/i, "").trim();
+  const parts = base
+    .split(/\s*(?:-|–|—|→|\bto\b|,|&)\s*/i)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const pick = takeLast ? parts[parts.length - 1] : parts[0];
+  const cleaned = (pick || base)
+    .replace(/\b(explore|arrive in|arrive|arrival|departure|depart|drive|travel|visit|day)\b/gi, "")
+    .trim();
+  return (cleaned || base).slice(0, 32);
 }
 
 export default async function TourDetailPage({ params }: Props) {
@@ -158,7 +162,6 @@ export default async function TourDetailPage({ params }: Props) {
     images: t.images,
   }));
 
-  const badge = tourBadge(tour.slug);
   const currency = getServerCurrency();
   const bookable = tourHasPrice(tour);
   const priceLabel = formatTourPrice(tour, currency);
@@ -169,26 +172,30 @@ export default async function TourDetailPage({ params }: Props) {
     typeof tour.reviewsCount === "number" &&
     tour.reviewsCount > 0;
 
+  const startCity = tour.itinerary[0]
+    ? cleanPlace(tour.itinerary[0].title)
+    : tour.location;
+  const endCity = tour.itinerary.length
+    ? cleanPlace(tour.itinerary[tour.itinerary.length - 1]!.title, true)
+    : tour.location;
+
   const highlights =
-    tour.highlights && tour.highlights.length > 0
-      ? tour.highlights
-      : [
-          "Handpicked viewpoints and photo stops",
-          "Comfortable private transport",
-          "Flexible pacing with local guidance",
-        ];
+    tour.highlights && tour.highlights.length > 0 ? tour.highlights : [];
   const included =
-    tour.included && tour.included.length > 0
-      ? tour.included
-      : [
-          "24/7 Expert assistance",
-          "Professional driver",
-          "Fuel, tolls & road taxes",
-          "Hotel pickup & drop off",
-        ];
+    tour.included && tour.included.length > 0 ? tour.included : [];
+  const excluded =
+    tour.excluded && tour.excluded.length > 0 ? tour.excluded : [];
+  const tripCode = tour.slug.replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase();
+
+  const tabs = [
+    { id: "overview", label: "About the trip" },
+    { id: "tour-plan", label: "Itinerary" },
+    { id: "inclusions", label: "Inclusions" },
+    { id: "reviews", label: "Reviews" },
+  ];
 
   return (
-    <main className="min-h-screen pb-28 lg:pb-20">
+    <main className="min-h-screen pb-28 lg:pb-16">
       <TourJsonLd tour={tour} />
       <BreadcrumbJsonLd
         items={[
@@ -197,203 +204,297 @@ export default async function TourDetailPage({ params }: Props) {
           { name: tour.title, path: `/tours/${tour.slug}` },
         ]}
       />
-      <PageContainer className="py-8 md:py-12">
-        {/* Header — full width */}
-        <header className="mb-8 md:mb-10">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-havezic-background-light px-3 py-1 text-xs font-bold uppercase tracking-wide text-havezic-primary ring-1 ring-border">
-              {badge}
-            </span>
+
+      <PageContainer className="py-6 md:py-8">
+        {/* Breadcrumb */}
+        <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted" aria-label="Breadcrumb">
+          <Link href="/" className="hover:text-havezic-primary">Home</Link>
+          <ChevronRight className="h-3.5 w-3.5 opacity-60" aria-hidden />
+          <Link href="/tours" className="hover:text-havezic-primary">Tours</Link>
+          <ChevronRight className="h-3.5 w-3.5 opacity-60" aria-hidden />
+          <span className="font-semibold text-foreground">{tour.title}</span>
+        </nav>
+
+        <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl">
+          {tour.title}
+        </h1>
+
+        {/* Hero + facts card */}
+        <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-10">
+          <div className="lg:col-span-2">
+            <TourHeroGallery images={tour.images} title={tour.title} />
+
+            <section id="overview" className="mt-8 scroll-mt-28">
+              {tour.description.split("\n").filter(Boolean)[0] ? (
+                <p className="text-lg font-semibold text-foreground">
+                  {tour.description.split("\n").filter(Boolean)[0]}
+                </p>
+              ) : null}
+              <div className="mt-2 whitespace-pre-wrap leading-relaxed text-muted">
+                {tour.description.split("\n").filter(Boolean).slice(1).join("\n") ||
+                  tour.description}
+              </div>
+            </section>
           </div>
-          <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl">
-            {tour.title}
-          </h1>
-          <p className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-base text-muted md:text-lg">
-            <span className="inline-flex items-center gap-1.5 font-medium">
-              <MapPin
-                className="h-5 w-5 shrink-0 text-havezic-primary"
-                aria-hidden
-              />
-              {tour.location}
-            </span>
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-sm font-medium text-foreground backdrop-blur-sm">
-              <Clock className="h-4 w-4 text-havezic-primary" aria-hidden />
-              {tour.durationDays} days
-            </span>
-            {typeof tour.maxPeople === "number" && tour.maxPeople > 0 ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-sm font-medium text-foreground backdrop-blur-sm">
-                <Users className="h-4 w-4 text-havezic-primary" aria-hidden />
-                Up to {tour.maxPeople} guests
-              </span>
-            ) : null}
-            {hasRating ? (
-              <a
-                href="#reviews"
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-sm font-medium text-foreground backdrop-blur-sm hover:border-border-strong"
-              >
-                <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
-                {tour.ratingAvg!.toFixed(1)} · {tour.reviewsCount} review
-                {tour.reviewsCount === 1 ? "" : "s"}
-              </a>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-sm font-medium text-foreground backdrop-blur-sm">
-                <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
-                Highly rated experiences
-              </span>
-            )}
-            {bookable && priceLabel ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-havezic-primary/30 bg-havezic-primary/10 px-3 py-1.5 text-sm font-semibold text-havezic-primary backdrop-blur-sm">
-                From {priceLabel} / person
-              </span>
-            ) : null}
-          </div>
-        </header>
 
-        {/* Gallery — full width */}
-        <TourImageGallery images={tour.images} title={tour.title} />
+          {/* Facts card */}
+          <aside className="lg:col-span-1">
+            <div className="rounded-2xl border border-border bg-panel p-6 shadow-sm lg:sticky lg:top-24">
+              {hasRating ? (
+                <a href="#reviews" className="flex items-center gap-2 text-sm">
+                  <Star className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
+                  <span className="text-lg font-bold text-foreground">
+                    {tour.ratingAvg!.toFixed(1)}
+                  </span>
+                  <span className="text-havezic-primary underline">
+                    {tour.reviewsCount} review{tour.reviewsCount === 1 ? "" : "s"}
+                  </span>
+                </a>
+              ) : (
+                <p className="flex items-center gap-2 text-sm text-muted">
+                  <Star className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
+                  New — be the first to review
+                </p>
+              )}
 
-        <div className="mt-6 md:mt-8">
-          <TourDetailTabs />
-        </div>
-
-        {/* Main: booking appears before content on mobile (single-column grid flow) */}
-        <div className="mt-10 grid grid-cols-1 gap-10 lg:mt-14 lg:grid-cols-10 lg:gap-12">
-          <aside className="lg:order-2 lg:col-span-3">
-            <TourStickyBooking
-              tourId={tour._id}
-              tourTitle={tour.title}
-              durationDays={tour.durationDays}
-              location={tour.location}
-              whatsappUrl={whatsappUrl}
-              bookable={bookable}
-              priceLabel={priceLabel}
-              unitPrice={unitPrice}
-              currency={currency}
-            />
-
-            {relatedCards.length > 0 ? (
-              <section className="mt-6 rounded-2xl border border-border bg-panel p-5 shadow-sm">
-                <h3 className="text-base font-bold text-foreground">Related tours</h3>
-                <div className="mt-4 space-y-3">
-                  {relatedCards.slice(0, 3).map((t) => (
-                    <a
-                      key={t.slug}
-                      href={`/tours/${t.slug}`}
-                      className="group flex items-center gap-3 rounded-2xl border border-border bg-panel-elevated p-3 transition hover:bg-panel"
-                    >
-                      <div className="h-12 w-12 overflow-hidden rounded-xl bg-slate-200 ring-1 ring-border">
-                        <Image
-                          src={t.images?.[0] || "/placeholder.jpg"}
-                          alt=""
-                          width={48}
-                          height={48}
-                          sizes="48px"
-                          className="h-full w-full object-cover"
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-foreground group-hover:text-havezic-primary">
-                          {t.title}
-                        </p>
-                        <p className="mt-0.5 text-xs text-muted">
-                          {t.durationDays} days · {t.location}
-                        </p>
-                      </div>
-                    </a>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-          </aside>
-
-          <article className="min-w-0 lg:order-1 lg:col-span-7">
-            <section
-              id="overview"
-              className="scroll-mt-28 rounded-2xl border border-border bg-panel p-6 shadow-sm md:p-8"
-            >
-              <h2 className="text-lg font-bold text-foreground">About this tour</h2>
-              <p className="mt-4 whitespace-pre-wrap leading-relaxed text-muted">
-                {tour.description}
-              </p>
-
-              <div className="mt-8 grid gap-8 md:grid-cols-2">
-                <div>
-                  <h3 className="text-base font-bold text-foreground">Highlights</h3>
-                  <ul className="mt-3 space-y-2 text-sm text-muted">
-                    {highlights.map((x) => (
-                      <li key={x} className="flex gap-2">
-                        <span
-                          className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-havezic-primary/15 text-havezic-primary"
-                          aria-hidden
-                        >
-                          ✓
-                        </span>
-                        <span>{x}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-foreground">What’s Included</h3>
-                  <ul className="mt-3 space-y-2 text-sm text-muted">
-                    {included.map((x) => (
-                      <li key={x} className="flex gap-2">
-                        <span
-                          className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600"
-                          aria-hidden
-                        >
-                          ✓
-                        </span>
-                        <span>{x}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              <div className="mt-4 space-y-1 border-t border-border pt-4 text-sm">
+                <p className="text-foreground">
+                  <span className="text-muted">Start:</span>{" "}
+                  <span className="font-semibold">{startCity}</span>
+                </p>
+                <p className="text-foreground">
+                  <span className="text-muted">End:</span>{" "}
+                  <span className="font-semibold">{endCity}</span>
+                </p>
               </div>
 
-              {tour.excluded && tour.excluded.length > 0 ? (
-                <div className="mt-8">
-                  <h3 className="text-base font-bold text-foreground">Not included</h3>
-                  <ul className="mt-3 grid gap-2 text-sm text-muted sm:grid-cols-2">
-                    {tour.excluded.map((x) => (
-                      <li key={x} className="flex gap-2">
-                        <span
-                          className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500/15 text-rose-600"
-                          aria-hidden
-                        >
-                          ✕
-                        </span>
-                        <span>{x}</span>
-                      </li>
-                    ))}
-                  </ul>
+              <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-border pt-4 text-sm">
+                <div>
+                  <dt className="text-muted">Duration</dt>
+                  <dd className="font-semibold text-foreground">{tour.durationDays} days</dd>
                 </div>
-              ) : null}
-            </section>
+                {typeof tour.maxPeople === "number" && tour.maxPeople > 0 ? (
+                  <div>
+                    <dt className="text-muted">Group size</dt>
+                    <dd className="font-semibold text-foreground">1 to {tour.maxPeople}</dd>
+                  </div>
+                ) : null}
+                {typeof tour.minAge === "number" && tour.minAge > 0 ? (
+                  <div>
+                    <dt className="text-muted">Minimum age</dt>
+                    <dd className="font-semibold text-foreground">{tour.minAge} years</dd>
+                  </div>
+                ) : null}
+                {tour.tourTypeLabel ? (
+                  <div>
+                    <dt className="text-muted">Style</dt>
+                    <dd className="font-semibold text-foreground">{tour.tourTypeLabel}</dd>
+                  </div>
+                ) : null}
+                {tour.types && tour.types.length > 0 ? (
+                  <div className="col-span-2">
+                    <dt className="text-muted">Theme</dt>
+                    <dd className="font-semibold capitalize text-foreground">
+                      {tour.types.join(", ")}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
 
-            <section id="tour-plan" className="mt-10 scroll-mt-28 md:mt-12">
-              <h2 className="text-2xl font-bold text-foreground">Itinerary</h2>
-              <p className="mt-2 max-w-2xl text-sm text-muted">
-                Day-by-day flow — timings may shift slightly with weather and road
-                conditions.
-              </p>
-              <TourItineraryAccordion itinerary={tour.itinerary} />
-            </section>
+              <div className="mt-5 border-t border-border pt-5">
+                {bookable && priceLabel ? (
+                  <p className="text-sm text-muted">
+                    From{" "}
+                    <span className="text-2xl font-extrabold text-foreground">{priceLabel}</span>
+                    <span className="text-sm"> / person</span>
+                  </p>
+                ) : (
+                  <p className="text-base font-semibold text-foreground">Tailored quote on request</p>
+                )}
+                <a
+                  href="#book"
+                  className="mt-4 flex w-full items-center justify-center rounded-full bg-brand-cta px-6 py-3.5 text-sm font-bold text-white shadow-lg transition hover:brightness-110"
+                >
+                  {bookable ? "Dates and prices" : "Customise this tour"}
+                </a>
+              </div>
 
-            <div id="location" className="mt-10 scroll-mt-28 md:mt-12">
+              <p className="mt-4 text-right text-xs text-muted">Trip code: {tripCode}</p>
+            </div>
+          </aside>
+        </div>
+
+        {/* Why you'll love this trip */}
+        {highlights.length > 0 ? (
+          <section className="mt-14 grid gap-8 md:mt-20 lg:grid-cols-[1fr_2fr] lg:gap-12">
+            <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
+              Why you&apos;ll love this trip
+            </h2>
+            <ul className="grid gap-x-10 gap-y-5 sm:grid-cols-2">
+              {highlights.map((h) => (
+                <li key={h} className="flex gap-3 text-muted">
+                  <span
+                    className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-havezic-primary/15 text-havezic-primary"
+                    aria-hidden
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="leading-relaxed">{h}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {/* Sticky sub-nav */}
+        <div className="sticky top-16 z-30 mt-12 md:mt-16 lg:top-[5.5rem]">
+          <TourDetailTabs tabs={tabs} />
+        </div>
+
+        {/* Itinerary: map + accordion */}
+        <section id="tour-plan" className="mt-10 scroll-mt-32 md:mt-14">
+          <h2 className="text-2xl font-bold text-foreground md:text-3xl">Itinerary</h2>
+          <p className="mt-2 max-w-2xl text-sm text-muted">
+            Day-by-day flow — timings may shift slightly with weather and road conditions.
+          </p>
+          <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+            <div className="lg:sticky lg:top-40 lg:self-start">
               <TourLocationMap location={tour.location} title={tour.title} />
             </div>
+            <div>
+              <TourItineraryAccordion itinerary={tour.itinerary} />
+            </div>
+          </div>
+        </section>
 
-            <TourReviews tourId={tour._id} />
+        {/* Inclusions and activities */}
+        <section id="inclusions" className="mt-12 scroll-mt-32 md:mt-16">
+          <h2 className="text-2xl font-bold text-foreground md:text-3xl">
+            Inclusions and activities
+          </h2>
+          <div className="mt-6 rounded-3xl bg-havezic-background-light p-6 md:p-8">
+            <div className="grid gap-8 md:grid-cols-2">
+              <div className="space-y-6">
+                <div className="flex gap-3">
+                  <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-foreground" aria-hidden />
+                  <div>
+                    <p className="font-bold text-foreground">Destinations</p>
+                    <p className="mt-1 text-sm text-muted">{tour.location}</p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Clock className="mt-0.5 h-5 w-5 shrink-0 text-foreground" aria-hidden />
+                  <div>
+                    <p className="font-bold text-foreground">Duration</p>
+                    <p className="mt-1 text-sm text-muted">{tour.durationDays} days</p>
+                  </div>
+                </div>
+                {typeof tour.maxPeople === "number" && tour.maxPeople > 0 ? (
+                  <div className="flex gap-3">
+                    <Users className="mt-0.5 h-5 w-5 shrink-0 text-foreground" aria-hidden />
+                    <div>
+                      <p className="font-bold text-foreground">Group size</p>
+                      <p className="mt-1 text-sm text-muted">1 to {tour.maxPeople} travellers</p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
 
-            <TourDetailRelatedCarousel
-              tours={relatedCards}
-              currentSlug={tour.slug}
-            />
-          </article>
-        </div>
+              <div className="space-y-6">
+                {included.length > 0 ? (
+                  <div className="flex gap-3">
+                    <Utensils className="mt-0.5 h-5 w-5 shrink-0 text-foreground" aria-hidden />
+                    <div>
+                      <p className="font-bold text-foreground">Included</p>
+                      <ul className="mt-2 space-y-1.5 text-sm text-muted">
+                        {included.map((x) => (
+                          <li key={x} className="flex gap-2">
+                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+                            <span>{x}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ) : null}
+                {excluded.length > 0 ? (
+                  <div className="flex gap-3">
+                    <XIcon className="mt-0.5 h-5 w-5 shrink-0 text-foreground" aria-hidden />
+                    <div>
+                      <p className="font-bold text-foreground">Not included</p>
+                      <ul className="mt-2 space-y-1.5 text-sm text-muted">
+                        {excluded.map((x) => (
+                          <li key={x} className="flex gap-2">
+                            <XIcon className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" aria-hidden />
+                            <span>{x}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ) : null}
+                {included.length === 0 && excluded.length === 0 ? (
+                  <p className="text-sm text-muted">
+                    Full inclusions are confirmed with your tailored quote.
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Dates and prices / booking */}
+        <section id="book" className="mt-12 scroll-mt-32 md:mt-16">
+          <h2 className="text-2xl font-bold text-foreground md:text-3xl">
+            {bookable ? "Dates and prices" : "Plan this tour"}
+          </h2>
+          <div className="mt-6 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+            <div className="rounded-2xl border border-border bg-panel p-6 shadow-sm">
+              <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">Duration</p>
+                  <p className="text-lg font-bold text-foreground">{tour.durationDays} days</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">Route</p>
+                  <p className="text-lg font-bold text-foreground">
+                    {startCity} → {endCity}
+                  </p>
+                </div>
+                {bookable && priceLabel ? (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">From</p>
+                    <p className="text-lg font-bold text-havezic-primary">{priceLabel} / person</p>
+                  </div>
+                ) : null}
+              </div>
+              <p className="mt-5 text-sm leading-relaxed text-muted">
+                {bookable
+                  ? "Pick your preferred start date and group size on the right to request this departure at the listed price. Our team confirms availability and payment details within hours."
+                  : "Tell us your preferred dates and group size on the right and we'll tailor a quote and itinerary for you."}
+              </p>
+            </div>
+            <div>
+              <TourStickyBooking
+                tourId={tour._id}
+                tourTitle={tour.title}
+                durationDays={tour.durationDays}
+                location={tour.location}
+                whatsappUrl={whatsappUrl}
+                bookable={bookable}
+                priceLabel={priceLabel}
+                unitPrice={unitPrice}
+                currency={currency}
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Reviews */}
+        <TourReviews tourId={tour._id} />
+
+        {/* Related */}
+        <TourDetailRelatedCarousel tours={relatedCards} currentSlug={tour.slug} />
       </PageContainer>
     </main>
   );

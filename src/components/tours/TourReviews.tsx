@@ -120,6 +120,36 @@ export function TourReviews({ tourId }: { tourId: string }) {
         </Button>
       </div>
 
+      {count > 0 ? (
+        <div className="mt-5 grid gap-6 rounded-2xl border border-border bg-panel-elevated p-5 sm:grid-cols-[auto_1fr] sm:items-center">
+          <div className="text-center sm:pr-6">
+            <p className="text-4xl font-extrabold text-foreground">{average.toFixed(1)}</p>
+            <Stars value={average} className="mt-1 justify-center" />
+            <p className="mt-1 text-xs text-muted">
+              {count} review{count === 1 ? "" : "s"}
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            {[5, 4, 3, 2, 1].map((star) => {
+              const c = reviews.filter((r) => Math.round(r.rating) === star).length;
+              const pct = count ? (c / count) * 100 : 0;
+              return (
+                <div key={star} className="flex items-center gap-3 text-xs">
+                  <span className="w-12 shrink-0 text-muted">{star} star</span>
+                  <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+                    <span
+                      className="block h-full rounded-full bg-amber-400"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </span>
+                  <span className="w-6 shrink-0 text-right text-muted">{c}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
       {done ? (
         <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
           Thanks! Your review has been submitted and will appear once approved.
