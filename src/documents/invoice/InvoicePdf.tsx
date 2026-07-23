@@ -44,6 +44,14 @@ export type InvoicePdfModel = {
     method: "bank" | "easypaisa" | "jazzcash";
     details: string;
   };
+  /** Structured bank-transfer details (from site settings), shown for the bank method. */
+  bankDetails?: {
+    bankName?: string;
+    accountTitle?: string;
+    accountNumber?: string;
+    iban?: string;
+    instruction?: string;
+  };
   notes?: {
     terms?: string;
     cancellationPolicy?: string;
@@ -112,6 +120,26 @@ const styles = StyleSheet.create({
     borderTop: "1px solid #e2e8f0",
   },
   paymentText: { fontSize: 8.5, lineHeight: 1.35 },
+  payRow: { flexDirection: "row", marginTop: 3 },
+  payKey: { fontSize: 8.5, color: "#475569", width: 90 },
+  payVal: { fontSize: 9, color: "#0f172a", fontWeight: 700 },
+  paidStamp: {
+    position: "absolute",
+    top: 300,
+    left: 175,
+    transform: "rotate(-20deg)",
+    border: "4px solid #16a34a",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 26,
+    opacity: 0.82,
+  },
+  paidStampText: {
+    color: "#16a34a",
+    fontSize: 46,
+    fontWeight: 700,
+    letterSpacing: 5,
+  },
 });
 
 function money(currency: "PKR" | "USD", n: number) {
@@ -132,13 +160,31 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
   const taxableBase = Math.max(0, subtotal - discountAmount);
   const taxAmount = (taxableBase * taxPct) / 100;
   const total = Math.max(0, taxableBase + taxAmount);
-  const advance = Math.max(0, model.advanceAmount || 0);
-  const remaining = Math.max(0, total - advance);
-  const showPaid = Boolean(model.isFinal) && remaining <= 0.00001;
+  // When an invoice is marked paid (isFinal), the outstanding balance becomes
+  // zero and a "Paid" state is shown regardless of the recorded advance.
+  const showPaid = Boolean(model.isFinal);
+  const advance = showPaid ? total : Math.max(0, model.advanceAmount || 0);
+  const remaining = showPaid ? 0 : Math.max(0, total - advance);
+
+  const bankRows = (
+    [
+      ["Bank name", model.bankDetails?.bankName],
+      ["Account title", model.bankDetails?.accountTitle],
+      ["Account number", model.bankDetails?.accountNumber],
+      ["IBAN", model.bankDetails?.iban],
+    ] as const
+  )
+    .filter(([, value]) => Boolean(value?.trim()))
+    .map(([label, value]) => ({ label, value: value as string }));
 
   return (
     <Document>
       <Page size="A4" style={styles.page} wrap={false}>
+        {showPaid ? (
+          <View style={styles.paidStamp} fixed>
+            <Text style={styles.paidStampText}>PAID</Text>
+          </View>
+        ) : null}
         <PdfHeader
           logoUrl={model.companyLogoUrl}
           companyName={model.companyName}
@@ -268,9 +314,30 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
                 ? "Easypaisa"
                 : "JazzCash"}
           </Text>
-          <Text style={[styles.muted, styles.paymentText, { marginTop: 4 }]}>
-            {model.payment.details?.trim() ? model.payment.details : "—"}
-          </Text>
+          {model.payment.method === "bank" ? (
+            <View style={{ marginTop: 4 }}>
+              {bankRows.map((r) => (
+                <View key={r.label} style={styles.payRow}>
+                  <Text style={styles.payKey}>{r.label}</Text>
+                  <Text style={styles.payVal}>{r.value}</Text>
+                </View>
+              ))}
+              {model.bankDetails?.instruction?.trim() ? (
+                <Text style={[styles.muted, styles.paymentText, { marginTop: 6 }]}>
+                  {model.bankDetails.instruction.trim()}
+                </Text>
+              ) : null}
+              {model.payment.details?.trim() ? (
+                <Text style={[styles.muted, styles.paymentText, { marginTop: 6 }]}>
+                  {model.payment.details}
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <Text style={[styles.muted, styles.paymentText, { marginTop: 4 }]}>
+              {model.payment.details?.trim() ? model.payment.details : "—"}
+            </Text>
+          )}
         </View>
 
         <PdfFooterStrip

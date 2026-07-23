@@ -22,8 +22,8 @@ import {
 } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { LogoutButton } from "./LogoutButton";
+import { SiteSearch } from "./SiteSearch";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/cn";
@@ -574,10 +574,8 @@ function MobileDestinationsAccordion({
 }
 
 export function SiteHeaderNav({
-  whatsappUrl,
   initialSession,
 }: {
-  whatsappUrl: string | null;
   initialSession: SessionInfo;
 }) {
   const pathname = usePathname();
@@ -645,7 +643,7 @@ export function SiteHeaderNav({
   const links = useMemo(
     () => [
       { href: "/about", label: "About Us", icon: Compass },
-      { href: "/faqs", label: "FAQs", icon: HelpCircle },
+      { href: "/about#faqs", label: "FAQs", icon: HelpCircle },
       { href: "/contact", label: "Contact", icon: PhoneCall },
       { href: "/blog", label: "Guides", icon: BookOpen },
     ],
@@ -720,6 +718,7 @@ export function SiteHeaderNav({
 
           <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
             <div className="hidden items-center gap-2 md:flex">
+              <SiteSearch variant="icon" />
               <button
                 type="button"
                 className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/90 ring-1 ring-white/15 transition hover:bg-white/15 hover:text-white"
@@ -741,19 +740,6 @@ export function SiteHeaderNav({
                   <User className="h-5 w-5" aria-hidden />
                 </Link>
               )}
-
-              {whatsappUrl ? (
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm ring-1 ring-white/15 transition hover:brightness-110"
-                  aria-label="Chat on WhatsApp"
-                  title="WhatsApp"
-                >
-                  <WhatsAppBrandIcon className="h-5 w-5" />
-                </a>
-              ) : null}
             </div>
 
             <button
@@ -779,6 +765,7 @@ export function SiteHeaderNav({
               aria-label="Mobile primary"
             >
               <div className="mt-3 flex flex-col gap-1 border-t border-white/20 pt-3 pb-1">
+                <SiteSearch variant="inline" className="px-1 pb-2" />
                 <Link
                   href="/tours"
                   className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
@@ -817,18 +804,6 @@ export function SiteHeaderNav({
                   <Sparkles className="h-4 w-4" />
                   AI Planner
                 </Link>
-                {whatsappUrl ? (
-                  <a
-                    href={whatsappUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mx-3 inline-flex w-fit items-center justify-center rounded-full bg-[#25D366] p-3 text-white shadow-md"
-                    aria-label="Chat on WhatsApp"
-                    onClick={() => setOpen(false)}
-                  >
-                    <WhatsAppBrandIcon className="h-6 w-6" />
-                  </a>
-                ) : null}
                 {liveSession ? (
                   <div className="mt-2 border-t border-white/15 pt-3">
                     <p className="px-3 text-xs font-semibold uppercase tracking-wide text-white/50">

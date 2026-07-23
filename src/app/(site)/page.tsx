@@ -7,7 +7,9 @@ import { HomeHero } from "@/components/landing/havezic/HomeHero";
 import type { FeaturedTour } from "@/components/landing/FeaturedToursCarousel";
 import { Suspense } from "react";
 
-export const dynamic = "force-dynamic";
+// ISR: cache the homepage and re-generate periodically instead of rendering it
+// fresh on every request (was `force-dynamic`, which disabled all caching).
+export const revalidate = 300;
 
 async function HomePageDeferred() {
   let tours: FeaturedTour[] = [];
@@ -71,12 +73,24 @@ async function HomePageDeferred() {
 }
 
 export default async function HomePage() {
-  const whatsappUrl = await getWhatsAppClickUrl();
-
   return (
     <main className="min-h-screen">
-      <HomeHero whatsappUrl={whatsappUrl} />
-      <Suspense fallback={null}>
+      <HomeHero />
+      <Suspense
+        fallback={
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+            <div className="h-8 w-64 animate-pulse rounded-lg bg-black/5" />
+            <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[0, 1, 2].map((i) => (
+                <div
+                  key={i}
+                  className="h-64 animate-pulse rounded-2xl bg-black/5"
+                />
+              ))}
+            </div>
+          </div>
+        }
+      >
         <HomePageDeferred />
       </Suspense>
     </main>

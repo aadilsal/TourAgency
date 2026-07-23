@@ -2,6 +2,8 @@ import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
+import type { CurrencyCode } from "@/lib/money";
+import { formatTourPrice, tourHasPrice } from "@/lib/tourPricing";
 
 export type TourCardData = {
   slug: string;
@@ -20,9 +22,12 @@ type Props = {
   tour: TourCardData;
   badge?: string;
   className?: string;
+  currency?: CurrencyCode;
 };
 
-export function TourCard({ tour, badge, className }: Props) {
+export function TourCard({ tour, badge, className, currency = "USD" }: Props) {
+  const bookable = tourHasPrice(tour);
+  const priceLabel = formatTourPrice(tour, currency);
   return (
     <Card
       hover
@@ -60,9 +65,17 @@ export function TourCard({ tour, badge, className }: Props) {
         <p className="mt-2 text-sm font-semibold text-havezic-primary">
           {tour.durationDays} days · {tour.location}
         </p>
-        <p className="mt-1 line-clamp-2 text-sm text-muted">
-          Tailored quote on request
-        </p>
+        {bookable && priceLabel ? (
+          <p className="mt-1 text-sm text-muted">
+            <span className="text-xs">From </span>
+            <span className="text-base font-bold text-foreground">{priceLabel}</span>
+            <span className="text-xs"> / person</span>
+          </p>
+        ) : (
+          <p className="mt-1 line-clamp-2 text-sm text-muted">
+            Tailored quote on request
+          </p>
+        )}
         <div className="mt-auto flex flex-col gap-2 pt-5">
           <ButtonLink
             href={`/tours/${tour.slug}`}
@@ -76,7 +89,7 @@ export function TourCard({ tour, badge, className }: Props) {
             variant="primary"
             className="w-full justify-center whitespace-nowrap py-2.5 text-center text-sm"
           >
-            Customise
+            {bookable ? "Book now" : "Customise"}
           </ButtonLink>
         </div>
       </div>

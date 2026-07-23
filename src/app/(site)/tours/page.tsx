@@ -35,6 +35,7 @@ type Search = {
   province?: string;
   from?: string;
   guests?: string;
+  q?: string;
 };
 
 export default async function ToursPage({
@@ -74,6 +75,7 @@ export default async function ToursPage({
         initialType={searchParams.type}
         initialLocation={searchParams.location}
         initialProvince={searchParams.province}
+        initialQuery={searchParams.q}
       />
     </main>
   );

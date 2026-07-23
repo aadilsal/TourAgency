@@ -60,8 +60,8 @@ export function itineraryTemplateDefaults() {
     bankDetails: {
       bankName: "Bank Alfalah",
       accountTitle: "Junket Tours",
-      accountNumber: "",
-      iban: "",
+      accountNumber: "0195001010197354",
+      iban: "PK65ALFH0195001010197354",
       instruction: "",
     },
     termsBlocks: [
@@ -132,9 +132,13 @@ export const getPublicSiteSettings = query({
       ...doc,
     };
     const mapsEmbedUrl = normalizeGoogleMapsEmbedUrl(merged.mapsEmbedUrl);
+    const tmpl = itineraryTemplateDefaults();
     return {
       ...merged,
       mapsEmbedUrl: mapsEmbedUrl ?? "",
+      // Bank details are shown on public-facing invoices; fall back to the
+      // constant template defaults when an admin hasn't customised them.
+      bankDetails: (merged as SiteDoc).bankDetails ?? { ...tmpl.bankDetails },
     };
   },
 });

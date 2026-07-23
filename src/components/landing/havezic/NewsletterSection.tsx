@@ -202,7 +202,7 @@ export function NewsletterSection({ className }: { className?: string }) {
             <div className="absolute inset-0 opacity-80">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src="https://demo2wpopal.b-cdn.net/havezic/wp-content/uploads/2024/08/h4_bg2.jpg"
+                src="/images/marketing/newsletter-bg.jpg"
                 alt=""
                 className="h-full w-full object-cover"
                 loading="lazy"
@@ -260,7 +260,7 @@ export function NewsletterSection({ className }: { className?: string }) {
                       <div className="relative h-[92px]">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src="https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80"
+                          src="/images/marketing/newsletter-side.jpg"
                           alt=""
                           className="absolute inset-0 h-full w-full object-cover"
                           loading="lazy"

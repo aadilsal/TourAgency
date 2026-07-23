@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     "Province-by-province travel guides for Pakistan — historical sites, cultural landmarks, natural wonders, and bookable tours from Sindh to Gilgit-Baltistan.",
 };
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export default async function GuidesIndexPage() {
   const provinces = await loadProvinceIndexRows();

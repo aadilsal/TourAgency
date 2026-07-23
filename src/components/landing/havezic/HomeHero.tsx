@@ -6,7 +6,6 @@ import { ArrowRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ButtonLink } from "@/components/ui/Button";
 import { usePlannerWidget } from "@/components/planner/PlannerWidgetContext";
-import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 
 type Slide = {
   image: string;
@@ -18,8 +17,7 @@ type Slide = {
 
 const SLIDES: Slide[] = [
   {
-    image:
-      "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=2400&q=80",
+    image: "/images/marketing/hero-heritage.jpg",
     eyebrow: "HERITAGE & HISTORY",
     title: "Walk Through Centuries\nOf Pakistan",
     subtitle:
@@ -27,8 +25,7 @@ const SLIDES: Slide[] = [
     featuredGuide: { label: "Explore Punjab guide", href: "/guides/punjab" },
   },
   {
-    image:
-      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2400&q=80",
+    image: "/images/marketing/hero-northern-heritage.jpg",
     eyebrow: "NORTHERN HERITAGE",
     title: "Valley Forts, Karakoram Views\n& Living Traditions",
     subtitle:
@@ -39,8 +36,7 @@ const SLIDES: Slide[] = [
     },
   },
   {
-    image:
-      "https://demo2wpopal.b-cdn.net/havezic/wp-content/uploads/2024/07/h2_slider3.jpg",
+    image: "/images/marketing/hero-plan-ai.jpg",
     eyebrow: "PLAN WITH AI",
     title: "Your Story,\nDay by Day",
     subtitle: "Browse heritage tours and lock your dates — or let AI draft your route.",
@@ -49,10 +45,9 @@ const SLIDES: Slide[] = [
 
 type Props = {
   className?: string;
-  whatsappUrl?: string | null;
 };
 
-export function HomeHero({ className, whatsappUrl = null }: Props) {
+export function HomeHero({ className }: Props) {
   const slides = useMemo(() => SLIDES, []);
   const [emblaRef, emblaApi] = useEmblaCarousel({ loop: true, duration: 28 });
   const [index, setIndex] = useState(0);
@@ -75,10 +70,6 @@ export function HomeHero({ className, whatsappUrl = null }: Props) {
   }, [emblaApi]);
 
   const active = slides[index % slides.length]!;
-  const featuredGuide = active.featuredGuide ?? {
-    label: "Explore provinces",
-    href: "/guides",
-  };
 
   return (
     <section className={cn("relative", className)} aria-label="Hero">
@@ -132,24 +123,6 @@ export function HomeHero({ className, whatsappUrl = null }: Props) {
             >
               Browse tours
             </ButtonLink>
-            <ButtonLink
-              href={featuredGuide.href}
-              variant="secondary"
-              className="border-white/40 bg-white/10 py-3.5 text-white backdrop-blur-md hover:bg-white/20"
-            >
-              {featuredGuide.label}
-            </ButtonLink>
-            {whatsappUrl ? (
-              <a
-                href={whatsappUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#25D366] px-6 py-3.5 text-sm font-bold text-white shadow-sm transition hover:brightness-110"
-              >
-                <WhatsAppBrandIcon className="h-4 w-4" />
-                Chat on WhatsApp
-              </a>
-            ) : null}
           </div>
 
           <p className="mt-5 text-xs font-medium text-white/65">

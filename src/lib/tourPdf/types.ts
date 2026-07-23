@@ -5,6 +5,8 @@ export type TourPdfImportDraft = {
   description: string;
   durationDays: number;
   location: string;
+  pricePkr?: number;
+  priceUsd?: number;
   types: string[];
   destinationSlugs: string[];
   provinceSlugs: string[];

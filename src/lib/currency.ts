@@ -8,7 +8,8 @@ export function normalizeCurrency(raw: unknown): CurrencyCode {
 }
 
 export function getClientCurrency(): CurrencyCode {
-  if (typeof document === "undefined") return "PKR";
+  // Default to USD (international audience) until the cookie resolves.
+  if (typeof document === "undefined") return "USD";
   return normalizeCurrency(parseCookieValue(document.cookie, CURRENCY_COOKIE));
 }
 

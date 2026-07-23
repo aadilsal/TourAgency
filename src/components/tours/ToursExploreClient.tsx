@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { useCurrency } from "@/hooks/useCurrency";
 import {
   MapPinOff,
   SlidersHorizontal,
@@ -41,6 +42,7 @@ type Props = {
   initialType?: string | null;
   initialLocation?: string | null;
   initialProvince?: string | null;
+  initialQuery?: string | null;
 };
 
 const fieldClass =
@@ -187,7 +189,10 @@ export function ToursExploreClient({
   initialType,
   initialLocation,
   initialProvince,
+  initialQuery,
 }: Props) {
+  const currency = useCurrency();
+  const [query, setQuery] = useState(initialQuery ?? "");
   const [location, setLocation] = useState(initialLocation ?? "");
   const [provinceSlug] = useState(initialProvince ?? "");
   const [durMin, setDurMin] = useState("");
@@ -228,6 +233,7 @@ export function ToursExploreClient({
   const bumpPage = useCallback(() => setPage(1), []);
 
   const resetFilters = useCallback(() => {
+    setQuery("");
     setLocation("");
     setDurMin("");
     setDurMax("");
@@ -242,6 +248,12 @@ export function ToursExploreClient({
 
   const filtered = useMemo(() => {
     let list = [...catalog];
+    const q = query.trim().toLowerCase();
+    if (q) {
+      list = list.filter((t) =>
+        `${t.title} ${t.location} ${t.description}`.toLowerCase().includes(q),
+      );
+    }
     if (provinceFilter) {
       list = list.filter((t) => tourMatchesProvince(t.location, provinceFilter));
     }
@@ -272,7 +284,7 @@ export function ToursExploreClient({
       return b.durationDays - a.durationDays;
     });
     return list;
-  }, [catalog, provinceFilter, location, durMin, durMax, type, sort]);
+  }, [catalog, query, provinceFilter, location, durMin, durMax, type, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -415,6 +427,19 @@ export function ToursExploreClient({
           </aside>
 
           <div className="min-w-0">
+            <div className="mb-4">
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Search tours by name, place, or keyword…"
+                aria-label="Search tours"
+                className="w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-medium text-havezic-accent shadow-sm focus:outline-none focus:ring-2 focus:ring-havezic-primary/25"
+              />
+            </div>
             <div className="hidden items-center justify-between gap-4 lg:flex">
               <p className="text-sm text-havezic-text">
                 {convexTours === undefined && initialTours.length === 0 ? (
@@ -509,7 +534,7 @@ export function ToursExploreClient({
               <ul className="mt-8 grid gap-6 sm:grid-cols-2 sm:gap-8 xl:grid-cols-3">
                 {slice.map((t) => (
                   <li key={t._id} className="h-full">
-                    <TourCard tour={t} />
+                    <TourCard tour={t} currency={currency} />
                   </li>
                 ))}
               </ul>

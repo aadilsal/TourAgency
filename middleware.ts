@@ -17,8 +17,9 @@ function readCountry(req: NextRequest): string | null {
 
 export function middleware(req: NextRequest) {
   const country = readCountry(req);
-  // Default to PKR when country is unknown.
-  const currency = !country || country === "PK" ? "PKR" : "USD";
+  // Target audience is international: default to USD unless the visitor is in
+  // Pakistan. Unknown/unresolved country also defaults to USD.
+  const currency = country === "PK" ? "PKR" : "USD";
 
   const res = NextResponse.next();
   // Always set so subsequent navigations stay consistent.

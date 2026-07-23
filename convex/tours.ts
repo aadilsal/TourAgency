@@ -160,6 +160,8 @@ export const createTour = mutation({
     destinationIds: v.optional(v.array(v.id("destinations"))),
     destinationId: v.optional(v.id("destinations")),
     provinceIds: v.optional(v.array(v.id("provinces"))),
+    pricePkr: v.optional(v.number()),
+    priceUsd: v.optional(v.number()),
     durationDays: v.number(),
     location: v.string(),
     maxPeople: v.optional(v.number()),
@@ -202,7 +204,8 @@ export const createTour = mutation({
       slug: normalizedSlug,
       imageFolderKey,
       createdAt: now,
-      price: 0,
+      // Keep legacy `price` in sync with PKR for older read paths.
+      price: typeof args.pricePkr === "number" ? args.pricePkr : 0,
       destinationIds:
         args.destinationIds ?? (args.destinationId ? [args.destinationId] : undefined),
     });

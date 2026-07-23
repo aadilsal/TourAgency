@@ -7,8 +7,7 @@ import { api } from "@convex/_generated/api";
 import { Suspense } from "react";
 
 async function SiteHeaderData() {
-  const whatsappUrl = await getWhatsAppClickUrl();
-  return <SiteHeader whatsappUrl={whatsappUrl} />;
+  return <SiteHeader />;
 }
 
 async function SiteFooterData() {
@@ -51,7 +50,7 @@ export default function SiteChromeLayout({
 }) {
   return (
     <div className="relative z-[1] min-h-screen">
-      <Suspense fallback={<SiteHeader whatsappUrl={null} />}>
+      <Suspense fallback={<SiteHeader />}>
         <SiteHeaderData />
       </Suspense>
       {children}

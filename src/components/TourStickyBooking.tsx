@@ -51,12 +51,20 @@ export function TourStickyBooking({
   durationDays,
   location,
   whatsappUrl,
+  bookable = false,
+  priceLabel = null,
+  unitPrice,
+  currency = "USD",
 }: {
   tourId: Id<"tours">;
   tourTitle: string;
   durationDays: number;
   location: string;
   whatsappUrl: string | null;
+  bookable?: boolean;
+  priceLabel?: string | null;
+  unitPrice?: number;
+  currency?: "USD" | "PKR";
 }) {
   const router = useRouter();
   const sessionToken = useConvexSessionToken();
@@ -123,6 +131,8 @@ export function TourStickyBooking({
         peopleCount,
         notes: notes.trim() || undefined,
         preferredStart: tourDate,
+        currency,
+        unitPrice: bookable ? unitPrice : undefined,
       });
       await finishCustomisation({
         tourTitle,
@@ -162,14 +172,24 @@ export function TourStickyBooking({
 
   return (
     <>
-      <Card className="overflow-hidden p-6 ring-1 ring-border lg:sticky lg:top-[100px]">
+      <Card className="overflow-hidden p-6 ring-1 ring-border">
         <div id="book" className="scroll-mt-28">
-          <h2 className="text-lg font-bold text-foreground">Customise your tour</h2>
+          <h2 className="text-lg font-bold text-foreground">
+            {bookable ? "Book this tour" : "Customise your tour"}
+          </h2>
           <p className="mt-1 text-sm text-muted">
             {durationDays} days · {location}
           </p>
+          {bookable && priceLabel ? (
+            <p className="mt-3 text-2xl font-extrabold text-foreground">
+              {priceLabel}
+              <span className="text-sm font-medium text-muted"> / person</span>
+            </p>
+          ) : null}
           <p className="mt-2 text-sm text-muted">
-            Share your dates and group size — we&apos;ll tailor a quote.
+            {bookable
+              ? "Pick your date and group size to request this tour at the listed price."
+              : "Share your dates and group size — we'll tailor a quote."}
           </p>
 
           {loggedIn ? (
@@ -338,7 +358,7 @@ export function TourStickyBooking({
               className="w-full py-3.5 text-base font-semibold"
               disabled={loading}
             >
-              {loading ? "Sending…" : "Customise your tour"}
+              {loading ? "Sending…" : bookable ? "Book now" : "Customise your tour"}
             </Button>
 
             {whatsappUrl ? (
@@ -382,7 +402,7 @@ export function TourStickyBooking({
           className="w-full py-3.5 text-base font-semibold"
           onClick={scrollToBook}
         >
-          Customise your tour
+          {bookable ? (priceLabel ? `Book now · ${priceLabel}` : "Book now") : "Customise your tour"}
         </Button>
       </div>
     </>

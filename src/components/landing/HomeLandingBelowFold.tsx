@@ -27,7 +27,7 @@ import { MotionSection } from "@/components/ui/MotionSection";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { blogCoverImage } from "@/lib/blog-covers";
 import { SceneCut } from "@/components/ui/SceneCut";
-import { ScrollyJourneyReelLazy } from "./ScrollyJourneyReelLazy";
+import { ProvinceJourney } from "./ProvinceJourney";
 import { NewsletterSection } from "@/components/landing/havezic/NewsletterSection";
 import { VisaInvitationSection } from "@/components/visa/VisaInvitationSection";
 import { getHomepageDestinations } from "@/lib/destinations-data";
@@ -105,7 +105,7 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
           />
         </PageContainer>
         <div className="mt-10">
-          <ScrollyJourneyReelLazy />
+          <ProvinceJourney />
         </div>
       </MotionSection>
 

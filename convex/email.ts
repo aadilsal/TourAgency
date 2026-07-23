@@ -35,11 +35,18 @@ export const sendGuestBookingNotification = internalAction({
 
     const tourTitle = tour?.title ?? "Tour";
     const startDate = booking.preferredStart ?? "—";
-    const adminHtml = `<p style="font-size:16px;margin:0 0 12px;"><strong>New tour customisation request</strong></p>
-        <p style="margin:0 0 8px;"><strong>${esc(booking.name)}</strong> wants to customise <strong>${esc(tourTitle)}</strong></p>
+    const isBooking =
+      typeof booking.unitPrice === "number" && booking.unitPrice > 0;
+    const kind = isBooking ? "booking request" : "customisation request";
+    const priceLine = isBooking
+      ? `<p style="margin:0 0 4px;"><strong>Price:</strong> ${booking.currency ?? "USD"} ${booking.unitPrice} / person (${booking.peopleCount} × = ${booking.currency ?? "USD"} ${(booking.unitPrice ?? 0) * booking.peopleCount})</p>`
+      : "";
+    const adminHtml = `<p style="font-size:16px;margin:0 0 12px;"><strong>New tour ${kind}</strong></p>
+        <p style="margin:0 0 8px;"><strong>${esc(booking.name)}</strong> ${isBooking ? "wants to book" : "wants to customise"} <strong>${esc(tourTitle)}</strong></p>
         <p style="margin:0 0 4px;">Phone: ${esc(booking.phone)}</p>
         <p style="margin:0 0 4px;">Email: ${booking.email ? esc(booking.email) : "—"}</p>
         <p style="margin:0 0 4px;">Travelers: ${booking.peopleCount}</p>
+        ${priceLine}
         <p style="margin:0 0 4px;"><strong>Preferred start:</strong> ${esc(startDate)}</p>
         <p style="margin:0 0 4px;">Window: ${esc(booking.preferredStart ?? "—")} → ${esc(booking.preferredEnd ?? "—")}</p>
         <p style="margin:0 0 4px;">Adults / children: ${booking.adults ?? "—"} / ${booking.children ?? "—"}</p>
@@ -51,14 +58,14 @@ export const sendGuestBookingNotification = internalAction({
     await resend.emails.send({
       from: process.env.RESEND_FROM ?? "JunketTours <onboarding@resend.dev>",
       to: [to],
-      subject: `New tour customisation: ${tourTitle}`,
+      subject: `New tour ${isBooking ? "booking" : "customisation"}: ${tourTitle}`,
       html: adminHtml,
     });
 
     const guestEmail = booking.email?.trim();
     if (guestEmail) {
       const guestHtml = `<p style="font-size:16px;margin:0 0 12px;">Hi ${esc(booking.name.split(" ")[0] || booking.name)},</p>
-        <p style="margin:0 0 12px;">We&apos;ve received your customisation request for <strong>${esc(tourTitle)}</strong>.</p>
+        <p style="margin:0 0 12px;">We&apos;ve received your ${kind} for <strong>${esc(tourTitle)}</strong>.</p>
         <p style="margin:0 0 8px;"><strong>Your details</strong></p>
         <ul style="margin:0 0 12px;padding-left:20px;">
           <li>Preferred start: ${esc(startDate)}</li>
@@ -66,13 +73,13 @@ export const sendGuestBookingNotification = internalAction({
           <li>Phone on file: ${esc(booking.phone)}</li>
         </ul>
         <p style="margin:0 0 12px;"><strong>Next steps</strong></p>
-        <p style="margin:0 0 12px;">Our team will be in touch to discuss dates, inclusions, and a tailored quote for your trip.</p>
+        <p style="margin:0 0 12px;">Our team will be in touch to confirm ${isBooking ? "your booking, dates and payment details" : "dates, inclusions, and a tailored quote"} for your trip.</p>
         <p style="margin:0;color:#64748b;font-size:14px;">— JunketTours</p>`;
 
       await resend.emails.send({
         from: process.env.RESEND_FROM ?? "JunketTours <onboarding@resend.dev>",
         to: [guestEmail],
-        subject: `We received your customisation request — ${tourTitle}`,
+        subject: `We received your ${kind} — ${tourTitle}`,
         html: guestHtml,
       });
     }

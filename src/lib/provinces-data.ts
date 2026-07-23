@@ -46,7 +46,7 @@ export const PROVINCES: ProvinceRecord[] = [
     intro:
       "Sindh is where Pakistan's story begins — from the Bronze Age cities of the Indus Valley to the marble domes of Thatta and the energy of Karachi. Expect ancient archaeology, Sufi shrines, desert forts, and a coastline that feels worlds away from the mountains.",
     heroImage:
-      "https://images.unsplash.com/photo-1500375592092-40eb2168fd21?auto=format&fit=crop&w=2000&q=80",
+      "/images/provinces/sindh.jpg",
     bestTime: "October–March for city and site touring; avoid peak summer heat in lower Sindh.",
     tips: [
       "Pair Karachi with a day trip to Thatta or Makli.",
@@ -80,7 +80,7 @@ export const PROVINCES: ProvinceRecord[] = [
     intro:
       "Balochistan rewards travelers who want space and contrast — juniper forests at Ziarat, surreal Hingol National Park, ancient trade routes, and a Makran coastline that rivals any desert-meets-sea journey on earth.",
     heroImage:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=2000&q=80",
+      "/images/provinces/balochistan.jpg",
     bestTime: "October–April; summer interior heat is intense.",
     tips: [
       "Confirm road security and permits for remote routes.",
@@ -114,7 +114,7 @@ export const PROVINCES: ProvinceRecord[] = [
     intro:
       "Punjab is Pakistan's cultural engine — Lahore's Mughal masterpieces, Multan's blue-tile shrines, the archaeological wonder of Harappa, and forts like Rohtas that guard centuries of history along the Grand Trunk Road.",
     heroImage:
-      "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=2000&q=80",
+      "/images/provinces/punjab.jpg",
     bestTime: "October–March for comfortable heritage walks; spring festivals in Feb–Mar.",
     tips: [
       "Start Lahore days early at the fort before crowds.",
@@ -148,7 +148,7 @@ export const PROVINCES: ProvinceRecord[] = [
     intro:
       "The Islamabad region bridges ancient and modern Pakistan — Taxila's Gandhara ruins, the iconic Faisal Mosque, Lok Virsa living heritage, and Margalla Hills trails just minutes from the capital.",
     heroImage:
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=2000&q=80",
+      "/images/provinces/islamabad.jpg",
     bestTime: "October–April for site walks and hill viewpoints.",
     tips: [
       "Taxila deserves a licensed guide for context.",
@@ -181,7 +181,7 @@ export const PROVINCES: ProvinceRecord[] = [
     intro:
       "KPK layers Buddhist archaeology, frontier bazaar culture, and alpine valleys — from Peshawar's Qissa Khwani to Swat's stupas, Chitral's Kalash traditions, and the legendary Kaghan corridor.",
     heroImage:
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=2000&q=80",
+      "/images/provinces/kpk.jpg",
     bestTime: "March–November for valleys; Kalash festivals spring and autumn.",
     tips: [
       "Swat heritage sites pair with upper-valley scenery.",
@@ -214,7 +214,7 @@ export const PROVINCES: ProvinceRecord[] = [
     intro:
       "Gilgit-Baltistan is northern heritage at its peak — 700-year-old forts in Hunza, royal palaces in Skardu, the high plains of Deosai, and the Karakoram Highway's most dramatic viewpoints.",
     heroImage:
-      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=2000&q=80",
+      "/images/provinces/gilgit-baltistan.jpg",
     bestTime: "Late April–October for roads and forts; confirm pass status shoulder seasons.",
     tips: [
       "Lead with fort visits before aggressive hikes.",
@@ -247,7 +247,7 @@ export const PROVINCES: ProvinceRecord[] = [
     intro:
       "Azad Kashmir combines frontier city heritage with deep green valleys — Muzaffarabad's riverside setting, Neelum's pine forests, and viewpoints like Pir Chinasi that open onto the Himalayas.",
     heroImage:
-      "https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=2000&q=80",
+      "/images/provinces/azad-kashmir.jpg",
     bestTime: "April–October for valley access; winter roads can close.",
     tips: [
       "Neelum needs 2–3 nights for a relaxed pace.",

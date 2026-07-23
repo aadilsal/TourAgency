@@ -27,6 +27,8 @@ export type TourPdfImportDraft = {
   description: string;
   durationDays: number;
   location: string;
+  pricePkr?: number;
+  priceUsd?: number;
   types: string[];
   destinationSlugs: string[];
   provinceSlugs: string[];
@@ -49,6 +51,8 @@ type LlmEnrichment = {
   slug?: string;
   description?: string;
   location?: string;
+  pricePkr?: number;
+  priceUsd?: number;
   highlights?: string[];
   types?: string[];
   destinationSlugs?: string[];
@@ -228,6 +232,8 @@ JSON shape:
   "itinerary": [{"day":1,"title":"short title","description":"2-4 sentences max"}],
   "included": ["strings"],
   "excluded": ["strings"],
+  "pricePkr": null,
+  "priceUsd": null,
   "maxPeople": 12,
   "minAge": 0,
   "timeSlots": ["08:00","10:00"],
@@ -235,7 +241,7 @@ JSON shape:
 }
 
 Rules:
-- Do not invent prices or ratings.
+- Only set pricePkr/priceUsd if a price is explicitly stated in the source; otherwise null. Never invent prices or ratings.
 - Clean day titles (move "Breakfast at hotel" into description when it leaked into title).
 - Trim each itinerary description to website-friendly length.
 - Pick destinations/provinces that match cities in the title and itinerary.`;
@@ -263,16 +269,127 @@ Rules:
   }
 }
 
+function numberOrUndefined(v: unknown): number | undefined {
+  if (typeof v === "number" && Number.isFinite(v) && v > 0) return v;
+  return undefined;
+}
+
+/**
+ * AI-first extraction for documents that don't match the rigid template
+ * (e.g. plain .txt / .docx itineraries with free-form headings).
+ * Sends the raw text to Groq and reconstructs a ParsedTourPdfSections + enrichment.
+ * Returns null when the LLM is unavailable or produces unusable output.
+ */
+async function aiExtractFromRawText(
+  rawText: string,
+  catalog: { destinations: CatalogEntry[]; provinces: CatalogEntry[] },
+): Promise<{ parsed: ParsedTourPdfSections; enrichment: LlmEnrichment } | null> {
+  if (!process.env.GROQ_API_KEY) return null;
+
+  const system = `You extract structured tour data from a raw travel itinerary document (any layout) for JunketTours, a Pakistan tour operator.
+Return a SINGLE JSON object only. No markdown fences, no text around it.
+
+Allowed types: ${TOUR_TYPES.join(", ")}
+Use ONLY destination slugs from: ${catalog.destinations.map((d) => d.slug).join(", ") || "(none)"}
+Use ONLY province slugs from: ${catalog.provinces.map((p) => p.slug).join(", ") || "(none)"}
+
+JSON shape:
+{
+  "title": "concise tour title, e.g. '7 Days Heritage & Cultural Escape'",
+  "durationDays": 7,
+  "location": "short location label for cards",
+  "days": [{"day":1,"title":"short clean title","description":"2-4 sentences of what happens"}],
+  "included": ["strings"],
+  "excluded": ["strings"],
+  "description": "150-350 word marketing description",
+  "highlights": ["5-8 bullets"],
+  "types": ["culture"],
+  "destinationSlugs": ["lahore"],
+  "provinceSlugs": ["punjab"],
+  "tourTypeLabel": "e.g. Heritage & Culture tours",
+  "pricePkr": null,
+  "priceUsd": null
+}
+
+Rules:
+- Capture EVERY day present in the document as its own item with a clean title and a full description.
+- Move meal/logistics notes that leaked into a day title into that day's description.
+- durationDays must equal the number of days.
+- Only set pricePkr/priceUsd if a price is explicitly stated; otherwise null. Never invent prices.
+- Pick destinations/provinces that match cities mentioned.`;
+
+  let json: Record<string, unknown> | null;
+  try {
+    const raw = await groqComplete(system, rawText.slice(0, 100_000));
+    json = extractJsonObject(raw);
+  } catch {
+    return null;
+  }
+  if (!json) return null;
+
+  const days = normalizeItinerary(json.days, []);
+  if (days.length === 0) return null;
+
+  const durationDays =
+    numberOrUndefined(json.durationDays) ?? days.length;
+  const title =
+    typeof json.title === "string" && json.title.trim()
+      ? json.title.trim()
+      : `${durationDays} Day Tour`;
+  const included = Array.isArray(json.included)
+    ? json.included.filter((x): x is string => typeof x === "string")
+    : [];
+  const excluded = Array.isArray(json.excluded)
+    ? json.excluded.filter((x): x is string => typeof x === "string")
+    : [];
+
+  const parsed: ParsedTourPdfSections = {
+    title,
+    durationDays,
+    days,
+    included,
+    excluded,
+  };
+
+  const enrichment: LlmEnrichment = {
+    description: typeof json.description === "string" ? json.description : undefined,
+    location: typeof json.location === "string" ? json.location : undefined,
+    highlights: Array.isArray(json.highlights)
+      ? (json.highlights as string[])
+      : undefined,
+    types: Array.isArray(json.types) ? (json.types as string[]) : undefined,
+    destinationSlugs: Array.isArray(json.destinationSlugs)
+      ? (json.destinationSlugs as string[])
+      : undefined,
+    provinceSlugs: Array.isArray(json.provinceSlugs)
+      ? (json.provinceSlugs as string[])
+      : undefined,
+    tourTypeLabel:
+      typeof json.tourTypeLabel === "string" ? json.tourTypeLabel : undefined,
+    itinerary: days,
+    pricePkr: numberOrUndefined(json.pricePkr),
+    priceUsd: numberOrUndefined(json.priceUsd),
+  };
+
+  return { parsed, enrichment };
+}
+
 function mergeDraft(
   parsed: ParsedTourPdfSections,
   enrichment: LlmEnrichment,
   catalog: { destinations: CatalogEntry[]; provinces: CatalogEntry[] },
   enrichedByLlm: boolean,
 ): TourPdfImportDraft {
-  const warnings: string[] = [
-    "Price not found in PDF — enter PKR/USD before publishing.",
-    "Upload tour images before publishing.",
-  ];
+  const pricePkr = numberOrUndefined(enrichment.pricePkr);
+  const priceUsd = numberOrUndefined(enrichment.priceUsd);
+
+  const warnings: string[] = [];
+  if (pricePkr === undefined && priceUsd === undefined) {
+    warnings.push("Price not found in document — enter PKR/USD before publishing.");
+  } else {
+    warnings.push("Price detected from document — confirm PKR/USD before publishing.");
+  }
+  warnings.push("Upload tour images before publishing.");
   if (!enrichedByLlm) {
     warnings.push(
       "LLM enrichment unavailable — review slug, description, and destinations.",
@@ -345,6 +462,8 @@ function mergeDraft(
     description,
     durationDays: parsed.durationDays,
     location,
+    pricePkr,
+    priceUsd,
     types,
     destinationSlugs,
     provinceSlugs,
@@ -400,19 +519,46 @@ export const parseTourPdf = action({
       throw new Error("PDF text is too large to parse");
     }
 
-    let parsed: ParsedTourPdfSections;
-    try {
-      parsed = parseTourPdfTemplate(trimmed);
-    } catch (parseErr) {
-      console.error("[parseTourPdf] template parse failed:", parseErr);
-      throw parseErr;
-    }
-    console.log("[parseTourPdf] parsed title:", parsed.title, "days:", parsed.days.length);
     const catalog = await ctx.runQuery(
       internal.tourPdfImportCatalog.listCatalogForPdfImport,
       {},
     );
-    const { enrichment, enrichedByLlm } = await enrichWithLlm(parsed, catalog);
+
+    let parsed: ParsedTourPdfSections | null = null;
+    try {
+      parsed = parseTourPdfTemplate(trimmed);
+    } catch (parseErr) {
+      console.warn(
+        "[parseTourPdf] template parse failed, falling back to AI extraction:",
+        parseErr instanceof Error ? parseErr.message : parseErr,
+      );
+      parsed = null;
+    }
+
+    let enrichment: LlmEnrichment = {};
+    let enrichedByLlm = false;
+
+    if (parsed) {
+      // Template matched: enrich the deterministic parse with the LLM.
+      const r = await enrichWithLlm(parsed, catalog);
+      enrichment = r.enrichment;
+      enrichedByLlm = r.enrichedByLlm;
+    } else {
+      // Free-form document: let the LLM extract the full structure.
+      const r = await aiExtractFromRawText(trimmed, catalog);
+      if (!r) {
+        throw new Error(
+          process.env.GROQ_API_KEY
+            ? "Couldn't read this document. Make sure it lists day-by-day itinerary details, or try a PDF/Word export."
+            : "This document format needs AI parsing, which isn't configured (GROQ_API_KEY missing). Use the standard tour PDF template or set up AI import.",
+        );
+      }
+      parsed = r.parsed;
+      enrichment = r.enrichment;
+      enrichedByLlm = true;
+    }
+
+    console.log("[parseTourPdf] parsed title:", parsed.title, "days:", parsed.days.length);
     console.log("[parseTourPdf] LLM enriched:", enrichedByLlm);
 
     const draft = mergeDraft(parsed, enrichment, catalog, enrichedByLlm);

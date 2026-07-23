@@ -80,15 +80,9 @@ function paymentTemplate(method: PaymentMethod) {
       "Instructions: Share screenshot after payment.",
     ].join("\n");
   }
-  return [
-    "Bank transfer details",
-    "",
-    "Bank name: __________",
-    "Account title: Junket Tours",
-    "Account number: __________",
-    "IBAN: __________",
-    "Instructions: Share receipt after payment.",
-  ].join("\n");
+  // Bank account details (Bank Alfalah / Junket Tours) are printed on every
+  // invoice automatically, so the template only carries optional instructions.
+  return "Please share the payment receipt after completing the transfer.";
 }
 
 export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: string }) {
@@ -147,6 +141,19 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
   const governmentLicenseNo2 =
     (publicSettings as { governmentLicenseNo2?: string } | undefined)?.governmentLicenseNo2?.trim() ||
     undefined;
+  const bankDetails = (
+    publicSettings as
+      | {
+          bankDetails?: {
+            bankName?: string;
+            accountTitle?: string;
+            accountNumber?: string;
+            iban?: string;
+            instruction?: string;
+          };
+        }
+      | undefined
+  )?.bankDetails;
 
   const invoiceDoc = useQuery(
     api.invoices.getForAdmin,
@@ -276,11 +283,13 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
       isFinal: invoiceDoc?.status === "paid",
       tripSummary: tripSummary.trim() || undefined,
       payment: { method: paymentMethod, details: paymentDetails },
+      bankDetails,
       notes: { terms: terms || undefined, cancellationPolicy: cancellationPolicy || undefined },
     };
   }, [
     invoiceDoc?.invoiceNumber,
     invoiceDoc?.status,
+    bankDetails,
     clientName,
     invoiceDate,
     currency,
@@ -715,7 +724,9 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                     Amount due
                   </p>
                   <p className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">
-                    {remainingBalance <= 0.00001 ? "Paid" : money(currency, remainingBalance)}
+                    {invoiceDoc?.status === "paid" || remainingBalance <= 0.00001
+                      ? "Paid"
+                      : money(currency, remainingBalance)}
                   </p>
                   <p className="mt-1 text-xs text-muted">
                     What the customer pays now (trip total minus any advance).
@@ -802,6 +813,13 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                 }}
                 placeholder="Account title, IBAN, number, instructions…"
               />
+              {paymentMethod === "bank" ? (
+                <FieldHint>
+                  Bank details{bankDetails?.accountNumber ? ` (${bankDetails.accountTitle} · ${bankDetails.accountNumber})` : ""}{" "}
+                  are managed in Admin → Settings and printed on every invoice
+                  automatically. Use this box only for extra instructions.
+                </FieldHint>
+              ) : null}
             </div>
           </div>
         ) : step === 5 ? (

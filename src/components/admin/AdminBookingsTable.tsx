@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { cn } from "@/lib/cn";
@@ -16,6 +17,7 @@ type TripFields = {
   adults?: number;
   children?: number;
   specialNeeds?: string;
+  notes?: string;
 };
 
 type UnifiedRow =
@@ -36,6 +38,7 @@ type UnifiedRow =
       id: string;
       name: string;
       email: string;
+      phone?: string;
       tourTitle: string;
       peopleCount: number;
       totalPrice: number;
@@ -61,6 +64,71 @@ function tripSummary(r: UnifiedRow): string {
   return bits.join(" · ") || "—";
 }
 
+function DetailField({ label, value }: { label: string; value?: string }) {
+  if (!value || !value.trim()) return null;
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </p>
+      <p className="mt-0.5 break-words text-sm text-brand-ink">{value}</p>
+    </div>
+  );
+}
+
+function BookingDetail({
+  r,
+  colSpan,
+}: {
+  r: UnifiedRow;
+  colSpan: number;
+}) {
+  const phone = r.phone;
+  const dateRange =
+    r.preferredStart || r.preferredEnd
+      ? `${r.preferredStart ?? "?"} → ${r.preferredEnd ?? "?"}`
+      : undefined;
+  const pax =
+    r.adults != null || r.children != null
+      ? `${r.adults ?? 0} adult(s), ${r.children ?? 0} child(ren)`
+      : undefined;
+  const price =
+    typeof r.totalPrice === "number" && r.totalPrice > 0
+      ? formatMoney(r.totalPrice, r.currency === "PKR" ? "PKR" : "USD")
+      : undefined;
+  return (
+    <tr className="border-b border-slate-100 bg-slate-50/60 last:border-0">
+      <td colSpan={colSpan} className="px-4 py-4">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
+          <DetailField label="Customer" value={r.name} />
+          <DetailField label="Phone" value={phone} />
+          <DetailField label="Email" value={r.email} />
+          <DetailField
+            label="Account"
+            value={r.kind === "guest" ? "Guest (no login)" : "Registered member"}
+          />
+          <DetailField label="Tour" value={r.tourTitle} />
+          <DetailField
+            label="Travellers"
+            value={`${r.peopleCount} ${r.peopleCount === 1 ? "person" : "people"}`}
+          />
+          <DetailField label="Preferred dates" value={dateRange} />
+          <DetailField label="Departure city" value={r.departureCity} />
+          <DetailField label="Adults / children" value={pax} />
+          <DetailField label="Estimated value" value={price} />
+          <DetailField label="Special needs" value={r.specialNeeds} />
+          <DetailField label="Notes" value={r.notes} />
+        </div>
+        {!phone && !r.email ? (
+          <p className="mt-2 text-xs text-amber-700">
+            No contact details were captured for this request.
+          </p>
+        ) : null}
+      </td>
+    </tr>
+  );
+}
+
 function statusBadgeClass(status: string) {
   if (status === "confirmed")
     return "bg-emerald-100 text-emerald-800 ring-emerald-200";
@@ -75,6 +143,16 @@ export function AdminBookingsTable() {
   const rows = useQuery(api.bookings.getAllBookings, {});
   const updateStatus = useMutation(api.bookings.updateBookingStatus);
   const [filter, setFilter] = useState<StatusFilter>("all");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  function toggleExpanded(key: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
 
   const filtered = useMemo(() => {
     if (!rows) return [];
@@ -126,26 +204,34 @@ export function AdminBookingsTable() {
             </tr>
           </thead>
           <tbody>
-            {filtered.map((r) => (
-              <tr
-                key={`${r.kind}-${r.id}`}
-                className="border-b border-slate-100 last:border-0"
-              >
+            {filtered.map((r) => {
+              const key = `${r.kind}-${r.id}`;
+              const isOpen = expanded.has(key);
+              const contactLine = r.email || r.phone || "—";
+              return (
+              <Fragment key={key}>
+              <tr className="border-b border-slate-100 last:border-0">
                 <td className="px-4 py-3">
-                  <span className="font-medium text-brand-ink">{r.name}</span>
-                  {r.kind === "user" ? (
-                    <span className="mt-0.5 block text-xs text-slate-500">
-                      {r.email}
+                  <button
+                    type="button"
+                    onClick={() => toggleExpanded(key)}
+                    aria-expanded={isOpen}
+                    aria-label={isOpen ? `Hide details for ${r.name}` : `Show details for ${r.name}`}
+                    className="flex items-start gap-2 text-left"
+                  >
+                    <ChevronDown
+                      className={cn(
+                        "mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition-transform",
+                        isOpen && "rotate-180",
+                      )}
+                    />
+                    <span>
+                      <span className="font-medium text-brand-ink">{r.name}</span>
+                      <span className="mt-0.5 block text-xs text-slate-500">
+                        {contactLine}
+                      </span>
                     </span>
-                  ) : r.email ? (
-                    <span className="mt-0.5 block text-xs text-slate-500">
-                      {r.email}
-                    </span>
-                  ) : (
-                    <span className="mt-0.5 block text-xs text-slate-500">
-                      {r.phone}
-                    </span>
-                  )}
+                  </button>
                 </td>
                 <td className="px-4 py-3">
                   <span
@@ -199,7 +285,10 @@ export function AdminBookingsTable() {
                   </select>
                 </td>
               </tr>
-            ))}
+              {isOpen ? <BookingDetail r={r} colSpan={4} /> : null}
+              </Fragment>
+              );
+            })}
           </tbody>
         </table>
         {rows.length === 0 ? (

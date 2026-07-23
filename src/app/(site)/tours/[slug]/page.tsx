@@ -8,13 +8,17 @@ import { getSiteUrl } from "@/lib/site";
 import { getWhatsAppClickUrl } from "@/lib/whatsapp-server";
 import type { Id } from "@convex/_generated/dataModel";
 import { PageContainer } from "@/components/ui/PageContainer";
-import { Card } from "@/components/ui/Card";
 import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
 import type { TourCardData } from "@/components/shared/TourCard";
 import { Clock, MapPin, Star } from "lucide-react";
 import { TourDetailTabs } from "@/components/tours/TourDetailTabs";
+import { TourReviews } from "@/components/tours/TourReviews";
+import { TourItineraryAccordion } from "@/components/tours/TourItineraryAccordion";
 import { loadTourBySlug } from "@/lib/tours-server";
 import { getConvexServer } from "@/lib/convex-server";
+import { getServerCurrency } from "@/lib/currency-server";
+import { formatTourPrice, getTourUnitPrice, tourHasPrice } from "@/lib/tourPricing";
+import { Users } from "lucide-react";
 import Image from "next/image";
 
 function lazyBlock(label: string, minH: string) {
@@ -79,6 +83,13 @@ type TourDetail = {
   priceUsd?: number;
   durationDays: number;
   location: string;
+  maxPeople?: number;
+  minAge?: number;
+  ratingAvg?: number;
+  reviewsCount?: number;
+  highlights?: string[];
+  included?: string[];
+  excluded?: string[];
   images: string[];
   itinerary: Array<{ day: number; title: string; description: string }>;
   isActive: boolean;
@@ -148,6 +159,33 @@ export default async function TourDetailPage({ params }: Props) {
   }));
 
   const badge = tourBadge(tour.slug);
+  const currency = getServerCurrency();
+  const bookable = tourHasPrice(tour);
+  const priceLabel = formatTourPrice(tour, currency);
+  const unitPrice = getTourUnitPrice(tour, currency) || undefined;
+  const hasRating =
+    typeof tour.ratingAvg === "number" &&
+    tour.ratingAvg > 0 &&
+    typeof tour.reviewsCount === "number" &&
+    tour.reviewsCount > 0;
+
+  const highlights =
+    tour.highlights && tour.highlights.length > 0
+      ? tour.highlights
+      : [
+          "Handpicked viewpoints and photo stops",
+          "Comfortable private transport",
+          "Flexible pacing with local guidance",
+        ];
+  const included =
+    tour.included && tour.included.length > 0
+      ? tour.included
+      : [
+          "24/7 Expert assistance",
+          "Professional driver",
+          "Fuel, tolls & road taxes",
+          "Hotel pickup & drop off",
+        ];
 
   return (
     <main className="min-h-screen pb-28 lg:pb-20">
@@ -184,10 +222,32 @@ export default async function TourDetailPage({ params }: Props) {
               <Clock className="h-4 w-4 text-havezic-primary" aria-hidden />
               {tour.durationDays} days
             </span>
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-sm font-medium text-foreground backdrop-blur-sm">
-              <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
-              Highly rated experiences
-            </span>
+            {typeof tour.maxPeople === "number" && tour.maxPeople > 0 ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-sm font-medium text-foreground backdrop-blur-sm">
+                <Users className="h-4 w-4 text-havezic-primary" aria-hidden />
+                Up to {tour.maxPeople} guests
+              </span>
+            ) : null}
+            {hasRating ? (
+              <a
+                href="#reviews"
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-sm font-medium text-foreground backdrop-blur-sm hover:border-border-strong"
+              >
+                <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
+                {tour.ratingAvg!.toFixed(1)} · {tour.reviewsCount} review
+                {tour.reviewsCount === 1 ? "" : "s"}
+              </a>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background/70 px-3 py-1.5 text-sm font-medium text-foreground backdrop-blur-sm">
+                <Star className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden />
+                Highly rated experiences
+              </span>
+            )}
+            {bookable && priceLabel ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-havezic-primary/30 bg-havezic-primary/10 px-3 py-1.5 text-sm font-semibold text-havezic-primary backdrop-blur-sm">
+                From {priceLabel} / person
+              </span>
+            ) : null}
           </div>
         </header>
 
@@ -207,6 +267,10 @@ export default async function TourDetailPage({ params }: Props) {
               durationDays={tour.durationDays}
               location={tour.location}
               whatsappUrl={whatsappUrl}
+              bookable={bookable}
+              priceLabel={priceLabel}
+              unitPrice={unitPrice}
+              currency={currency}
             />
 
             {relatedCards.length > 0 ? (
@@ -258,11 +322,7 @@ export default async function TourDetailPage({ params }: Props) {
                 <div>
                   <h3 className="text-base font-bold text-foreground">Highlights</h3>
                   <ul className="mt-3 space-y-2 text-sm text-muted">
-                    {[
-                      "Handpicked viewpoints and photo stops",
-                      "Comfortable private transport",
-                      "Flexible pacing with local guidance",
-                    ].map((x) => (
+                    {highlights.map((x) => (
                       <li key={x} className="flex gap-2">
                         <span
                           className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-havezic-primary/15 text-havezic-primary"
@@ -278,12 +338,7 @@ export default async function TourDetailPage({ params }: Props) {
                 <div>
                   <h3 className="text-base font-bold text-foreground">What’s Included</h3>
                   <ul className="mt-3 space-y-2 text-sm text-muted">
-                    {[
-                      "24/7 Expert assistance",
-                      "Professional driver",
-                      "Fuel, tolls & road taxes",
-                      "Hotel pickup & drop off",
-                    ].map((x) => (
+                    {included.map((x) => (
                       <li key={x} className="flex gap-2">
                         <span
                           className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600"
@@ -297,6 +352,25 @@ export default async function TourDetailPage({ params }: Props) {
                   </ul>
                 </div>
               </div>
+
+              {tour.excluded && tour.excluded.length > 0 ? (
+                <div className="mt-8">
+                  <h3 className="text-base font-bold text-foreground">Not included</h3>
+                  <ul className="mt-3 grid gap-2 text-sm text-muted sm:grid-cols-2">
+                    {tour.excluded.map((x) => (
+                      <li key={x} className="flex gap-2">
+                        <span
+                          className="mt-1 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-rose-500/15 text-rose-600"
+                          aria-hidden
+                        >
+                          ✕
+                        </span>
+                        <span>{x}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </section>
 
             <section id="tour-plan" className="mt-10 scroll-mt-28 md:mt-12">
@@ -305,42 +379,14 @@ export default async function TourDetailPage({ params }: Props) {
                 Day-by-day flow — timings may shift slightly with weather and road
                 conditions.
               </p>
-              <ol className="relative mt-8 space-y-0 border-l-2 border-border pl-6 md:pl-8">
-                {tour.itinerary.map((d) => (
-                  <li key={d.day} className="relative pb-10 last:pb-0">
-                    <span
-                      className="absolute -left-[calc(0.75rem+2px)] top-1.5 flex h-3.5 w-3.5 -translate-x-1/2 items-center justify-center rounded-full border-2 border-white bg-havezic-primary shadow-sm ring-2 ring-havezic-primary/20 md:-left-[calc(1rem+2px)]"
-                      aria-hidden
-                    />
-                    <Card className="rounded-2xl p-5 md:p-6">
-                      <p className="text-xs font-bold uppercase tracking-wider text-havezic-text">
-                        Day {d.day}
-                      </p>
-                      <p className="mt-1.5 text-lg font-semibold text-foreground">
-                        {d.title}
-                      </p>
-                      <p className="mt-2 text-sm leading-relaxed text-muted">
-                        {d.description}
-                      </p>
-                    </Card>
-                  </li>
-                ))}
-              </ol>
+              <TourItineraryAccordion itinerary={tour.itinerary} />
             </section>
 
             <div id="location" className="mt-10 scroll-mt-28 md:mt-12">
               <TourLocationMap location={tour.location} title={tour.title} />
             </div>
 
-            <section
-              id="reviews"
-              className="mt-10 scroll-mt-28 rounded-2xl border border-border bg-panel p-6 shadow-sm md:mt-12 md:p-8"
-            >
-              <h2 className="text-lg font-bold text-foreground">Reviews</h2>
-              <p className="mt-3 text-sm text-muted">
-                No reviews yet. Book this tour and be the first to share your experience.
-              </p>
-            </section>
+            <TourReviews tourId={tour._id} />
 
             <TourDetailRelatedCarousel
               tours={relatedCards}

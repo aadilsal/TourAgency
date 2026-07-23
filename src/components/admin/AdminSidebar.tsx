@@ -18,6 +18,7 @@ import {
   Settings,
   HelpCircle,
   Stamp,
+  Star,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 
@@ -60,6 +61,7 @@ export function AdminSidebar({
         label: "Inbox",
         links: [
           { href: "/admin/bookings", label: "Customisation", icon: CalendarCheck },
+          { href: "/admin/reviews", label: "Reviews", icon: Star },
           { href: "/admin/contact", label: "Leads", icon: MessageSquare },
           {
             href: "/admin/visa-invitations",

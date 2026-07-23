@@ -11,7 +11,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { Card } from "@/components/ui/Card";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 type Props = { params: { slug: string } };
 

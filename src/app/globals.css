@@ -179,6 +179,41 @@ html.theme-havezic {
   }
 }
 
+/*
+ * SSR-safe entrance reveals. Content is visible by default (no-JS / no-animation
+ * fallback) and only enhanced with a CSS entrance — never hidden behind JS.
+ */
+.jt-reveal,
+.jt-fade {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .jt-reveal {
+    animation: jt-reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .jt-fade {
+    animation: jt-fade 0.4s ease both;
+  }
+}
+@keyframes jt-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes jt-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Embla carousel */
 .embla {
   overflow: hidden;

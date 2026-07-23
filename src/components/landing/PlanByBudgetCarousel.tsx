@@ -14,29 +14,25 @@ const SLIDES: {
     title: "Under PKR 50,000",
     subtitle: "Heritage weekends & northern valley loops",
     href: "/tours?max=50000",
-    image:
-      "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=1200&q=80",
+    image: "/images/marketing/budget-under-50k.jpg",
   },
   {
     title: "Under PKR 100,000",
     subtitle: "Mid-range comfort & longer trips",
     href: "/tours?max=100000",
-    image:
-      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=1200&q=80",
+    image: "/images/marketing/budget-under-100k.jpg",
   },
   {
     title: "Under PKR 150,000",
     subtitle: "Comfort upgrades & extended itineraries",
     href: "/tours?max=150000",
-    image:
-      "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80",
+    image: "/images/marketing/budget-under-150k.jpg",
   },
   {
     title: "PKR 150,000 & above",
     subtitle: "Premium stays & private transport",
     href: "/tours?min=150000",
-    image:
-      "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=1200&q=80",
+    image: "/images/marketing/budget-premium.jpg",
   },
 ];
 

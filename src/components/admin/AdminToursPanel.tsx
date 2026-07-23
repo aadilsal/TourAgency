@@ -49,21 +49,6 @@ const defaultItinerary: Doc<"tours">["itinerary"] = [
   },
 ];
 
-function parseItineraryJson(raw: string): Doc<"tours">["itinerary"] {
-  const parsed = JSON.parse(raw) as unknown;
-  if (!Array.isArray(parsed) || parsed.length === 0) {
-    throw new Error("Itinerary must be a non-empty JSON array.");
-  }
-  return parsed.map((item, i) => {
-    if (!item || typeof item !== "object") throw new Error("Invalid itinerary row");
-    const o = item as Record<string, unknown>;
-    const day = typeof o.day === "number" ? o.day : i;
-    const title = typeof o.title === "string" ? o.title : `Day ${i}`;
-    const description =
-      typeof o.description === "string" ? o.description : "";
-    return { day, title, description };
-  });
-}
 
 /** Some browsers/OSes leave `File.type` empty even for real images from “Choose file”. */
 function isProbablyImageFile(f: File): boolean {
@@ -167,6 +152,8 @@ export function AdminToursPanel() {
   const [maxPeople, setMaxPeople] = useState<number | "">("");
   const [minAge, setMinAge] = useState<number | "">("");
   const [tourTypeLabel, setTourTypeLabel] = useState("");
+  const [pricePkr, setPricePkr] = useState<number | "">("");
+  const [priceUsd, setPriceUsd] = useState<number | "">("");
   const [ratingAvg, setRatingAvg] = useState<number | "">("");
   const [reviewsCount, setReviewsCount] = useState<number | "">("");
   const [office, setOffice] = useState(fallbackOffice);
@@ -176,9 +163,34 @@ export function AdminToursPanel() {
   const [pathsInput, setPathsInput] = useState("");
   const [ingesting, setIngesting] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [itineraryJson, setItineraryJson] = useState(
-    () => JSON.stringify(defaultItinerary, null, 2),
+  const [itineraryDays, setItineraryDays] = useState<Doc<"tours">["itinerary"]>(
+    () => [...defaultItinerary],
   );
+
+  function updateDay(idx: number, patch: Partial<Doc<"tours">["itinerary"][number]>) {
+    setItineraryDays((prev) => prev.map((d, i) => (i === idx ? { ...d, ...patch } : d)));
+  }
+  function addDay() {
+    setItineraryDays((prev) => [
+      ...prev,
+      { day: prev.length ? (prev[prev.length - 1]!.day ?? prev.length - 1) + 1 : 1, title: "", description: "" },
+    ]);
+  }
+  function removeDay(idx: number) {
+    setItineraryDays((prev) => {
+      const next = prev.filter((_, i) => i !== idx);
+      return next.length ? next : [...defaultItinerary];
+    });
+  }
+  function moveDay(idx: number, dir: -1 | 1) {
+    setItineraryDays((prev) => {
+      const j = idx + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[j]] = [next[j]!, next[idx]!];
+      return next;
+    });
+  }
   const [highlightsInput, setHighlightsInput] = useState("");
   const [includedInput, setIncludedInput] = useState("");
   const [excludedInput, setExcludedInput] = useState("");
@@ -260,6 +272,8 @@ export function AdminToursPanel() {
     setMaxPeople(typeof draft.maxPeople === "number" ? draft.maxPeople : "");
     setMinAge(typeof draft.minAge === "number" ? draft.minAge : "");
     setTourTypeLabel(draft.tourTypeLabel ?? "Heritage & Culture tours");
+    setPricePkr(typeof draft.pricePkr === "number" ? draft.pricePkr : "");
+    setPriceUsd(typeof draft.priceUsd === "number" ? draft.priceUsd : "");
     setRatingAvg("");
     setReviewsCount("");
     setOffice(fallbackOffice());
@@ -267,7 +281,7 @@ export function AdminToursPanel() {
     setImageRefs([]);
     setUrlIngestInput("");
     setPathsInput("");
-    setItineraryJson(JSON.stringify(draft.itinerary, null, 2));
+    setItineraryDays(draft.itinerary.length ? draft.itinerary : [...defaultItinerary]);
     setHighlightsInput(draft.highlights.join("\n"));
     setIncludedInput(draft.included.join("\n"));
     setExcludedInput(draft.excluded.join("\n"));
@@ -287,10 +301,15 @@ export function AdminToursPanel() {
     );
     setIsActive(false);
     setPdfImportWarnings(draft.warnings);
+    const priceNote =
+      typeof draft.pricePkr === "number" || typeof draft.priceUsd === "number"
+        ? ` Detected price${typeof draft.priceUsd === "number" ? ` USD ${draft.priceUsd}` : ""}${typeof draft.pricePkr === "number" ? ` PKR ${draft.pricePkr}` : ""} — set it below.`
+        : "";
     setMsg(
-      draft.enrichedByLlm
-        ? "Imported from PDF — review fields, add price & images, then save."
-        : "Imported from PDF (rules only) — review slug, description, and destinations.",
+      (draft.enrichedByLlm
+        ? "Imported from document — review fields, add price & images, then save."
+        : "Imported from document (rules only) — review slug, description, and destinations.") +
+        priceNote,
     );
     setModalOpen(true);
   }
@@ -310,6 +329,8 @@ export function AdminToursPanel() {
     setMaxPeople("");
     setMinAge("");
     setTourTypeLabel("Honeymoon tours");
+    setPricePkr("");
+    setPriceUsd("");
     setRatingAvg("");
     setReviewsCount("");
     setOffice(fallbackOffice());
@@ -317,7 +338,7 @@ export function AdminToursPanel() {
     setImageRefs([]);
     setUrlIngestInput("");
     setPathsInput("");
-    setItineraryJson(JSON.stringify(defaultItinerary, null, 2));
+    setItineraryDays([...defaultItinerary]);
     setHighlightsInput("Discover scenic viewpoints\nLocal culture & food\nComfortable private transport");
     setIncludedInput("24/7 Expert assistance\nProfessional driver\nFuel & tolls\nHotel pickup & drop off");
     setExcludedInput("Flights\nPersonal expenses\nTips");
@@ -355,6 +376,8 @@ export function AdminToursPanel() {
     setMaxPeople(typeof t.maxPeople === "number" ? t.maxPeople : "");
     setMinAge(typeof t.minAge === "number" ? t.minAge : "");
     setTourTypeLabel(typeof t.tourTypeLabel === "string" ? t.tourTypeLabel : "");
+    setPricePkr(typeof t.pricePkr === "number" ? t.pricePkr : "");
+    setPriceUsd(typeof t.priceUsd === "number" ? t.priceUsd : "");
     setRatingAvg(typeof t.ratingAvg === "number" ? t.ratingAvg : "");
     setReviewsCount(typeof t.reviewsCount === "number" ? t.reviewsCount : "");
     setOffice(t.office ?? fallbackOffice());
@@ -362,7 +385,7 @@ export function AdminToursPanel() {
     setImageRefs([...t.images]);
     setUrlIngestInput("");
     setPathsInput("");
-    setItineraryJson(JSON.stringify(t.itinerary, null, 2));
+    setItineraryDays(t.itinerary.length ? t.itinerary : [...defaultItinerary]);
     setHighlightsInput(
       Array.isArray(t.highlights) ? t.highlights.join("\n") : "",
     );
@@ -551,11 +574,15 @@ export function AdminToursPanel() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
-    let itinerary: Doc<"tours">["itinerary"];
-    try {
-      itinerary = parseItineraryJson(itineraryJson);
-    } catch (err) {
-      setMsg(toUserFacingErrorMessage(err));
+    const itinerary: Doc<"tours">["itinerary"] = itineraryDays
+      .map((d, i) => ({
+        day: typeof d.day === "number" ? d.day : i + 1,
+        title: d.title.trim(),
+        description: d.description.trim(),
+      }))
+      .filter((d) => d.title || d.description);
+    if (itinerary.length === 0) {
+      setMsg("Add at least one itinerary day with a title.");
       return;
     }
     const images = imageRefs.filter(Boolean);
@@ -590,6 +617,8 @@ export function AdminToursPanel() {
           provinceIds: uniqueProvinceIds,
           durationDays,
           location,
+          pricePkr: pricePkr === "" ? undefined : pricePkr,
+          priceUsd: priceUsd === "" ? undefined : priceUsd,
           maxPeople: maxPeople === "" ? undefined : maxPeople,
           minAge: minAge === "" ? undefined : minAge,
           tourTypeLabel: tourTypeLabel.trim() || undefined,
@@ -618,6 +647,8 @@ export function AdminToursPanel() {
           provinceIds: uniqueProvinceIds,
           durationDays,
           location,
+          pricePkr: pricePkr === "" ? undefined : pricePkr,
+          priceUsd: priceUsd === "" ? undefined : priceUsd,
           maxPeople: maxPeople === "" ? undefined : maxPeople,
           minAge: minAge === "" ? undefined : minAge,
           tourTypeLabel: tourTypeLabel.trim() || undefined,
@@ -963,6 +994,46 @@ export function AdminToursPanel() {
 
           <fieldset className="rounded-lg border border-slate-200 p-3">
             <legend className="px-1 text-xs font-semibold text-slate-600">
+              Pricing
+            </legend>
+            <p className="mb-2 text-xs text-slate-500">
+              Set a price to publish this tour with a public price and a{" "}
+              <span className="font-semibold">Book now</span> button. Leave both
+              blank to keep it as a <span className="font-semibold">Customise</span>{" "}
+              (request-a-quote) tour.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block text-xs font-semibold text-slate-600">
+                Price (USD) — shown to international visitors
+                <input
+                  type="number"
+                  min={0}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="e.g. 1200"
+                  value={priceUsd}
+                  onChange={(e) =>
+                    setPriceUsd(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                />
+              </label>
+              <label className="block text-xs font-semibold text-slate-600">
+                Price (PKR) — shown to Pakistan visitors
+                <input
+                  type="number"
+                  min={0}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="e.g. 250000"
+                  value={pricePkr}
+                  onChange={(e) =>
+                    setPricePkr(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                />
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset className="rounded-lg border border-slate-200 p-3">
+            <legend className="px-1 text-xs font-semibold text-slate-600">
               ThemeForest “facts row”
             </legend>
             <div className="mt-2 grid gap-3 sm:grid-cols-3">
@@ -1237,15 +1308,47 @@ export function AdminToursPanel() {
               <p className="mt-3 text-xs text-slate-500">No images yet.</p>
             )}
           </div>
-          <label className="block text-xs font-semibold text-slate-600">
-            Itinerary (JSON array of {"{"} day, title, description {"}"})
-            <textarea
-              rows={8}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
-              value={itineraryJson}
-              onChange={(e) => setItineraryJson(e.target.value)}
-            />
-          </label>
+          <fieldset className="rounded-lg border border-slate-200 p-3">
+            <legend className="px-1 text-xs font-semibold text-slate-600">
+              Itinerary — day by day
+            </legend>
+            <div className="space-y-3">
+              {itineraryDays.map((d, idx) => (
+                <div key={idx} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-500">Day</span>
+                    <input
+                      type="number"
+                      className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
+                      value={d.day}
+                      onChange={(e) => updateDay(idx, { day: Number(e.target.value) })}
+                    />
+                    <input
+                      className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium"
+                      placeholder="Day title (e.g. Lahore — Old City & Forts)"
+                      value={d.title}
+                      onChange={(e) => updateDay(idx, { title: e.target.value })}
+                    />
+                    <div className="flex shrink-0 items-center gap-1">
+                      <button type="button" aria-label="Move up" className="rounded px-2 py-1 text-slate-500 hover:bg-slate-200 disabled:opacity-30" disabled={idx === 0} onClick={() => moveDay(idx, -1)}>↑</button>
+                      <button type="button" aria-label="Move down" className="rounded px-2 py-1 text-slate-500 hover:bg-slate-200 disabled:opacity-30" disabled={idx === itineraryDays.length - 1} onClick={() => moveDay(idx, 1)}>↓</button>
+                      <button type="button" aria-label="Remove day" className="rounded px-2 py-1 text-red-600 hover:bg-red-50" onClick={() => removeDay(idx)}>✕</button>
+                    </div>
+                  </div>
+                  <textarea
+                    rows={2}
+                    className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                    placeholder="What happens this day…"
+                    value={d.description}
+                    onChange={(e) => updateDay(idx, { description: e.target.value })}
+                  />
+                </div>
+              ))}
+            </div>
+            <Button type="button" variant="secondary" className="mt-3 !px-3 !py-1.5 !text-xs" onClick={addDay}>
+              + Add day
+            </Button>
+          </fieldset>
           <div className="flex flex-wrap gap-2 pt-2">
             <Button type="submit" disabled={saving}>
               {saving ? "Saving…" : editingId ? "Save changes" : "Create tour"}

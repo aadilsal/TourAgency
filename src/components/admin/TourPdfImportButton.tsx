@@ -5,7 +5,7 @@ import { useAction } from "convex/react";
 import { FileUp } from "lucide-react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/Button";
-import { extractPdfText } from "@/lib/tourPdf/extractPdfText";
+import { extractDocumentText } from "@/lib/tourPdf/extractDocumentText";
 import type { TourPdfImportDraft } from "@/lib/tourPdf/types";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 
@@ -50,7 +50,7 @@ export function TourPdfImportButton({
       const msg =
         sessionToken === undefined
           ? "Your session is still loading. Try again in a moment."
-          : "Sign in as admin to import tours from PDF.";
+          : "Sign in as admin to import tours from a document.";
       console.warn(`${LOG_PREFIX} no session token`);
       onError?.(msg);
       return;
@@ -58,12 +58,12 @@ export function TourPdfImportButton({
 
     setBusy(true);
     try {
-      console.log(`${LOG_PREFIX} step 1/2: extracting PDF text in browser…`);
-      const pdfText = await extractPdfText(file);
-      console.log(`${LOG_PREFIX} extracted text preview:`, pdfText.slice(0, 200));
+      console.log(`${LOG_PREFIX} step 1/2: extracting document text in browser…`);
+      const documentText = await extractDocumentText(file);
+      console.log(`${LOG_PREFIX} extracted text preview:`, documentText.slice(0, 200));
 
       console.log(`${LOG_PREFIX} step 2/2: calling Convex parseTourPdf…`);
-      const draft = await parseTourPdf({ sessionToken, pdfText });
+      const draft = await parseTourPdf({ sessionToken, pdfText: documentText });
 
       console.log(`${LOG_PREFIX} success:`, {
         title: draft.title,
@@ -89,7 +89,7 @@ export function TourPdfImportButton({
       <input
         ref={inputRef}
         type="file"
-        accept="application/pdf,.pdf"
+        accept="application/pdf,.pdf,.txt,text/plain,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         className="sr-only"
         disabled={disabled || busy}
         onChange={(e) => void onPickFile(e)}
@@ -101,7 +101,7 @@ export function TourPdfImportButton({
         onClick={() => inputRef.current?.click()}
       >
         <FileUp className="h-4 w-4" aria-hidden />
-        {busy ? "Parsing PDF…" : "Import from PDF"}
+        {busy ? "Parsing document…" : "Import from file (PDF / Word / TXT)"}
       </Button>
     </>
   );

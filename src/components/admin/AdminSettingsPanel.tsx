@@ -24,6 +24,11 @@ export function AdminSettingsPanel() {
   const [governmentLicenseNo, setGovernmentLicenseNo] = useState("");
   const [governmentLicenseNo2, setGovernmentLicenseNo2] = useState("");
   const [mapsEmbedUrl, setMapsEmbedUrl] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [accountTitle, setAccountTitle] = useState("");
+  const [accountNumber, setAccountNumber] = useState("");
+  const [iban, setIban] = useState("");
+  const [bankInstruction, setBankInstruction] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -36,6 +41,18 @@ export function AdminSettingsPanel() {
     setGovernmentLicenseNo((snap as { governmentLicenseNo?: string }).governmentLicenseNo ?? "");
     setGovernmentLicenseNo2((snap as { governmentLicenseNo2?: string }).governmentLicenseNo2 ?? "");
     setMapsEmbedUrl(snap.mapsEmbedUrl ?? "");
+    const bank = (snap as { bankDetails?: {
+      bankName?: string;
+      accountTitle?: string;
+      accountNumber?: string;
+      iban?: string;
+      instruction?: string;
+    } }).bankDetails;
+    setBankName(bank?.bankName ?? "");
+    setAccountTitle(bank?.accountTitle ?? "");
+    setAccountNumber(bank?.accountNumber ?? "");
+    setIban(bank?.iban ?? "");
+    setBankInstruction(bank?.instruction ?? "");
   }, [snap]);
 
   if (!canQuery) {
@@ -117,6 +134,39 @@ export function AdminSettingsPanel() {
           </div>
         </div>
 
+        <div className="mt-6 border-t border-border pt-5">
+          <h3 className="text-sm font-bold text-foreground">Bank transfer details</h3>
+          <p className="mt-1 text-xs text-muted">
+            Printed automatically on every invoice (PDF &amp; Word) and itinerary proposal.
+          </p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <FieldLabel>Bank name</FieldLabel>
+              <TextInput value={bankName} onChange={(e) => setBankName(e.target.value)} />
+            </div>
+            <div>
+              <FieldLabel>Account title</FieldLabel>
+              <TextInput value={accountTitle} onChange={(e) => setAccountTitle(e.target.value)} />
+            </div>
+            <div>
+              <FieldLabel>Account number</FieldLabel>
+              <TextInput value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} />
+            </div>
+            <div>
+              <FieldLabel>IBAN</FieldLabel>
+              <TextInput value={iban} onChange={(e) => setIban(e.target.value)} />
+            </div>
+            <div className="sm:col-span-2">
+              <FieldLabel>Payment instruction (optional)</FieldLabel>
+              <TextInput
+                value={bankInstruction}
+                onChange={(e) => setBankInstruction(e.target.value)}
+                placeholder="e.g. Share the payment receipt after transfer."
+              />
+            </div>
+          </div>
+        </div>
+
         <div className="mt-4 flex flex-wrap gap-2">
           <Button
             type="button"
@@ -135,6 +185,13 @@ export function AdminSettingsPanel() {
                     governmentLicenseNo,
                     governmentLicenseNo2,
                     mapsEmbedUrl,
+                    bankDetails: {
+                      bankName: bankName.trim(),
+                      accountTitle: accountTitle.trim(),
+                      accountNumber: accountNumber.trim(),
+                      iban: iban.trim(),
+                      instruction: bankInstruction.trim(),
+                    },
                   });
                   setMsg("Saved.");
                 } catch (e) {

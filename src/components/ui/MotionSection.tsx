@@ -1,8 +1,13 @@
-"use client";
-
-import { motion, useReducedMotion } from "framer-motion";
 import type { ReactNode } from "react";
+import { cn } from "@/lib/cn";
 
+/**
+ * Lightweight scroll/entrance reveal.
+ *
+ * IMPORTANT: content is fully visible by default (SSR + no-JS + reduced-motion)
+ * and only *enhanced* with a CSS entrance animation. It must never render at
+ * opacity:0 waiting for JS — that previously blanked whole homepage sections.
+ */
 export function MotionSection({
   children,
   className,
@@ -12,20 +17,13 @@ export function MotionSection({
   className?: string;
   delay?: number;
 }) {
-  const reduce = useReducedMotion();
-  if (reduce) {
-    return <div className={className}>{children}</div>;
-  }
   return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-40px" }}
-      transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}
+    <div
+      className={cn("jt-reveal", className)}
+      style={delay ? { animationDelay: `${delay}s` } : undefined}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
@@ -36,18 +34,5 @@ export function FadeIn({
   children: ReactNode;
   className?: string;
 }) {
-  const reduce = useReducedMotion();
-  if (reduce) {
-    return <div className={className}>{children}</div>;
-  }
-  return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.35 }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className={cn("jt-fade", className)}>{children}</div>;
 }

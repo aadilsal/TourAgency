@@ -47,6 +47,8 @@ export const createGuestBooking = mutation({
     tourId: v.id("tours"),
     peopleCount: v.number(),
     currency: v.optional(v.union(v.literal("PKR"), v.literal("USD"))),
+    /** Per-person price when booking a priced tour (intent = book). */
+    unitPrice: v.optional(v.number()),
     notes: v.optional(v.string()),
     preferredStart: v.optional(v.string()),
     preferredEnd: v.optional(v.string()),
@@ -64,6 +66,11 @@ export const createGuestBooking = mutation({
     const now = Date.now();
     const phoneNormalized = normalizePhone(args.phone);
     const currency = normalizeCurrency(args.currency);
+    const unitPrice =
+      typeof args.unitPrice === "number" && args.unitPrice > 0
+        ? args.unitPrice
+        : undefined;
+    const isBooking = unitPrice !== undefined;
     const guestBookingId = await ctx.db.insert("guestBookings", {
       name: args.name.trim(),
       phone: args.phone.trim(),
@@ -72,7 +79,7 @@ export const createGuestBooking = mutation({
       tourId: args.tourId,
       peopleCount: args.peopleCount,
       currency,
-      unitPrice: undefined,
+      unitPrice,
       notes: args.notes,
       preferredStart: args.preferredStart?.trim() || undefined,
       preferredEnd: args.preferredEnd?.trim() || undefined,
@@ -94,7 +101,7 @@ export const createGuestBooking = mutation({
       name: args.name.trim(),
       phone: args.phone.trim(),
       source: "Tour customisation",
-      message: `Customisation request for ${tour.title} — ${args.peopleCount} travelers, start ${start}${window}${city}${notes}`,
+      message: `${isBooking ? "Booking request" : "Customisation request"} for ${tour.title} — ${args.peopleCount} travelers, start ${start}${window}${city}${notes}`,
       createdAt: now,
     });
     await ctx.scheduler.runAfter(
@@ -253,12 +260,14 @@ export type UnifiedBooking =
       adults?: number;
       children?: number;
       specialNeeds?: string;
+      notes?: string;
     }
   | {
       kind: "user";
       id: Id<"bookings">;
       name: string;
       email: string;
+      phone?: string;
       tourTitle: string;
       peopleCount: number;
       status: "pending" | "confirmed" | "cancelled";
@@ -272,6 +281,7 @@ export type UnifiedBooking =
       adults?: number;
       children?: number;
       specialNeeds?: string;
+      notes?: string;
     };
 
 export const getAllBookings = query({
@@ -296,6 +306,8 @@ export const getAllBookings = query({
           tourTitle: tour?.title ?? "Unknown",
           peopleCount: g.peopleCount,
           status: g.status,
+          currency,
+          unitPrice,
           totalPrice:
             unitPrice != null ? unitPrice * g.peopleCount : 0,
           createdAt: g.createdAt,
@@ -305,6 +317,7 @@ export const getAllBookings = query({
           adults: g.adults,
           children: g.children,
           specialNeeds: g.specialNeeds,
+          notes: g.notes,
         };
       }),
     );
@@ -317,6 +330,7 @@ export const getAllBookings = query({
           id: b._id,
           name: user?.name ?? "User",
           email: user?.email ?? "",
+          phone: user?.phone,
           tourTitle: tour?.title ?? "Unknown",
           peopleCount: b.peopleCount,
           status: b.status,
@@ -330,6 +344,7 @@ export const getAllBookings = query({
           adults: b.adults,
           children: b.children,
           specialNeeds: b.specialNeeds,
+          notes: b.notes,
         };
       }),
     );
