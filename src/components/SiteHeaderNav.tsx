@@ -11,7 +11,6 @@ import {
   MapPin,
   BookOpen,
   Compass,
-  HelpCircle,
   PhoneCall,
   LayoutDashboard,
   Shield,
@@ -638,12 +637,15 @@ export function SiteHeaderNav({
       window.removeEventListener("junket-auth-change", onAuthChange);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [pathname, initialSession]);
+    // Refresh on mount, on explicit auth changes, and when the tab regains focus —
+    // not on every client-side navigation (which caused a redundant /api/auth/me
+    // request per route change).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const links = useMemo(
     () => [
       { href: "/about", label: "About Us", icon: Compass },
-      { href: "/about#faqs", label: "FAQs", icon: HelpCircle },
       { href: "/contact", label: "Contact", icon: PhoneCall },
       { href: "/blog", label: "Guides", icon: BookOpen },
     ],

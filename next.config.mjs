@@ -23,19 +23,17 @@ const nextConfig = {
     return config;
   },
   images: {
+    // NOTE: hostname "**" allows next/image to load images from ANY host. This is
+    // deliberately permissive so a legacy/admin-entered external image URL can
+    // never hard-crash a page again ("hostname not configured"). New images are
+    // upload-only (stored in Convex), so once legacy external URLs are migrated
+    // this can be tightened back to the specific hosts below.
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "images.unsplash.com",
-      },
-      {
-        protocol: "https",
-        hostname: "**.convex.cloud",
-      },
-      {
-        protocol: "https",
-        hostname: "**.convex.site",
-      },
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "**.convex.cloud" },
+      { protocol: "https", hostname: "**.convex.site" },
+      { protocol: "https", hostname: "**" },
+      { protocol: "http", hostname: "**" },
     ],
   },
   async rewrites() {
