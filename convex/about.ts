@@ -39,6 +39,17 @@ export const getPublic = query({
       });
     }
 
+    const resolveImage = async (
+      storageId: Id<"_storage"> | undefined,
+      legacy: string,
+    ): Promise<string> => {
+      if (storageId) {
+        const url = await ctx.storage.getUrl(storageId);
+        if (url) return url;
+      }
+      return legacy || "";
+    };
+
     return {
       eyebrow: row.eyebrow,
       heading: row.heading,
@@ -46,17 +57,17 @@ export const getPublic = query({
         explore: {
           title: row.exploreTitle,
           body: row.exploreBody,
-          image: row.exploreImage,
+          image: await resolveImage(row.exploreImageStorageId, row.exploreImage),
         },
         mission: {
           title: row.missionTitle,
           body: row.missionBody,
-          image: row.missionImage,
+          image: await resolveImage(row.missionImageStorageId, row.missionImage),
         },
         vision: {
           title: row.visionTitle,
           body: row.visionBody,
-          image: row.visionImage,
+          image: await resolveImage(row.visionImageStorageId, row.visionImage),
         },
       },
       stats: row.stats,
@@ -96,15 +107,16 @@ export const upsertAdmin = mutation({
 
     exploreTitle: v.string(),
     exploreBodyText: v.string(),
-    exploreImage: v.string(),
+    // `undefined` = leave image unchanged; `null` = clear it; an id = a newly uploaded image.
+    exploreImageStorageId: v.optional(v.union(v.id("_storage"), v.null())),
 
     missionTitle: v.string(),
     missionBodyText: v.string(),
-    missionImage: v.string(),
+    missionImageStorageId: v.optional(v.union(v.id("_storage"), v.null())),
 
     visionTitle: v.string(),
     visionBodyText: v.string(),
-    visionImage: v.string(),
+    visionImageStorageId: v.optional(v.union(v.id("_storage"), v.null())),
 
     stats: v.array(
       v.object({
@@ -122,31 +134,52 @@ export const upsertAdmin = mutation({
       .withIndex("by_key", (q) => q.eq("key", KEY))
       .unique();
 
-    const payload = {
+    /** When an image arg is provided: set/clear the storage id and drop any legacy URL. */
+    const imagePatch = (
+      arg: Id<"_storage"> | null | undefined,
+      idKey: string,
+      legacyKey: string,
+    ): Record<string, unknown> => {
+      if (arg === undefined) return {};
+      if (arg === null) return { [idKey]: undefined, [legacyKey]: "" };
+      return { [idKey]: arg, [legacyKey]: "" };
+    };
+
+    const textPayload = {
       key: KEY,
       eyebrow: args.eyebrow.trim(),
       heading: args.heading.trim(),
 
       exploreTitle: args.exploreTitle.trim(),
       exploreBody: trimLines(args.exploreBodyText),
-      exploreImage: args.exploreImage.trim(),
 
       missionTitle: args.missionTitle.trim(),
       missionBody: trimLines(args.missionBodyText),
-      missionImage: args.missionImage.trim(),
 
       visionTitle: args.visionTitle.trim(),
       visionBody: trimLines(args.visionBodyText),
-      visionImage: args.visionImage.trim(),
 
       stats: args.stats.map((s) => ({ value: s.value.trim(), label: s.label.trim() })),
       updatedAt: Date.now(),
     };
 
+    const imagePayload = {
+      ...imagePatch(args.exploreImageStorageId, "exploreImageStorageId", "exploreImage"),
+      ...imagePatch(args.missionImageStorageId, "missionImageStorageId", "missionImage"),
+      ...imagePatch(args.visionImageStorageId, "visionImageStorageId", "visionImage"),
+    };
+
     if (existing) {
-      await ctx.db.patch(existing._id, payload);
+      await ctx.db.patch(existing._id, { ...textPayload, ...imagePayload });
     } else {
-      await ctx.db.insert("aboutPageSettings", { ...payload, partners: [] });
+      await ctx.db.insert("aboutPageSettings", {
+        ...textPayload,
+        exploreImage: "",
+        missionImage: "",
+        visionImage: "",
+        ...imagePayload,
+        partners: [],
+      });
     }
   },
 });

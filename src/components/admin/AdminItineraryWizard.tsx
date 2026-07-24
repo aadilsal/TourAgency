@@ -272,7 +272,6 @@ export function AdminItineraryWizard({
   const exportDocx = useAction(api.documentsActions.exportItineraryDocx);
   const generateUploadUrl = useMutation(api.media.generateItineraryImageUploadUrl);
   const addItineraryImageAsset = useMutation(api.media.addItineraryImageAsset);
-  const ingestRemote = useAction(api.mediaActions.ingestImageFromUrl);
   const resolveUrls = useQuery(
     api.media.resolveStorageIdsForAdmin,
     "skip",
@@ -307,8 +306,6 @@ export function AdminItineraryWizard({
   const [days, setDays] = useState(5);
   const [theme, setTheme] = useState<Theme>("luxury");
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage"> | null>(null);
-  const [dayImageUrlInputs, setDayImageUrlInputs] = useState<Record<number, string>>({});
-  const [ingestingRemoteImage, setIngestingRemoteImage] = useState(false);
   const [tripPresetKey, setTripPresetKey] = useState("");
   const [packagePresetKey, setPackagePresetKey] = useState("");
   const [customTripPresets, setCustomTripPresets] = useState<TripPreset[]>([]);
@@ -577,23 +574,6 @@ export function AdminItineraryWizard({
       console.warn("Failed to index itinerary image asset", e);
     }
     return data.storageId;
-  }
-
-  async function ingestImageFromUrl(url: string): Promise<Id<"_storage">> {
-    if (!canMutate) throw new Error("Not authenticated");
-    if (!itineraryId || !folderKey) throw new Error("Create the draft first.");
-    const storageId = await ingestRemote({ sessionToken, url: url.trim() });
-    try {
-      await addItineraryImageAsset({
-        sessionToken,
-        itineraryId,
-        folderKey,
-        storageId,
-      });
-    } catch (e) {
-      console.warn("Failed to index itinerary image asset", e);
-    }
-    return storageId;
   }
 
   const pdfStorageIds = useMemo(() => {
@@ -1899,48 +1879,6 @@ export function AdminItineraryWizard({
                             ))}
                           </SelectField>
                         ) : null}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <TextInput
-                          value={dayImageUrlInputs[d.dayNumber] ?? ""}
-                          onChange={(e) =>
-                            setDayImageUrlInputs((prev) => ({
-                              ...prev,
-                              [d.dayNumber]: e.target.value,
-                            }))
-                          }
-                          placeholder="Paste image URL"
-                          className="min-w-[240px]"
-                        />
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          disabled={ingestingRemoteImage || !(dayImageUrlInputs[d.dayNumber]?.trim())}
-                          onClick={async () => {
-                            const url = dayImageUrlInputs[d.dayNumber]?.trim();
-                            if (!url) return;
-                            setIngestingRemoteImage(true);
-                            try {
-                              const id = await ingestImageFromUrl(url);
-                              setDayPlans((prev) => {
-                                const next = prev.map((x) =>
-                                  x.dayNumber === d.dayNumber ? { ...x, imageStorageId: id } : x,
-                                );
-                                queuePatch({ dayPlans: next });
-                                return next;
-                              });
-                              setDayImageUrlInputs((prev) => ({ ...prev, [d.dayNumber]: "" }));
-                              setMsg("Day image downloaded and saved.");
-                              window.setTimeout(() => setMsg(null), 2000);
-                            } catch (err) {
-                              setMsg(toUserFacingErrorMessage(err));
-                            } finally {
-                              setIngestingRemoteImage(false);
-                            }
-                          }}
-                        >
-                          Download
-                        </Button>
                       </div>
                     </div>
                     {d.imageStorageId ? (

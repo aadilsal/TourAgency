@@ -5,8 +5,8 @@ export default function AdminToursPage() {
     <main>
       <h1 className="text-2xl font-semibold text-zinc-900">Tours</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Table view — use Add tour or Edit for the full modal (itinerary JSON,
-        images, pricing).
+        Table view — use Add tour or Edit to open the full editor page
+        (itinerary, images, pricing).
       </p>
       <div className="mt-8">
         <AdminToursPanel />

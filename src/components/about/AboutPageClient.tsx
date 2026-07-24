@@ -188,14 +188,22 @@ export function AboutPageClient({
             </Card>
 
             <Card className="relative overflow-hidden p-0">
-              <Image
-                src={tabContent.image}
-                alt=""
-                fill
-                sizes="(min-width: 1024px) 480px, 100vw"
-                className="object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
+              {tabContent.image ? (
+                <>
+                  <Image
+                    src={tabContent.image}
+                    alt=""
+                    fill
+                    sizes="(min-width: 1024px) 480px, 100vw"
+                    className="object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10 to-transparent" />
+                </>
+              ) : (
+                <div className="flex min-h-[240px] items-center justify-center bg-havezic-background-light text-sm font-semibold text-muted">
+                  No image yet
+                </div>
+              )}
             </Card>
           </div>
 

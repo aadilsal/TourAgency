@@ -716,15 +716,19 @@ export default defineSchema({
 
     exploreTitle: v.string(),
     exploreBody: v.array(v.string()),
+    // Legacy raw-URL fields, kept for backward compatibility; new uploads use *StorageId.
     exploreImage: v.string(),
+    exploreImageStorageId: v.optional(v.id("_storage")),
 
     missionTitle: v.string(),
     missionBody: v.array(v.string()),
     missionImage: v.string(),
+    missionImageStorageId: v.optional(v.id("_storage")),
 
     visionTitle: v.string(),
     visionBody: v.array(v.string()),
     visionImage: v.string(),
+    visionImageStorageId: v.optional(v.id("_storage")),
 
     stats: v.array(
       v.object({

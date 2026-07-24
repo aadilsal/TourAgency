@@ -9,7 +9,6 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import {
   FieldError,
-  FieldHint,
   FieldLabel,
   TextAreaField,
   TextInput,
@@ -19,6 +18,8 @@ import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { cn } from "@/lib/cn";
 
+type TabKey = "explore" | "mission" | "vision";
+
 function toText(lines: string[] | undefined) {
   return (lines ?? []).join("\n");
 }
@@ -26,6 +27,64 @@ function toText(lines: string[] | undefined) {
 function isProbablyImageFile(file: File) {
   const t = (file.type || "").toLowerCase();
   return t.startsWith("image/");
+}
+
+function TabImageUploader({
+  displayUrl,
+  uploading,
+  onPick,
+  onRemove,
+}: {
+  displayUrl: string | null;
+  uploading: boolean;
+  onPick: (file: File) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div>
+      <FieldLabel>Image</FieldLabel>
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-havezic-background-light">
+          {displayUrl ? (
+            /* eslint-disable-next-line @next/next/no-img-element -- blob + Convex URLs */
+            <img src={displayUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center text-[10px] font-medium text-muted">
+              No image
+            </div>
+          )}
+        </div>
+        <label
+          className={cn(
+            "inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-havezic-background-light",
+            uploading && "pointer-events-none opacity-60",
+          )}
+        >
+          <Upload className="h-4 w-4 text-havezic-primary" aria-hidden />
+          {uploading ? "Uploading…" : displayUrl ? "Replace image" : "Upload image"}
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) onPick(f);
+            }}
+          />
+        </label>
+        {displayUrl ? (
+          <button
+            type="button"
+            className="text-xs font-semibold text-red-600 hover:underline"
+            onClick={onRemove}
+          >
+            Remove
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
 }
 
 export function AdminAboutContentPanel() {
@@ -47,15 +106,29 @@ export function AdminAboutContentPanel() {
 
   const [exploreTitle, setExploreTitle] = useState("");
   const [exploreBodyText, setExploreBodyText] = useState("");
-  const [exploreImage, setExploreImage] = useState("");
 
   const [missionTitle, setMissionTitle] = useState("");
   const [missionBodyText, setMissionBodyText] = useState("");
-  const [missionImage, setMissionImage] = useState("");
 
   const [visionTitle, setVisionTitle] = useState("");
   const [visionBodyText, setVisionBodyText] = useState("");
-  const [visionImage, setVisionImage] = useState("");
+
+  // Tab images are upload-only. `undefined` = leave unchanged; `null` = clear; id = new upload.
+  const [tabImageIds, setTabImageIds] = useState<Record<TabKey, Id<"_storage"> | null | undefined>>({
+    explore: undefined,
+    mission: undefined,
+    vision: undefined,
+  });
+  const [tabImageBlobs, setTabImageBlobs] = useState<Record<TabKey, string | null>>({
+    explore: null,
+    mission: null,
+    vision: null,
+  });
+  const [tabImageUploading, setTabImageUploading] = useState<Record<TabKey, boolean>>({
+    explore: false,
+    mission: false,
+    vision: false,
+  });
 
   const [stat1Value, setStat1Value] = useState("150k+");
   const [stat1Label, setStat1Label] = useState("Satisfied clients");
@@ -91,6 +164,81 @@ export function AdminAboutContentPanel() {
     return m;
   }, [partnerLogoUrls, partnerStorageIds]);
 
+  // Resolve the currently-saved tab image storage ids to preview URLs.
+  const tabStorageIds = useMemo(() => {
+    const ids: Id<"_storage">[] = [];
+    if (snap?.exploreImageStorageId) ids.push(snap.exploreImageStorageId);
+    if (snap?.missionImageStorageId) ids.push(snap.missionImageStorageId);
+    if (snap?.visionImageStorageId) ids.push(snap.visionImageStorageId);
+    return ids;
+  }, [snap?.exploreImageStorageId, snap?.missionImageStorageId, snap?.visionImageStorageId]);
+
+  const tabStorageUrls = useQuery(
+    api.about.resolvePartnerLogoUrlsForAdmin,
+    canQuery && tabStorageIds.length > 0 ? { sessionToken, storageIds: tabStorageIds } : "skip",
+  ) as (string | null)[] | undefined;
+
+  const tabStorageIdToUrl = useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (let i = 0; i < tabStorageIds.length; i++) {
+      m.set(tabStorageIds[i] as unknown as string, tabStorageUrls?.[i] ?? null);
+    }
+    return m;
+  }, [tabStorageIds, tabStorageUrls]);
+
+  /** The image URL to display for a tab: local upload > saved storage id > legacy URL. */
+  function tabImageDisplayUrl(key: TabKey): string | null {
+    if (tabImageIds[key] === null) return null; // explicitly removed
+    if (tabImageBlobs[key]) return tabImageBlobs[key];
+    const storageId = snap?.[`${key}ImageStorageId` as const] as Id<"_storage"> | undefined;
+    if (storageId) return tabStorageIdToUrl.get(storageId as unknown as string) ?? null;
+    const legacy = snap?.[`${key}Image` as const] as string | undefined;
+    return legacy || null;
+  }
+
+  async function uploadTabImage(key: TabKey, file: File) {
+    if (!canQuery) return;
+    if (!file.type.startsWith("image/")) {
+      setErr("Please choose an image file.");
+      return;
+    }
+    const blobUrl = URL.createObjectURL(file);
+    setTabImageBlobs((prev) => {
+      const old = prev[key];
+      if (old) URL.revokeObjectURL(old);
+      return { ...prev, [key]: blobUrl };
+    });
+    setTabImageUploading((prev) => ({ ...prev, [key]: true }));
+    setErr(null);
+    try {
+      const postUrl = await generateLogoUploadUrl({ sessionToken });
+      const res = await fetch(postUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type || "image/jpeg" },
+        body: file,
+      });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+      const data = (await res.json()) as { storageId?: Id<"_storage"> };
+      if (!data.storageId) throw new Error("No storageId returned");
+      setTabImageIds((prev) => ({ ...prev, [key]: data.storageId! }));
+    } catch (e) {
+      URL.revokeObjectURL(blobUrl);
+      setTabImageBlobs((prev) => ({ ...prev, [key]: null }));
+      setErr(toUserFacingErrorMessage(e));
+    } finally {
+      setTabImageUploading((prev) => ({ ...prev, [key]: false }));
+    }
+  }
+
+  function removeTabImage(key: TabKey) {
+    setTabImageBlobs((prev) => {
+      const old = prev[key];
+      if (old) URL.revokeObjectURL(old);
+      return { ...prev, [key]: null };
+    });
+    setTabImageIds((prev) => ({ ...prev, [key]: null }));
+  }
+
   useEffect(() => {
     if (!snap) return;
     setEyebrow(snap.eyebrow ?? "Community friendly");
@@ -98,15 +246,19 @@ export function AdminAboutContentPanel() {
 
     setExploreTitle(snap.exploreTitle ?? "");
     setExploreBodyText(toText(snap.exploreBody));
-    setExploreImage(snap.exploreImage ?? "");
 
     setMissionTitle(snap.missionTitle ?? "");
     setMissionBodyText(toText(snap.missionBody));
-    setMissionImage(snap.missionImage ?? "");
 
     setVisionTitle(snap.visionTitle ?? "");
     setVisionBodyText(toText(snap.visionBody));
-    setVisionImage(snap.visionImage ?? "");
+
+    // Reset image edit state so the saved images (resolved separately) show as baseline.
+    setTabImageIds({ explore: undefined, mission: undefined, vision: undefined });
+    setTabImageBlobs((prev) => {
+      for (const u of Object.values(prev)) if (u) URL.revokeObjectURL(u);
+      return { explore: null, mission: null, vision: null };
+    });
 
     const s1 = snap.stats?.[0];
     const s2 = snap.stats?.[1];
@@ -135,6 +287,10 @@ export function AdminAboutContentPanel() {
       setErr(sessionToken === undefined ? "Loading…" : "You need an admin session.");
       return;
     }
+    if (Object.values(tabImageUploading).some(Boolean)) {
+      setErr("Wait for image uploads to finish before saving.");
+      return;
+    }
     setSaving(true);
     try {
       await upsert({
@@ -143,13 +299,13 @@ export function AdminAboutContentPanel() {
         heading,
         exploreTitle,
         exploreBodyText,
-        exploreImage,
+        exploreImageStorageId: tabImageIds.explore,
         missionTitle,
         missionBodyText,
-        missionImage,
+        missionImageStorageId: tabImageIds.mission,
         visionTitle,
         visionBodyText,
-        visionImage,
+        visionImageStorageId: tabImageIds.vision,
         stats,
       });
       setMsg("Saved.");
@@ -259,11 +415,12 @@ export function AdminAboutContentPanel() {
                 onChange={(e) => setExploreBodyText(e.target.value)}
               />
             </div>
-            <div>
-              <FieldLabel>Image URL</FieldLabel>
-              <TextInput value={exploreImage} onChange={(e) => setExploreImage(e.target.value)} />
-              <FieldHint>Paste an image URL for now (we can add uploads here too if you want).</FieldHint>
-            </div>
+            <TabImageUploader
+              displayUrl={tabImageDisplayUrl("explore")}
+              uploading={tabImageUploading.explore}
+              onPick={(f) => void uploadTabImage("explore", f)}
+              onRemove={() => removeTabImage("explore")}
+            />
           </div>
 
           <div className="space-y-4">
@@ -303,10 +460,12 @@ export function AdminAboutContentPanel() {
                 onChange={(e) => setMissionBodyText(e.target.value)}
               />
             </div>
-            <div>
-              <FieldLabel>Image URL</FieldLabel>
-              <TextInput value={missionImage} onChange={(e) => setMissionImage(e.target.value)} />
-            </div>
+            <TabImageUploader
+              displayUrl={tabImageDisplayUrl("mission")}
+              uploading={tabImageUploading.mission}
+              onPick={(f) => void uploadTabImage("mission", f)}
+              onRemove={() => removeTabImage("mission")}
+            />
           </div>
 
           <div className="space-y-4">
@@ -323,10 +482,12 @@ export function AdminAboutContentPanel() {
                 onChange={(e) => setVisionBodyText(e.target.value)}
               />
             </div>
-            <div>
-              <FieldLabel>Image URL</FieldLabel>
-              <TextInput value={visionImage} onChange={(e) => setVisionImage(e.target.value)} />
-            </div>
+            <TabImageUploader
+              displayUrl={tabImageDisplayUrl("vision")}
+              uploading={tabImageUploading.vision}
+              onPick={(f) => void uploadTabImage("vision", f)}
+              onRemove={() => removeTabImage("vision")}
+            />
           </div>
         </div>
 

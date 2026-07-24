@@ -52,10 +52,10 @@ const TourStickyBooking = nextDynamic(
   { loading: lazyBlock("Loading booking…", "min-h-[200px]"), ssr: false },
 );
 
-const TourLocationMap = nextDynamic(
+const TourRouteMap = nextDynamic(
   () =>
-    import("@/components/tours/TourLocationMap").then((m) => ({
-      default: m.TourLocationMap,
+    import("@/components/tours/TourRouteMap").then((m) => ({
+      default: m.TourRouteMap,
     })),
   { loading: lazyBlock("Loading map…", "min-h-[200px]"), ssr: false },
 );
@@ -359,7 +359,11 @@ export default async function TourDetailPage({ params }: Props) {
           </p>
           <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
             <div className="lg:sticky lg:top-40 lg:self-start">
-              <TourLocationMap location={tour.location} title={tour.title} />
+              <TourRouteMap
+                location={tour.location}
+                title={tour.title}
+                itinerary={tour.itinerary}
+              />
             </div>
             <div>
               <TourItineraryAccordion itinerary={tour.itinerary} />

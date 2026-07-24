@@ -151,6 +151,20 @@ export const getTourBySlug = query({
   },
 });
 
+/**
+ * Fetch a single tour by id for the admin editor. Returns the RAW row (storage
+ * IDs, not resolved URLs) so the edit form can round-trip images unchanged.
+ */
+export const getTourForAdmin = query({
+  args: { tourId: v.id("tours"), sessionToken: v.optional(v.string()) },
+  handler: async (ctx, { tourId, sessionToken }) => {
+    const user = await resolveUserFromSessionToken(ctx, sessionToken);
+    const isAdmin = user?.role === "admin" || user?.role === "super_admin";
+    if (!isAdmin) return null;
+    return await ctx.db.get(tourId);
+  },
+});
+
 export const createTour = mutation({
   args: {
     title: v.string(),
@@ -231,15 +245,18 @@ export const updateTour = mutation({
     destinationIds: v.optional(v.array(v.id("destinations"))),
     destinationId: v.optional(v.id("destinations")),
     provinceIds: v.optional(v.array(v.id("provinces"))),
-    pricePkr: v.optional(v.number()),
-    priceUsd: v.optional(v.number()),
+    // Optional scalars accept `null` as an explicit "clear this field" signal so
+    // an admin can blank out a value that was previously set. (Convex drops
+    // `undefined` args on the wire, so `undefined` can only ever mean "leave as-is".)
+    pricePkr: v.optional(v.union(v.number(), v.null())),
+    priceUsd: v.optional(v.union(v.number(), v.null())),
     durationDays: v.optional(v.number()),
     location: v.optional(v.string()),
-    maxPeople: v.optional(v.number()),
-    minAge: v.optional(v.number()),
-    tourTypeLabel: v.optional(v.string()),
-    ratingAvg: v.optional(v.number()),
-    reviewsCount: v.optional(v.number()),
+    maxPeople: v.optional(v.union(v.number(), v.null())),
+    minAge: v.optional(v.union(v.number(), v.null())),
+    tourTypeLabel: v.optional(v.union(v.string(), v.null())),
+    ratingAvg: v.optional(v.union(v.number(), v.null())),
+    reviewsCount: v.optional(v.union(v.number(), v.null())),
     office: v.optional(v.string()),
     email: v.optional(v.string()),
     images: v.optional(v.array(v.string())),
@@ -272,11 +289,14 @@ export const updateTour = mutation({
     if (!tour) throw new Error("Tour not found");
     const next: Record<string, unknown> = {};
     for (const [k, val] of Object.entries(patch)) {
-      if (val !== undefined) next[k] = val;
+      // `undefined` = field omitted → leave unchanged.
+      // `null` = explicit clear → set to `undefined` so `ctx.db.patch` removes it.
+      if (val === undefined) continue;
+      next[k] = val === null ? undefined : val;
     }
-    // Keep legacy `price` in sync with PKR for older code paths.
-    if (next.pricePkr !== undefined) {
-      next.price = next.pricePkr;
+    // Keep legacy `price` in sync with PKR for older code paths (including clears).
+    if (patch.pricePkr !== undefined) {
+      next.price = patch.pricePkr === null ? 0 : patch.pricePkr;
     }
     if (next.slug) {
       next.slug = String(next.slug)

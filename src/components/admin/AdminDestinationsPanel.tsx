@@ -18,7 +18,9 @@ type DestinationRow = {
   name: string;
   line: string;
   description: string;
+  heroStorageId?: Id<"_storage">;
   heroExternalUrl?: string;
+  heroUrl?: string;
   matchTerms: string[];
   bestTime: string;
   tips: string[];
@@ -47,6 +49,7 @@ export function AdminDestinationsPanel() {
   const updateDestination = useMutation(api.destinations.updateDestination);
   const deleteDestination = useMutation(api.destinations.deleteDestination);
   const bulkUpsert = useMutation(api.destinations.bulkUpsert);
+  const generateHeroUploadUrl = useMutation(api.destinations.generateDestinationHeroUploadUrl);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<Id<"destinations"> | null>(null);
@@ -55,7 +58,10 @@ export function AdminDestinationsPanel() {
   const [slug, setSlug] = useState("");
   const [line, setLine] = useState("");
   const [description, setDescription] = useState("");
-  const [heroExternalUrl, setHeroExternalUrl] = useState("");
+  // `undefined` = leave hero unchanged; `null` = remove it; an id = a newly uploaded image.
+  const [heroStorageId, setHeroStorageId] = useState<Id<"_storage"> | null | undefined>(undefined);
+  const [heroPreviewUrl, setHeroPreviewUrl] = useState<string | null>(null);
+  const [heroUploading, setHeroUploading] = useState(false);
   const [sortOrder, setSortOrder] = useState(100);
   const [matchTermsInput, setMatchTermsInput] = useState("");
   const [bestTime, setBestTime] = useState("");
@@ -74,7 +80,8 @@ export function AdminDestinationsPanel() {
     setSlug("");
     setLine("");
     setDescription("");
-    setHeroExternalUrl("");
+    setHeroStorageId(undefined);
+    setHeroPreviewUrl(null);
     setSortOrder(100);
     setMatchTermsInput("");
     setBestTime("");
@@ -96,7 +103,8 @@ export function AdminDestinationsPanel() {
     setSlug(d.slug);
     setLine(d.line);
     setDescription(d.description);
-    setHeroExternalUrl(d.heroExternalUrl ?? "");
+    setHeroStorageId(undefined);
+    setHeroPreviewUrl(d.heroStorageId || d.heroExternalUrl ? d.heroUrl ?? null : null);
     setSortOrder(d.sortOrder);
     setMatchTermsInput(toLines(d.matchTerms));
     setBestTime(d.bestTime);
@@ -107,17 +115,58 @@ export function AdminDestinationsPanel() {
     setModalOpen(true);
   }
 
+  async function onPickHero(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.target;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setMsg("Please choose an image file.");
+      return;
+    }
+    const blobUrl = URL.createObjectURL(file);
+    setHeroPreviewUrl(blobUrl);
+    setHeroUploading(true);
+    setMsg(null);
+    try {
+      const postUrl = await generateHeroUploadUrl({});
+      const res = await fetch(postUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type || "image/jpeg" },
+        body: file,
+      });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+      const data = (await res.json()) as { storageId?: Id<"_storage"> };
+      if (!data.storageId) throw new Error("No storageId returned");
+      setHeroStorageId(data.storageId);
+    } catch (err) {
+      URL.revokeObjectURL(blobUrl);
+      setHeroPreviewUrl(null);
+      setMsg(toUserFacingErrorMessage(err));
+    } finally {
+      setHeroUploading(false);
+    }
+  }
+
+  function onRemoveHero() {
+    setHeroStorageId(null);
+    setHeroPreviewUrl(null);
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (heroUploading) {
+      setMsg("Wait for the image upload to finish before saving.");
+      return;
+    }
     setSaving(true);
     setMsg(null);
 
-    const payload = {
+    const base = {
       name,
       slug: slug.trim() || undefined,
       line,
       description,
-      heroExternalUrl: heroExternalUrl.trim() || undefined,
       sortOrder,
       matchTerms: fromLines(matchTermsInput),
       bestTime,
@@ -128,10 +177,10 @@ export function AdminDestinationsPanel() {
 
     try {
       if (editingId) {
-        await updateDestination({ destinationId: editingId, ...payload });
+        await updateDestination({ destinationId: editingId, ...base, heroStorageId });
         setMsg("Destination updated.");
       } else {
-        await createDestination(payload);
+        await createDestination({ ...base, heroStorageId: heroStorageId ?? undefined });
         setMsg("Destination created.");
       }
       setModalOpen(false);
@@ -282,15 +331,40 @@ export function AdminDestinationsPanel() {
             </label>
           </div>
 
-          <label className="block text-xs font-semibold text-slate-600">
-            Hero image URL (optional)
-            <input
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              placeholder="https://..."
-              value={heroExternalUrl}
-              onChange={(e) => setHeroExternalUrl(e.target.value)}
-            />
-          </label>
+          <div className="text-xs font-semibold text-slate-600">
+            Hero image (optional)
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
+                {heroPreviewUrl ? (
+                  /* eslint-disable-next-line @next/next/no-img-element -- blob + Convex URLs */
+                  <img src={heroPreviewUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full items-center justify-center px-1 text-center text-[10px] font-medium text-slate-500">
+                    No image
+                  </div>
+                )}
+              </div>
+              <label className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-brand-primary hover:bg-slate-50">
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  disabled={heroUploading}
+                  onChange={(e) => void onPickHero(e)}
+                />
+                {heroUploading ? "Uploading…" : heroPreviewUrl ? "Replace image" : "Upload image"}
+              </label>
+              {heroPreviewUrl ? (
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-red-600 hover:underline"
+                  onClick={onRemoveHero}
+                >
+                  Remove
+                </button>
+              ) : null}
+            </div>
+          </div>
 
           <label className="block text-xs font-semibold text-slate-600">
             Description

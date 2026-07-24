@@ -23,6 +23,7 @@ export function TourMemberBooking({
   memberPhone,
   memberEmail,
   plain = false,
+  bookable = false,
   onCustomisationSubmitted,
 }: {
   tourId: Id<"tours">;
@@ -31,6 +32,8 @@ export function TourMemberBooking({
   memberPhone?: string;
   memberEmail?: string;
   plain?: boolean;
+  /** True when the tour has a public price — labels the CTA "Book now". */
+  bookable?: boolean;
   onCustomisationSubmitted?: (
     input: TourCustomisationMessageInput,
   ) => void | Promise<void>;
@@ -107,9 +110,13 @@ export function TourMemberBooking({
 
   return (
     <div className={wrap}>
-      <h2 className="text-base font-bold text-brand-ink">Customise as a member</h2>
+      <h2 className="text-base font-bold text-brand-ink">
+        {bookable ? "Book as a member" : "Customise as a member"}
+      </h2>
       <p className="text-xs text-brand-muted">
-        Share your dates and group size — we&apos;ll tailor a quote for you.
+        {bookable
+          ? "Pick your dates and group size to request this tour at the listed price."
+          : "Share your dates and group size — we'll tailor a quote for you."}
       </p>
       <form onSubmit={onSubmit} className="mt-4 space-y-3">
         <div className="grid grid-cols-2 gap-2">
@@ -197,7 +204,7 @@ export function TourMemberBooking({
           disabled={loading}
           className="w-full rounded-xl bg-brand-primary py-2.5 text-sm font-semibold text-white hover:bg-brand-primary-dark disabled:opacity-50"
         >
-          {loading ? "Sending…" : "Customise your tour"}
+          {loading ? "Sending…" : bookable ? "Book now" : "Customise your tour"}
         </button>
       </form>
     </div>

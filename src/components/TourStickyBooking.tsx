@@ -205,6 +205,7 @@ export function TourStickyBooking({
                 memberPhone={memberPhone}
                 memberEmail={memberEmail}
                 plain
+                bookable={bookable}
                 onCustomisationSubmitted={finishCustomisation}
               />
               {whatsappUrl ? (

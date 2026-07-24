@@ -398,12 +398,22 @@ export const listForAdmin = query({
   },
 });
 
+/** Convex upload URL for a destination hero image — POST the file, use returned `storageId`. */
+export const generateDestinationHeroUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
 export const createDestination = mutation({
   args: {
     name: v.string(),
     slug: v.optional(v.string()),
     line: v.string(),
     description: v.string(),
+    heroStorageId: v.optional(v.union(v.id("_storage"), v.null())),
     heroExternalUrl: v.optional(v.string()),
     matchTerms: v.array(v.string()),
     bestTime: v.string(),
@@ -422,7 +432,10 @@ export const createDestination = mutation({
       name: args.name.trim(),
       line: args.line.trim(),
       description: args.description.trim(),
-      heroExternalUrl: args.heroExternalUrl?.trim() || undefined,
+      heroStorageId: args.heroStorageId ?? undefined,
+      heroExternalUrl: args.heroStorageId
+        ? undefined
+        : args.heroExternalUrl?.trim() || undefined,
       matchTerms: args.matchTerms.map((t) => t.trim().toLowerCase()).filter(Boolean),
       bestTime: args.bestTime.trim(),
       tips: args.tips.map((t) => t.trim()).filter(Boolean),
@@ -443,6 +456,7 @@ export const updateDestination = mutation({
     slug: v.optional(v.string()),
     line: v.optional(v.string()),
     description: v.optional(v.string()),
+    heroStorageId: v.optional(v.union(v.id("_storage"), v.null())),
     heroExternalUrl: v.optional(v.string()),
     matchTerms: v.optional(v.array(v.string())),
     bestTime: v.optional(v.string()),
@@ -485,6 +499,16 @@ export const updateDestination = mutation({
     }
     if (Array.isArray(next.bullets)) {
       next.bullets = (next.bullets as string[]).map((b) => b.trim()).filter(Boolean);
+    }
+
+    // Hero image: `null` clears it; a new storage id supersedes any legacy URL.
+    if (patch.heroStorageId !== undefined) {
+      if (patch.heroStorageId === null) {
+        next.heroStorageId = undefined;
+      } else {
+        next.heroStorageId = patch.heroStorageId;
+        next.heroExternalUrl = undefined;
+      }
     }
 
     next.updatedAt = Date.now();
