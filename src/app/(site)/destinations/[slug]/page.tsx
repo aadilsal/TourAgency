@@ -12,7 +12,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import Image from "next/image";
 
-export const revalidate = 300;
+export const revalidate = 0;
 
 type Props = { params: { slug: string } };
 
@@ -144,7 +144,7 @@ export default async function DestinationPage({ params }: Props) {
           </div>
 
           <aside className="lg:col-span-1">
-            <Card className="sticky top-28 p-6">
+            <Card className="p-6">
               <h3 className="font-bold text-foreground">Plan this trip</h3>
               <p className="mt-2 text-sm text-muted">
                 Use AI to match dates, budget, and style — or message us on

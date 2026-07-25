@@ -29,7 +29,7 @@ export function DashboardLayoutClient({
       <PageContainer>
         <div className="flex flex-col gap-10 lg:flex-row lg:gap-14">
           <aside className="w-full shrink-0 lg:w-56">
-            <Card className="overflow-hidden p-0 ring-1 ring-border lg:sticky lg:top-28">
+            <Card className="overflow-hidden p-0 ring-1 ring-border">
               <div className="border-b border-border bg-gradient-to-br from-brand-sun/10 via-brand-cta/5 to-transparent p-4">
                 <p className="text-xs font-bold uppercase tracking-wide text-muted">
                   Account

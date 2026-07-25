@@ -55,6 +55,36 @@ export function PlannerChatWidget({ guestSessionId }: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, close]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    // Robust scroll lock (incl. iOS): freeze body at current scrollY so
+    // scrolling inside the fixed widget doesn't chain to the page behind it.
+    const scrollY = window.scrollY;
+    const prev = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      top: document.body.style.top,
+      width: document.body.style.width,
+      paddingRight: document.body.style.paddingRight,
+    };
+    const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+    if (scrollBarWidth > 0) {
+      document.body.style.paddingRight = `${scrollBarWidth}px`;
+    }
+    return () => {
+      document.body.style.overflow = prev.overflow;
+      document.body.style.position = prev.position;
+      document.body.style.top = prev.top;
+      document.body.style.width = prev.width;
+      document.body.style.paddingRight = prev.paddingRight;
+      window.scrollTo(0, scrollY);
+    };
+  }, [isOpen]);
+
   return (
     <>
       <motion.button

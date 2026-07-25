@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { EmblaRow } from "@/components/ui/EmblaRow";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { SectionHeader } from "@/components/ui/SectionHeader";
@@ -54,11 +55,12 @@ export function TourTypesCarousel() {
                 href={s.href}
                 className="group relative block h-[min(15rem,52vw)] overflow-hidden rounded-2xl bg-black/5 shadow-[0_10px_28px_rgba(0,0,0,0.12)] ring-1 ring-black/10 transition hover:-translate-y-0.5"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={s.image}
                   alt=""
-                  className="absolute inset-0 h-full w-full object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
+                  fill
+                  sizes="(min-width: 1024px) 25vw, (min-width: 640px) 42vw, 62vw"
+                  className="object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 p-4">

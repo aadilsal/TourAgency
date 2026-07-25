@@ -7,9 +7,8 @@ import { HomeHero } from "@/components/landing/havezic/HomeHero";
 import type { FeaturedTour } from "@/components/landing/FeaturedToursCarousel";
 import { Suspense } from "react";
 
-// ISR: cache the homepage and re-generate periodically instead of rendering it
-// fresh on every request (was `force-dynamic`, which disabled all caching).
-export const revalidate = 300;
+// Render fresh on every request so admin edits reflect instantly (no ISR lag).
+export const revalidate = 0;
 
 async function HomePageDeferred() {
   let tours: FeaturedTour[] = [];

@@ -24,6 +24,7 @@ export function TourHeroGallery({
 
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  const stripRef = useRef<HTMLDivElement | null>(null);
   const thumbRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   const go = useCallback(
@@ -47,13 +48,17 @@ export function TourHeroGallery({
     return () => window.clearInterval(id);
   }, [len, paused, active]);
 
-  // Keep the active thumbnail scrolled into view.
+  // Center the active thumbnail WITHIN the strip only — never scroll the page.
+  // (element.scrollIntoView bubbles to the window, which would yank the page back
+  // to the gallery on every autoplay tick.)
   useEffect(() => {
-    thumbRefs.current[active]?.scrollIntoView({
-      behavior: "smooth",
-      inline: "center",
-      block: "nearest",
-    });
+    const strip = stripRef.current;
+    const thumb = thumbRefs.current[active];
+    if (!strip || !thumb) return;
+    const sr = strip.getBoundingClientRect();
+    const tr = thumb.getBoundingClientRect();
+    const target = strip.scrollLeft + (tr.left - sr.left) - sr.width / 2 + tr.width / 2;
+    strip.scrollTo({ left: target, behavior: "smooth" });
   }, [active]);
 
   if (len === 0) {
@@ -129,7 +134,10 @@ export function TourHeroGallery({
       </div>
 
       {len > 1 ? (
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
+        <div
+          ref={stripRef}
+          className="mt-3 flex gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]"
+        >
           {list.map((img, i) => (
             <button
               key={`${img}-thumb-${i}`}

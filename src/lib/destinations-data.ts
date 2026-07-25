@@ -114,8 +114,7 @@ export const DESTINATION_DETAILS: Record<DestinationSlug, DestinationDetail> = {
     line: "Mughal heartland & Walled City.",
     match: "lahore",
     extraLocationTerms: ["walled city", "badshahi", "shalimar", "fort road"],
-    heroImage:
-      "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=2000&q=80",
+    heroImage: "/images/provinces/punjab.jpg",
     description:
       "Lahore is Pakistan's cultural capital — Mughal masterpieces at Badshahi Mosque and Lahore Fort, labyrinthine Walled City lanes, and food streets that define Punjabi hospitality.",
     bestTime:

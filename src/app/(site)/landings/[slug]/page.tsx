@@ -11,7 +11,7 @@ type Props = { params: { slug: string } };
 function heroForSlug(slug: string) {
   const s = slug.toLowerCase();
   if (s.includes("lahore") || s.includes("cultural") || s.includes("heritage")) {
-    return "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=2400&q=80";
+    return "/images/provinces/punjab.jpg";
   }
   if (s.includes("taxila") || s.includes("gandhara") || s.includes("buddhist")) {
     return "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=2400&q=80";

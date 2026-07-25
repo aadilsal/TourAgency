@@ -2,7 +2,7 @@
 export function blogCoverImage(slug: string): string {
   const s = slug.toLowerCase();
   if (s.includes("lahore") || s.includes("mughal"))
-    return "https://images.unsplash.com/photo-1583258292688-d0213dc5a3a8?auto=format&fit=crop&w=900&q=80";
+    return "/images/provinces/punjab.jpg";
   if (s.includes("multan") || s.includes("shrine"))
     return "https://images.unsplash.com/photo-1578662996442-48f60103fc96?auto=format&fit=crop&w=900&q=80";
   if (s.includes("taxila") || s.includes("gandhara") || s.includes("archaeolog"))

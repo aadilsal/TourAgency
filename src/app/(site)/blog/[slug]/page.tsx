@@ -15,7 +15,7 @@ import { loadBlogPostBySlug } from "@/lib/blog-server";
 import { getConvexServer } from "@/lib/convex-server";
 import Image from "next/image";
 
-export const revalidate = 300;
+export const revalidate = 0;
 
 type Props = { params: { slug: string } };
 

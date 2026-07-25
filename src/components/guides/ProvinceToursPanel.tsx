@@ -21,7 +21,7 @@ type Props = {
 
 export function ProvinceToursPanel({ provinceSlug, provinceName, tours }: Props) {
   return (
-    <Card className="sticky top-24 p-5 md:p-6">
+    <Card className="p-5 md:p-6">
       <h2 className="font-display text-lg font-semibold text-foreground">
         Tours in {provinceName}
       </h2>

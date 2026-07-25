@@ -421,7 +421,7 @@ export function ToursExploreClient({
         <div className="mt-8 grid gap-8 lg:mt-10 lg:grid-cols-[300px_1fr] lg:gap-10 xl:gap-12">
           {/* Desktop sticky sidebar */}
           <aside className="hidden lg:block">
-            <div className="sticky top-24 max-h-[calc(100dvh-6.5rem)] space-y-6 overflow-y-auto overscroll-contain rounded-2xl border border-border bg-white p-6 shadow-sm pb-8">
+            <div className="space-y-6 rounded-2xl border border-border bg-white p-6 shadow-sm pb-8">
               <TourFiltersForm {...filterFormProps} />
             </div>
           </aside>

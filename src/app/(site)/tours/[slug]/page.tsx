@@ -239,7 +239,7 @@ export default async function TourDetailPage({ params }: Props) {
 
           {/* Facts card */}
           <aside className="lg:col-span-1">
-            <div className="rounded-2xl border border-border bg-panel p-6 shadow-sm lg:sticky lg:top-24">
+            <div className="rounded-2xl border border-border bg-panel p-6 shadow-sm">
               {hasRating ? (
                 <a href="#reviews" className="flex items-center gap-2 text-sm">
                   <Star className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
@@ -358,7 +358,7 @@ export default async function TourDetailPage({ params }: Props) {
             Day-by-day flow — timings may shift slightly with weather and road conditions.
           </p>
           <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-            <div className="lg:sticky lg:top-40 lg:self-start">
+            <div className="lg:self-start">
               <TourRouteMap
                 location={tour.location}
                 title={tour.title}

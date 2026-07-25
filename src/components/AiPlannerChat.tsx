@@ -266,7 +266,7 @@ export function AiPlannerChat({
     >
       <div
         className={cn(
-          "flex-1 space-y-3 overflow-y-auto rounded-xl border border-slate-200/80 bg-slate-50/90 p-3 shadow-inner md:p-4",
+          "flex-1 space-y-3 overflow-y-auto overscroll-contain rounded-xl border border-slate-200/80 bg-slate-50/90 p-3 shadow-inner md:p-4",
           compact ? "min-h-[200px]" : "min-h-[320px]",
           variant === "widget" && "min-h-[180px]",
         )}

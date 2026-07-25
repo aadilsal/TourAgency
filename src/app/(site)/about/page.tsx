@@ -4,7 +4,7 @@ import { api } from "@convex/_generated/api";
 import { AboutPageClient } from "@/components/about/AboutPageClient";
 import { FaqSection } from "@/components/about/FaqSection";
 
-export const revalidate = 300;
+export const revalidate = 0;
 
 export default async function AboutPage() {
   const client = getConvexServer();

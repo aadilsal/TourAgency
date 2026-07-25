@@ -6,7 +6,7 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { BlogPostCard } from "@/components/blog/BlogPostCard";
 
-export const revalidate = 300;
+export const revalidate = 0;
 
 const desc =
   "Heritage travel guides across Pakistan — Lahore, Taxila, Swat, Hunza, and northern valley culture. Costs, seasons, routes, and trip planning from JunketTours.";
