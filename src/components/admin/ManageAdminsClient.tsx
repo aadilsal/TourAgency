@@ -117,7 +117,7 @@ export function ManageAdminsClient() {
         </p>
         <div className="mt-4 overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
           <table className="min-w-[640px] w-full text-left text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <thead className="whitespace-nowrap border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Email</th>
@@ -143,7 +143,7 @@ export function ManageAdminsClient() {
                       {u.role === "customer" ? (
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                          className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
                           onClick={() => void promote({ userId: u._id })}
                         >
                           <UserPlus className="h-3.5 w-3.5" aria-hidden />
@@ -153,7 +153,7 @@ export function ManageAdminsClient() {
                       {u.role === "admin" ? (
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                          className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
                           onClick={() => void demote({ userId: u._id })}
                         >
                           <UserMinus className="h-3.5 w-3.5" aria-hidden />

@@ -313,8 +313,19 @@ function legacyPackagesToMatrix(
 
 export function AdminItinerarySimpleBuilder({
   itineraryId: itineraryIdProp,
+  initialTitle,
+  initialClientName,
+  sourceTourId,
+  sourceBookingId,
+  sourceGuestBookingId,
 }: {
   itineraryId?: string;
+  /** Prefill + linkage when arriving from a booking (see /admin/itineraries/new). */
+  initialTitle?: string;
+  initialClientName?: string;
+  sourceTourId?: string;
+  sourceBookingId?: string;
+  sourceGuestBookingId?: string;
 }) {
   const router = useRouter();
   const sessionToken = useConvexSessionToken();
@@ -342,8 +353,8 @@ export function AdminItinerarySimpleBuilder({
     canMutate ? { sessionToken } : "skip",
   );
 
-  const [title, setTitle] = useState("");
-  const [clientName, setClientName] = useState("");
+  const [title, setTitle] = useState(initialTitle ?? "");
+  const [clientName, setClientName] = useState(initialClientName ?? "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [dayCount, setDayCount] = useState(5);
@@ -917,6 +928,9 @@ export function AdminItinerarySimpleBuilder({
         endDate: endDate.trim() || undefined,
         days: safeDays,
         theme,
+        sourceTourId: sourceTourId as Id<"tours"> | undefined,
+        sourceBookingId: sourceBookingId as Id<"bookings"> | undefined,
+        sourceGuestBookingId: sourceGuestBookingId as Id<"guestBookings"> | undefined,
       });
       setItineraryId(id);
       router.replace(`/admin/itineraries/${id}`);

@@ -116,7 +116,7 @@ export function AdminReviewsPanel() {
                     </span>
                     <span
                       className={cn(
-                        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ring-1",
+                        "inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ring-1",
                         statusBadge(r.status),
                       )}
                     >

@@ -115,6 +115,9 @@ export const createDraft = mutation({
       v.literal("adventure"),
     ),
     coverImageStorageId: v.optional(v.id("_storage")),
+    sourceTourId: v.optional(v.id("tours")),
+    sourceBookingId: v.optional(v.id("bookings")),
+    sourceGuestBookingId: v.optional(v.id("guestBookings")),
   },
   handler: async (ctx, args) => {
     const user = await requireUserFromSession(ctx, args.sessionToken);
@@ -144,6 +147,9 @@ export const createDraft = mutation({
       theme: args.theme,
       status: "draft",
       coverImageStorageId: args.coverImageStorageId,
+      sourceTourId: args.sourceTourId,
+      sourceBookingId: args.sourceBookingId,
+      sourceGuestBookingId: args.sourceGuestBookingId,
       affiliationsStorageIds: [],
       destinations: [],
       dayPlans: [],
@@ -370,20 +376,28 @@ export const listForAdmin = query({
       .order("desc")
       .paginate(paginationOpts);
 
-    return {
-      ...paged,
-      page: paged.page.map((i) => ({
-        _id: i._id,
-        title: i.title,
-        clientName: i.clientName,
-        startDate: i.startDate,
-        endDate: i.endDate,
-        days: i.days,
-        status: i.status,
-        createdAt: i.createdAt,
-        updatedAt: i.updatedAt,
-      })),
-    };
+    const page = await Promise.all(
+      paged.page.map(async (i) => {
+        const invoice = await ctx.db
+          .query("invoices")
+          .withIndex("by_itinerary", (q) => q.eq("itineraryId", i._id))
+          .first();
+        return {
+          _id: i._id,
+          title: i.title,
+          clientName: i.clientName,
+          startDate: i.startDate,
+          endDate: i.endDate,
+          days: i.days,
+          status: i.status,
+          createdAt: i.createdAt,
+          updatedAt: i.updatedAt,
+          invoiceId: invoice?._id,
+        };
+      }),
+    );
+
+    return { ...paged, page };
   },
 });
 

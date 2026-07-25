@@ -856,6 +856,18 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
                 Preview
               </Button>
+              {pdfModel ? (
+                <PDFDownloadLink
+                  document={<InvoicePdf model={pdfModel} />}
+                  fileName={`invoice-${invoiceDate}.pdf`}
+                >
+                  {({ loading }) => (
+                    <Button type="button" disabled={loading}>
+                      {loading ? "Preparing…" : "Download PDF"}
+                    </Button>
+                  )}
+                </PDFDownloadLink>
+              ) : null}
               <Button
                 type="button"
                 variant="secondary"
@@ -879,18 +891,6 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               >
                 {docxLoading ? "Preparing…" : "Download Word"}
               </Button>
-              {pdfModel ? (
-                <PDFDownloadLink
-                  document={<InvoicePdf model={pdfModel} />}
-                  fileName={`invoice-${invoiceDate}.pdf`}
-                >
-                  {({ loading }) => (
-                    <Button type="button" disabled={loading}>
-                      {loading ? "Preparing…" : "Download PDF"}
-                    </Button>
-                  )}
-                </PDFDownloadLink>
-              ) : null}
               <Button
                 type="button"
                 variant="secondary"

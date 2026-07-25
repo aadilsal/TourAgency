@@ -2,10 +2,24 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { ArrowRight } from "lucide-react";
 import { EmblaRow } from "@/components/ui/EmblaRow";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
+import { buttonClass } from "@/components/ui/Button";
+
+// No API key required for this — it's a plain deep link to the business's
+// real Google Maps listing, so it always shows every review Google has
+// (the Places API only ever returns up to 5, by Google's own design).
+function googleReviewsUrl(placeId?: string): string {
+  const params = new URLSearchParams({
+    api: "1",
+    query: "JunketTours Lahore Pakistan",
+  });
+  if (placeId) params.set("query_place_id", placeId);
+  return `https://www.google.com/maps/search/?${params.toString()}`;
+}
 
 type Item = {
   name: string;
@@ -110,6 +124,17 @@ export function TestimonialsCarousel() {
               </Card>
             ))}
           </EmblaRow>
+        </div>
+        <div className="mt-8 flex justify-center">
+          <a
+            href={googleReviewsUrl(google?.placeId)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonClass("secondary")}
+          >
+            See all our reviews on Google
+            <ArrowRight className="h-4 w-4" aria-hidden />
+          </a>
         </div>
       </PageContainer>
     </section>

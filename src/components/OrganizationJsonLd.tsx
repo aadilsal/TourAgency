@@ -16,8 +16,8 @@ export function OrganizationJsonLd() {
       "Northern Pakistan heritage",
     ],
     url: base,
-    logo: `${base}/public/images-removebg-preview.png`,
-    image: `${base}/public/images-removebg-preview.png`,
+    logo: `${base}/images-removebg-preview.png`,
+    image: `${base}/images-removebg-preview.png`,
     telephone: "+923209973486",
     contactPoint: [
       {
@@ -25,7 +25,7 @@ export function OrganizationJsonLd() {
         contactType: "customer service",
         telephone: "+923209973486",
         availableLanguage: ["en", "ur"],
-        areaServed: "PK",
+        areaServed: "Worldwide",
       },
     ],
     address: {

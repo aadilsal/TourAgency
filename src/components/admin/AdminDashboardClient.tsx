@@ -205,7 +205,7 @@ export function AdminDashboardClient({ role }: Props) {
 
                   <span
                     className={cn(
-                      "inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold capitalize ring-1",
+                      "inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-bold capitalize ring-1",
                       b.kind === "guest"
                         ? "bg-violet-50 text-violet-900 ring-violet-200"
                         : "bg-brand-sun/15 text-brand-sun ring-brand-sun/25",

@@ -128,7 +128,7 @@ export function AdminVisaInvitationsPanel() {
 
       <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
         <table className="min-w-[720px] w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <thead className="whitespace-nowrap border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Submitted</th>
               <th className="px-4 py-3">Contact</th>
@@ -219,7 +219,7 @@ export function AdminVisaInvitationsPanel() {
                         <div className="overflow-x-auto">
                           <table className="min-w-[640px] w-full text-left text-xs">
                             <thead>
-                              <tr className="border-b border-slate-200 text-slate-500">
+                              <tr className="whitespace-nowrap border-b border-slate-200 text-slate-500">
                                 <th className="py-2 pr-3">Name</th>
                                 <th className="py-2 pr-3">Sex</th>
                                 <th className="py-2 pr-3">Nationality</th>

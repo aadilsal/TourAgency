@@ -244,6 +244,7 @@ export type UnifiedBooking =
   | {
       kind: "guest";
       id: Id<"guestBookings">;
+      tourId: Id<"tours">;
       name: string;
       phone: string;
       email?: string;
@@ -261,10 +262,13 @@ export type UnifiedBooking =
       children?: number;
       specialNeeds?: string;
       notes?: string;
+      itineraryId?: Id<"itineraries">;
+      itineraryTitle?: string;
     }
   | {
       kind: "user";
       id: Id<"bookings">;
+      tourId: Id<"tours">;
       name: string;
       email: string;
       phone?: string;
@@ -282,6 +286,8 @@ export type UnifiedBooking =
       children?: number;
       specialNeeds?: string;
       notes?: string;
+      itineraryId?: Id<"itineraries">;
+      itineraryTitle?: string;
     };
 
 export const getAllBookings = query({
@@ -297,9 +303,16 @@ export const getAllBookings = query({
         const unitPrice = Number.isFinite((g as any).unitPrice)
           ? ((g as any).unitPrice as number)
           : undefined;
+        const itinerary = await ctx.db
+          .query("itineraries")
+          .withIndex("by_source_guest_booking", (q) =>
+            q.eq("sourceGuestBookingId", g._id),
+          )
+          .first();
         return {
           kind: "guest" as const,
           id: g._id,
+          tourId: g.tourId,
           name: g.name,
           phone: g.phone,
           email: g.email,
@@ -318,6 +331,8 @@ export const getAllBookings = query({
           children: g.children,
           specialNeeds: g.specialNeeds,
           notes: g.notes,
+          itineraryId: itinerary?._id,
+          itineraryTitle: itinerary?.title,
         };
       }),
     );
@@ -325,9 +340,14 @@ export const getAllBookings = query({
       usersB.map(async (b) => {
         const tour = await ctx.db.get(b.tourId);
         const user = await ctx.db.get(b.userId);
+        const itinerary = await ctx.db
+          .query("itineraries")
+          .withIndex("by_source_booking", (q) => q.eq("sourceBookingId", b._id))
+          .first();
         return {
           kind: "user" as const,
           id: b._id,
+          tourId: b.tourId,
           name: user?.name ?? "User",
           email: user?.email ?? "",
           phone: user?.phone,
@@ -345,6 +365,8 @@ export const getAllBookings = query({
           children: b.children,
           specialNeeds: b.specialNeeds,
           notes: b.notes,
+          itineraryId: itinerary?._id,
+          itineraryTitle: itinerary?.title,
         };
       }),
     );

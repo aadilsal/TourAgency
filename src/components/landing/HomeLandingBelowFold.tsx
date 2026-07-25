@@ -110,6 +110,9 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
       </MotionSection>
 
       <SceneCut />
+      <VisaInvitationSection />
+
+      <SceneCut />
       <TourTypesCarousel />
       <FeaturedToursCarousel tours={tours} />
 
@@ -262,9 +265,6 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
 
       <SceneCut />
       <TestimonialsCarousel />
-
-      <SceneCut />
-      <VisaInvitationSection />
 
       <SceneCut />
       <NewsletterSection />

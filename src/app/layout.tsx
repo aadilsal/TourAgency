@@ -5,8 +5,9 @@ import "./globals.css";
 import { AppProviders } from "@/components/AppProviders";
 import { getSiteUrl } from "@/lib/site";
 import { OrganizationJsonLd } from "@/components/OrganizationJsonLd";
-import Script from "next/script";
 import { WebVitalsReporter } from "@/components/analytics/WebVitalsReporter";
+import { AnalyticsScripts } from "@/components/analytics/AnalyticsScripts";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -25,14 +26,18 @@ const inter = Inter({
   display: "swap",
 });
 
+const SITE_TITLE = "Plan your Pakistan trip in seconds | JunketTours";
+const SITE_DESCRIPTION =
+  "Culture & history tours across Pakistan — Mughal cities, Gandhara sites, and northern valley heritage. AI-assisted planning, visa support, and concierge booking for travellers worldwide.";
+const OG_IMAGE = "/images/marketing/hero-heritage.jpg";
+
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
-    default: "Plan your Pakistan trip in seconds | JunketTours",
+    default: SITE_TITLE,
     template: "%s | JunketTours",
   },
-  description:
-    "Culture & history tours across Pakistan — Mughal cities, Gandhara sites, and northern valley heritage. AI planning & instant booking.",
+  description: SITE_DESCRIPTION,
   icons: {
     icon: "/icon.svg",
     shortcut: "/icon.svg",
@@ -40,6 +45,21 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    siteName: "JunketTours",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    url: getSiteUrl(),
+    locale: "en_US",
+    images: [{ url: OG_IMAGE, alt: "JunketTours — heritage tours across Pakistan" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [OG_IMAGE],
   },
   verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
     ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
@@ -62,25 +82,11 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} relative min-h-screen bg-background font-sans text-foreground antialiased`}
       >
         <WebVitalsReporter />
-        {gaId ? (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
-              strategy="afterInteractive"
-            />
-            <Script id="ga4" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('config', '${gaId}');
-              `}
-            </Script>
-          </>
-        ) : null}
+        <AnalyticsScripts gaId={gaId} />
         <OrganizationJsonLd />
         <div className="noise-overlay" aria-hidden />
         <AppProviders>{children}</AppProviders>
+        <CookieConsentBanner />
       </body>
     </html>
   );

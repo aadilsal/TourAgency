@@ -141,6 +141,9 @@ export default defineSchema({
   /** Cached Google Places reviews for the business (refreshed on a schedule). */
   googleReviewsCache: defineTable({
     key: v.string(),
+    // Auto-resolved (or manually overridden via GOOGLE_PLACE_ID) once and
+    // cached here so we don't re-search "find place from text" every run.
+    placeId: v.optional(v.string()),
     rating: v.optional(v.number()),
     userRatingsTotal: v.optional(v.number()),
     reviews: v.array(
@@ -443,6 +446,11 @@ export default defineSchema({
     startDate: v.optional(v.string()),
     endDate: v.optional(v.string()),
     days: v.number(),
+
+    /** Where this draft came from, so admins don't retype the same client across bookings/itineraries/invoices. */
+    sourceTourId: v.optional(v.id("tours")),
+    sourceBookingId: v.optional(v.id("bookings")),
+    sourceGuestBookingId: v.optional(v.id("guestBookings")),
     theme: v.union(
       v.literal("luxury"),
       v.literal("minimal"),
@@ -625,7 +633,9 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_status", ["status"])
-    .index("by_created", ["createdAt"]),
+    .index("by_created", ["createdAt"])
+    .index("by_source_booking", ["sourceBookingId"])
+    .index("by_source_guest_booking", ["sourceGuestBookingId"]),
 
   invoices: defineTable({
     /** Unique invoice number label, e.g. "INV/26-27/0001" */

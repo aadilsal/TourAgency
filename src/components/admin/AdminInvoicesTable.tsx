@@ -119,7 +119,7 @@ export function AdminInvoicesTable() {
                 </div>
                 <span
                   className={cn(
-                    "inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ring-1",
+                    "inline-flex shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ring-1",
                     r.status === "paid"
                       ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
                       : "bg-amber-100 text-amber-900 ring-amber-200",
@@ -200,12 +200,12 @@ export function AdminInvoicesTable() {
         <table className="min-w-[860px] w-full text-left text-sm">
           <thead className="border-b border-border bg-black/5 text-xs font-semibold uppercase tracking-wide text-muted dark:bg-white/5">
             <tr>
-              <th className="px-4 py-3 text-center">Client</th>
-              <th className="px-4 py-3 text-center">Date</th>
-              <th className="px-4 py-3 text-center">Currency</th>
-              <th className="px-4 py-3 text-center">Status</th>
-              <th className="px-4 py-3 text-center">Updated</th>
-              <th className="px-4 py-3 text-right">Actions</th>
+              <th className="whitespace-nowrap px-4 py-3 text-center">Client</th>
+              <th className="whitespace-nowrap px-4 py-3 text-center">Date</th>
+              <th className="whitespace-nowrap px-4 py-3 text-center">Currency</th>
+              <th className="whitespace-nowrap px-4 py-3 text-center">Status</th>
+              <th className="whitespace-nowrap px-4 py-3 text-center">Updated</th>
+              <th className="whitespace-nowrap px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -214,14 +214,19 @@ export function AdminInvoicesTable() {
                 <td className="px-4 py-3 font-semibold text-foreground">
                   {r.clientName || "—"}
                   {r.itineraryId ? (
-                    <div className="mt-0.5 text-xs text-muted">Linked itinerary</div>
+                    <Link
+                      href={`/admin/itineraries/${r.itineraryId}`}
+                      className="mt-0.5 block text-xs font-semibold text-brand-cta hover:underline"
+                    >
+                      View linked itinerary
+                    </Link>
                   ) : null}
                 </td>
                 <td className="px-4 py-3 text-muted">{r.invoiceDate}</td>
                 <td className="px-4 py-3 text-muted">{r.currency}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ring-1 ${
+                    className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ring-1 ${
                       r.status === "paid"
                         ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
                         : "bg-amber-100 text-amber-900 ring-amber-200"
@@ -235,13 +240,13 @@ export function AdminInvoicesTable() {
                   <div className="inline-flex items-center gap-2">
                     <Link
                       href={`/admin/invoices/${r._id}`}
-                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-brand-cta hover:bg-panel-elevated"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-brand-cta hover:bg-panel-elevated"
                     >
                       Edit
                     </Link>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-panel-elevated"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-panel-elevated"
                       onClick={() => {
                         if (!canQuery) return;
                         setMsg(null);
@@ -268,7 +273,7 @@ export function AdminInvoicesTable() {
                     </button>
                     <button
                       type="button"
-                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-panel-elevated"
+                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-panel-elevated"
                       onClick={() => {
                         if (!canQuery) return;
                         const ok = window.confirm(

@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { cn } from "@/lib/cn";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { formatMoney, type CurrencyCode } from "@/lib/money";
 
 const statuses = ["pending", "confirmed", "cancelled"] as const;
@@ -24,6 +24,7 @@ type UnifiedRow =
   | ({
       kind: "guest";
       id: string;
+      tourId: string;
       name: string;
       phone: string;
       email?: string;
@@ -32,10 +33,13 @@ type UnifiedRow =
       status: (typeof statuses)[number];
       currency?: CurrencyCode;
       totalPrice?: number;
+      itineraryId?: string;
+      itineraryTitle?: string;
     } & TripFields)
   | ({
       kind: "user";
       id: string;
+      tourId: string;
       name: string;
       email: string;
       phone?: string;
@@ -44,6 +48,8 @@ type UnifiedRow =
       totalPrice: number;
       status: (typeof statuses)[number];
       currency?: CurrencyCode;
+      itineraryId?: string;
+      itineraryTitle?: string;
     } & TripFields);
 
 type StatusFilter = "all" | "pending" | "confirmed";
@@ -124,6 +130,25 @@ function BookingDetail({
             No contact details were captured for this request.
           </p>
         ) : null}
+        <div className="mt-3">
+          {r.itineraryId ? (
+            <ButtonLink
+              href={`/admin/itineraries/${r.itineraryId}`}
+              variant="secondary"
+              className="!px-3 !py-1.5 !text-xs"
+            >
+              View itinerary{r.itineraryTitle ? ` — ${r.itineraryTitle}` : ""}
+            </ButtonLink>
+          ) : (
+            <ButtonLink
+              href={`/admin/itineraries/new?sourceKind=${r.kind}&sourceBookingId=${r.id}&sourceTourId=${r.tourId}&clientName=${encodeURIComponent(r.name)}&title=${encodeURIComponent(`${r.tourTitle} — ${r.name}`)}`}
+              variant="secondary"
+              className="!px-3 !py-1.5 !text-xs"
+            >
+              Create itinerary for this booking
+            </ButtonLink>
+          )}
+        </div>
       </td>
     </tr>
   );
@@ -195,7 +220,7 @@ export function AdminBookingsTable() {
 
       <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
         <table className="min-w-[560px] w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <thead className="whitespace-nowrap border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Type</th>
@@ -236,7 +261,7 @@ export function AdminBookingsTable() {
                 <td className="px-4 py-3">
                   <span
                     className={cn(
-                      "inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ring-1",
+                      "inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ring-1",
                       r.kind === "guest"
                         ? "bg-violet-50 text-violet-900 ring-violet-200"
                         : "bg-brand-sun/15 text-brand-sun ring-brand-sun/25",

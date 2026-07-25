@@ -156,7 +156,7 @@ export function AdminFaqsPanel() {
 
       <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
         <table className="min-w-[880px] w-full text-left text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <thead className="whitespace-nowrap border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Question</th>
               <th className="px-4 py-3">Category</th>

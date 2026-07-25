@@ -124,21 +124,19 @@ const styles = StyleSheet.create({
   payKey: { fontSize: 8.5, color: "#475569", width: 90 },
   payVal: { fontSize: 9, color: "#0f172a", fontWeight: 700 },
   paidStamp: {
-    position: "absolute",
-    top: 300,
-    left: 175,
-    transform: "rotate(-20deg)",
-    border: "4px solid #16a34a",
+    alignSelf: "center",
+    transform: "rotate(-8deg)",
+    border: "3px solid #16a34a",
     borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 26,
-    opacity: 0.82,
+    paddingVertical: 6,
+    paddingHorizontal: 22,
+    opacity: 0.85,
   },
   paidStampText: {
     color: "#16a34a",
-    fontSize: 46,
+    fontSize: 26,
     fontWeight: 700,
-    letterSpacing: 5,
+    letterSpacing: 4,
   },
 });
 
@@ -180,11 +178,6 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
   return (
     <Document>
       <Page size="A4" style={styles.page} wrap={false}>
-        {showPaid ? (
-          <View style={styles.paidStamp} fixed>
-            <Text style={styles.paidStampText}>PAID</Text>
-          </View>
-        ) : null}
         <PdfHeader
           logoUrl={model.companyLogoUrl}
           companyName={model.companyName}
@@ -206,7 +199,7 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
           <View style={{ alignItems: "flex-end" }}>
             <Text style={[styles.h1, { color: brand }]}>Invoice</Text>
             {model.invoiceNumberLabel ? (
-              <Text style={[styles.muted, { marginTop: 4, fontSize: 8.5 }]}>
+              <Text style={[styles.muted, { marginTop: 8, fontSize: 8.5 }]}>
                 {model.invoiceNumberLabel}
               </Text>
             ) : null}
@@ -304,6 +297,14 @@ export function InvoicePdf({ model }: { model: InvoicePdfModel }) {
             </View>
           </View>
         </View>
+
+        {showPaid ? (
+          <View style={{ marginTop: 10, alignItems: "center" }}>
+            <View style={styles.paidStamp}>
+              <Text style={styles.paidStampText}>PAID</Text>
+            </View>
+          </View>
+        ) : null}
 
         <View style={[styles.box, { marginTop: 12 }]}>
           <Text style={[styles.label, styles.muted]}>Payment</Text>

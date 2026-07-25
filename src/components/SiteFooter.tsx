@@ -6,6 +6,8 @@ import {
   PhoneCall,
   Phone,
   ArrowRight,
+  ShieldCheck,
+  FileText,
 } from "lucide-react";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 
@@ -118,6 +120,8 @@ export function SiteFooter({
               <li><Link href="/about" className={linkClass}>About &amp; FAQs</Link></li>
               <li><Link href="/contact" className={linkClass}><PhoneCall className="h-4 w-4 shrink-0 opacity-70" />Contact us</Link></li>
               <li><SiteFooterVisaLink /></li>
+              <li><Link href="/pakistan-tourist-visa-guide" className={linkClass}><FileText className="h-4 w-4 shrink-0 opacity-70" />Visa guide</Link></li>
+              <li><Link href="/is-pakistan-safe-for-tourists" className={linkClass}><ShieldCheck className="h-4 w-4 shrink-0 opacity-70" />Is Pakistan safe?</Link></li>
             </ul>
           </div>
 
@@ -205,9 +209,16 @@ export function SiteFooter({
           </div>
         </div>
 
-        <div className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-8 text-center text-xs text-white/50 sm:flex-row sm:text-left">
-          <p>© {new Date().getFullYear()} JunketTours. Heritage &amp; culture tours across Pakistan.</p>
-          <p>Private &amp; small-group journeys for international travellers.</p>
+        <div className="mt-14 border-t border-white/10 pt-8 text-xs text-white/50">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-start">
+            <Link href="/privacy-policy" className="hover:text-white/80">Privacy Policy</Link>
+            <Link href="/terms-of-service" className="hover:text-white/80">Terms of Service</Link>
+            <Link href="/cancellation-policy" className="hover:text-white/80">Cancellation Policy</Link>
+          </div>
+          <div className="mt-4 flex flex-col items-center justify-between gap-3 text-center sm:flex-row sm:text-left">
+            <p>© {new Date().getFullYear()} JunketTours. Heritage &amp; culture tours across Pakistan.</p>
+            <p>Private &amp; small-group journeys for international travellers.</p>
+          </div>
         </div>
       </PageContainer>
     </footer>

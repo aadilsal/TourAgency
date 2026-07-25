@@ -3,9 +3,10 @@ import {
   action,
   internalAction,
   internalMutation,
+  internalQuery,
   query,
 } from "./_generated/server.js";
-import { internal } from "./_generated/api.js";
+import { api, internal } from "./_generated/api.js";
 
 const KEY = "global";
 
@@ -26,6 +27,10 @@ export const getGoogleReviews = query({
       .withIndex("by_key", (q) => q.eq("key", KEY))
       .unique();
     return {
+      // Exposed so the site can deep-link to the exact Google listing (its
+      // "see all reviews on Google" button) even once we've only fetched the
+      // API's 5-review cap — not sensitive, it's just a public Maps place id.
+      placeId: doc?.placeId,
       rating: doc?.rating,
       userRatingsTotal: doc?.userRatingsTotal,
       reviews: doc?.reviews ?? [],
@@ -37,6 +42,7 @@ export const getGoogleReviews = query({
 
 export const storeGoogleReviews = internalMutation({
   args: {
+    placeId: v.optional(v.string()),
     rating: v.optional(v.number()),
     userRatingsTotal: v.optional(v.number()),
     reviews: v.array(reviewValidator),
@@ -52,6 +58,18 @@ export const storeGoogleReviews = internalMutation({
     } else {
       await ctx.db.insert("googleReviewsCache", { key: KEY, ...args, fetchedAt: now });
     }
+  },
+});
+
+/** Reads back the previously-resolved Place ID, if any, so we don't re-search every run. */
+export const getCachedPlaceId: ReturnType<typeof internalQuery> = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const doc = await ctx.db
+      .query("googleReviewsCache")
+      .withIndex("by_key", (q) => q.eq("key", KEY))
+      .unique();
+    return doc?.placeId;
   },
 });
 
@@ -72,20 +90,59 @@ type GooglePlacesResult = {
   status?: string;
   error_message?: string;
 };
+type FindPlaceResult = {
+  candidates?: Array<{ place_id?: string }>;
+  status?: string;
+};
 
 /**
  * Fetches reviews from the Google Places Details API and caches them.
- * No-op (returns not_configured) unless GOOGLE_PLACES_API_KEY + GOOGLE_PLACE_ID
- * are set — so this ships safely and activates once you add the credentials.
+ * No-op (returns not_configured) unless GOOGLE_PLACES_API_KEY is set. The
+ * Place ID is auto-resolved from the business name/address the first time
+ * (via the Find Place From Text endpoint) and cached — no manual Place ID
+ * lookup required. Set GOOGLE_PLACE_ID explicitly to override auto-detection.
+ * Note: Google's API caps this at the 5 most relevant reviews per business —
+ * that's a hard Google-side limit, not something we can configure around.
  */
 export const refreshGoogleReviews: ReturnType<typeof internalAction> = internalAction({
   args: {},
   handler: async (ctx) => {
     const apiKey = process.env.GOOGLE_PLACES_API_KEY;
-    const placeId = process.env.GOOGLE_PLACE_ID;
-    if (!apiKey || !placeId) {
+    if (!apiKey) {
       return { ok: false as const, reason: "not_configured" };
     }
+
+    let placeId = process.env.GOOGLE_PLACE_ID?.trim();
+    if (!placeId) {
+      placeId = await ctx.runQuery(internal.googleReviews.getCachedPlaceId, {});
+    }
+    if (!placeId) {
+      let officeAddress = "";
+      try {
+        const settings = await ctx.runQuery(api.siteSettings.getPublicSiteSettings, {});
+        officeAddress = settings?.officeAddress?.trim() ?? "";
+      } catch {
+        officeAddress = "";
+      }
+      const searchQuery = ["JunketTours", officeAddress || "Lahore, Pakistan"].join(", ");
+      const findUrl =
+        `https://maps.googleapis.com/maps/api/place/findplacefromtext/json` +
+        `?input=${encodeURIComponent(searchQuery)}&inputtype=textquery&fields=place_id&key=${apiKey}`;
+      let findData: FindPlaceResult;
+      try {
+        const findRes = await fetch(findUrl);
+        if (!findRes.ok) return { ok: false as const, reason: `http_${findRes.status}` };
+        findData = (await findRes.json()) as FindPlaceResult;
+      } catch (e) {
+        return { ok: false as const, reason: String(e) };
+      }
+      if (findData.status && findData.status !== "OK") {
+        return { ok: false as const, reason: `find_place_${findData.status}` };
+      }
+      placeId = findData.candidates?.[0]?.place_id;
+      if (!placeId) return { ok: false as const, reason: "place_not_found" };
+    }
+
     const url =
       `https://maps.googleapis.com/maps/api/place/details/json?place_id=${encodeURIComponent(placeId)}` +
       `&fields=rating,user_ratings_total,reviews&reviews_sort=newest&key=${apiKey}`;
@@ -114,6 +171,7 @@ export const refreshGoogleReviews: ReturnType<typeof internalAction> = internalA
       .slice(0, 8);
 
     await ctx.runMutation(internal.googleReviews.storeGoogleReviews, {
+      placeId,
       rating: typeof result.rating === "number" ? result.rating : undefined,
       userRatingsTotal:
         typeof result.user_ratings_total === "number"
@@ -121,7 +179,7 @@ export const refreshGoogleReviews: ReturnType<typeof internalAction> = internalA
           : undefined,
       reviews,
     });
-    return { ok: true as const, count: reviews.length };
+    return { ok: true as const, count: reviews.length, placeId };
   },
 });
 

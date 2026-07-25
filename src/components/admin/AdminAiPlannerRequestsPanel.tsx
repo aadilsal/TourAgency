@@ -116,7 +116,7 @@ export function AdminAiPlannerRequestsPanel() {
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <span
-                        className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold uppercase ${
+                        className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold uppercase ${
                           r.status === "pending"
                             ? "bg-amber-100 text-amber-900"
                             : r.status === "approved"

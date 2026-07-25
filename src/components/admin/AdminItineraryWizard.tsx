@@ -3169,6 +3169,16 @@ export function AdminItineraryWizard({
               >
                 Open WhatsApp
               </a>
+              <PDFDownloadLink
+                document={<ItineraryPdf key={pdfRenderKey} model={pdfModel} />}
+                fileName={`${(title || "itinerary").replace(/\s+/g, "-").toLowerCase()}.pdf`}
+              >
+                {({ loading }) => (
+                  <Button type="button" disabled={loading || pdfHasUnresolvedImages}>
+                    {loading ? "Preparing…" : pdfHasUnresolvedImages ? "Loading images…" : "Download PDF"}
+                  </Button>
+                )}
+              </PDFDownloadLink>
               <Button
                 type="button"
                 variant="secondary"
@@ -3195,16 +3205,6 @@ export function AdminItineraryWizard({
               >
                 {docxLoading ? "Preparing…" : "Download Word"}
               </Button>
-              <PDFDownloadLink
-                document={<ItineraryPdf key={pdfRenderKey} model={pdfModel} />}
-                fileName={`${(title || "itinerary").replace(/\s+/g, "-").toLowerCase()}.pdf`}
-              >
-                {({ loading }) => (
-                  <Button type="button" disabled={loading || pdfHasUnresolvedImages}>
-                    {loading ? "Preparing…" : pdfHasUnresolvedImages ? "Loading images…" : "Download PDF"}
-                  </Button>
-                )}
-              </PDFDownloadLink>
               <Button
                 type="button"
                 variant="secondary"

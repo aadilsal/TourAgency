@@ -19,6 +19,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   entries.push({ url: `${base}/best-travel-agency-in-pakistan`, lastModified: new Date() });
   entries.push({ url: `${base}/best-tour-operators-in-pakistan`, lastModified: new Date() });
   entries.push({ url: `${base}/hunza-tour-operator`, lastModified: new Date() });
+  entries.push({ url: `${base}/is-pakistan-safe-for-tourists`, lastModified: new Date() });
+  entries.push({ url: `${base}/pakistan-tourist-visa-guide`, lastModified: new Date() });
+  entries.push({ url: `${base}/visa-invitation`, lastModified: new Date() });
+  entries.push({ url: `${base}/privacy-policy`, lastModified: new Date() });
+  entries.push({ url: `${base}/terms-of-service`, lastModified: new Date() });
+  entries.push({ url: `${base}/cancellation-policy`, lastModified: new Date() });
   try {
     const client = getConvexServer();
     const tourSlugs = await client.query(api.tours.listSlugsActive, {});

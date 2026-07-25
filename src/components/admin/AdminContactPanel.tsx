@@ -137,7 +137,7 @@ export function AdminContactPanel() {
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-[720px] w-full text-left text-sm">
-            <thead className="border-b border-border bg-black/5 text-xs font-semibold uppercase tracking-wide text-muted dark:bg-white/5">
+            <thead className="whitespace-nowrap border-b border-border bg-black/5 text-xs font-semibold uppercase tracking-wide text-muted dark:bg-white/5">
               <tr>
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Phone</th>

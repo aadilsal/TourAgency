@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { CheckCircle2, Download, Pencil, RotateCcw, Trash2, FileText } from "lucide-react";
+import { CheckCircle2, Download, Pencil, Receipt, RotateCcw, Trash2, FileText } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
@@ -25,6 +26,7 @@ type Row = {
   status: "draft" | "final";
   createdAt: number;
   updatedAt: number;
+  invoiceId?: Id<"invoices">;
 };
 
 function fmt(ts: number) {
@@ -39,14 +41,34 @@ function fmt(ts: number) {
 }
 
 export function AdminItinerariesTable() {
+  const router = useRouter();
   const sessionToken = useConvexSessionToken();
   const canQuery = typeof sessionToken === "string";
   const [q, setQ] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
+  const [creatingInvoiceFor, setCreatingInvoiceFor] = useState<Id<"itineraries"> | null>(null);
 
   const deleteItinerary = useMutation(api.itineraries.deleteItinerary);
   const markFinal = useMutation(api.itineraries.markFinal);
   const markDraft = useMutation(api.itineraries.markDraft);
+  const createInvoiceFromItinerary = useMutation(api.invoices.createFromItinerary);
+
+  async function handleCreateInvoice(r: Row) {
+    if (!canQuery) return;
+    setMsg(null);
+    setCreatingInvoiceFor(r._id);
+    try {
+      const invoiceId = await createInvoiceFromItinerary({
+        sessionToken,
+        itineraryId: r._id,
+      });
+      router.push(`/admin/invoices/${invoiceId}`);
+    } catch (e) {
+      setMsg(toUserFacingErrorMessage(e));
+    } finally {
+      setCreatingInvoiceFor(null);
+    }
+  }
 
   const { results, status, loadMore } = usePaginatedQuery(
     api.itineraries.listForAdmin,
@@ -119,7 +141,7 @@ export function AdminItinerariesTable() {
                 </div>
                 <span
                   className={cn(
-                    "inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ring-1",
+                    "inline-flex shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ring-1",
                     r.status === "final"
                       ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
                       : "bg-amber-100 text-amber-900 ring-amber-200",
@@ -177,6 +199,16 @@ export function AdminItinerariesTable() {
                       },
                     },
                     {
+                      label: r.invoiceId ? "View invoice" : "Create invoice",
+                      onClick: () => {
+                        if (r.invoiceId) {
+                          window.location.href = `/admin/invoices/${r.invoiceId}`;
+                        } else {
+                          void handleCreateInvoice(r);
+                        }
+                      },
+                    },
+                    {
                       label: "Delete",
                       tone: "danger",
                       onClick: () => {
@@ -210,7 +242,7 @@ export function AdminItinerariesTable() {
       {/* Desktop table */}
       <Card className="hidden overflow-x-auto md:block">
         <table className="min-w-[860px] w-full text-left text-sm">
-          <thead className="border-b border-border bg-black/5 text-xs font-semibold uppercase tracking-wide text-muted dark:bg-white/5">
+          <thead className="whitespace-nowrap border-b border-border bg-black/5 text-xs font-semibold uppercase tracking-wide text-muted dark:bg-white/5">
             <tr>
               <th className="px-4 py-3 text-center">Title</th>
               <th className="px-4 py-3 text-center">Client</th>
@@ -233,7 +265,7 @@ export function AdminItinerariesTable() {
                 <td className="px-4 py-3 text-muted tabular-nums">{r.days}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ring-1 ${
+                    className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ring-1 ${
                       r.status === "final"
                         ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
                         : "bg-amber-100 text-amber-900 ring-amber-200"
@@ -277,6 +309,28 @@ export function AdminItinerariesTable() {
                     >
                       <FileText className="h-4 w-4" aria-hidden />
                     </button>
+
+                    {r.invoiceId ? (
+                      <Link
+                        href={`/admin/invoices/${r.invoiceId}`}
+                        className="inline-flex items-center justify-center rounded-lg border border-border bg-panel p-2 text-foreground hover:bg-panel-elevated"
+                        aria-label="View invoice"
+                        title="View invoice"
+                      >
+                        <Receipt className="h-4 w-4" aria-hidden />
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-lg border border-border bg-panel p-2 text-foreground hover:bg-panel-elevated disabled:opacity-50"
+                        aria-label="Create invoice"
+                        title="Create invoice"
+                        disabled={creatingInvoiceFor === r._id}
+                        onClick={() => void handleCreateInvoice(r)}
+                      >
+                        <Receipt className="h-4 w-4" aria-hidden />
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -357,6 +411,16 @@ export function AdminItinerariesTable() {
                         {
                           label: "Download Word",
                           onClick: () => window.open(`/admin/itineraries/${r._id}/download-word`, "_blank"),
+                        },
+                        {
+                          label: r.invoiceId ? "View invoice" : "Create invoice",
+                          onClick: () => {
+                            if (r.invoiceId) {
+                              window.location.href = `/admin/invoices/${r.invoiceId}`;
+                            } else {
+                              void handleCreateInvoice(r);
+                            }
+                          },
                         },
                         {
                           label: r.status === "final" ? "Mark draft" : "Mark final",

@@ -11,7 +11,7 @@ export function AdminRoleBadge({ role }: { role: string }) {
   return (
     <span
       className={cn(
-        "inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ring-1",
+        "inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold capitalize ring-1",
         role === "super_admin" && "bg-brand-sun/15 text-brand-sun ring-brand-sun/25",
         role === "admin" && "bg-brand-cta/15 text-brand-cta ring-brand-cta/25",
         role === "customer" && "bg-white/10 text-slate-200 ring-white/15",

@@ -33,7 +33,7 @@ export function AdminUsersTable() {
     <div>
       <div className="overflow-x-auto rounded-xl border border-border bg-panel shadow-sm backdrop-blur-xl">
         <table className="min-w-[560px] w-full text-left text-sm">
-          <thead className="border-b border-border bg-black/5 text-xs font-semibold uppercase tracking-wide text-muted dark:bg-white/5">
+          <thead className="whitespace-nowrap border-b border-border bg-black/5 text-xs font-semibold uppercase tracking-wide text-muted dark:bg-white/5">
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Email</th>
