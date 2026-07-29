@@ -11,6 +11,11 @@
  *
  * It mints a short-lived admin session through the CLI (the only privileged
  * step) and revokes it before exiting.
+ *
+ * EXPECTED NOISE: the security block calls admin endpoints with no token and
+ * with a forged one, so a `convex dev` terminal will fill with
+ * ArgumentValidationError ("missing sessionToken") and "Not authenticated"
+ * while this runs. Those lines are the assertions passing, not failures.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -388,23 +393,18 @@ async function main() {
       () => anon.query(api.destinations.listForAdmin, {} as never),
       () => anon.query(api.destinations.listForAdmin, { sessionToken: FORGED }),
     );
+    // Paginated queries get valid paginationOpts so the rejection is provably
+    // about the missing session, not a different absent field.
+    const page = { numItems: 5, cursor: null };
     await rejects(
       "itineraries.listForAdmin",
-      () => anon.query(api.itineraries.listForAdmin, {} as never),
-      () =>
-        anon.query(api.itineraries.listForAdmin, {
-          sessionToken: FORGED,
-          paginationOpts: { numItems: 5, cursor: null },
-        }),
+      () => anon.query(api.itineraries.listForAdmin, { paginationOpts: page } as never),
+      () => anon.query(api.itineraries.listForAdmin, { sessionToken: FORGED, paginationOpts: page }),
     );
     await rejects(
       "invoices.listForAdmin",
-      () => anon.query(api.invoices.listForAdmin, {} as never),
-      () =>
-        anon.query(api.invoices.listForAdmin, {
-          sessionToken: FORGED,
-          paginationOpts: { numItems: 5, cursor: null },
-        }),
+      () => anon.query(api.invoices.listForAdmin, { paginationOpts: page } as never),
+      () => anon.query(api.invoices.listForAdmin, { sessionToken: FORGED, paginationOpts: page }),
     );
     await rejects(
       "tours.deleteTour",
