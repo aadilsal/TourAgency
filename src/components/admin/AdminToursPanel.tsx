@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import type { Id } from "@convex/_generated/dataModel";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -33,6 +34,33 @@ export function AdminToursPanel() {
   const bulkUpsert = useMutation(api.tours.bulkUpsert);
 
   const [msg, setMsg] = useState<string | null>(null);
+
+  /** These used to be fire-and-forget: failures now surface in the panel. */
+  async function toggleActive(tourId: Id<"tours">, isActive: boolean) {
+    setMsg(null);
+    if (!hasConvexSessionToken) {
+      setMsg("Session expired — refresh and sign in again.");
+      return;
+    }
+    try {
+      await updateTour({ sessionToken, tourId, isActive });
+    } catch (e) {
+      setMsg(toUserFacingErrorMessage(e));
+    }
+  }
+
+  async function removeTour(tourId: Id<"tours">) {
+    setMsg(null);
+    if (!hasConvexSessionToken) {
+      setMsg("Session expired — refresh and sign in again.");
+      return;
+    }
+    try {
+      await deleteTour({ sessionToken, tourId });
+    } catch (e) {
+      setMsg(toUserFacingErrorMessage(e));
+    }
+  }
   const [bulkOpen, setBulkOpen] = useState(false);
 
   const sortedTours = useMemo(() => {
@@ -43,7 +71,7 @@ export function AdminToursPanel() {
   async function onSeed() {
     setMsg(null);
     try {
-      const r = await seed({});
+      const r = await seed({ sessionToken: sessionToken as string });
       setMsg(r.skipped ? "Tours already exist." : `Inserted ${r.inserted} tours.`);
     } catch (e) {
       setMsg(toUserFacingErrorMessage(e));
@@ -142,7 +170,7 @@ export function AdminToursPanel() {
                         "flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full p-[3px] transition-colors duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50 focus-visible:ring-offset-2",
                         t.isActive ? "justify-end bg-emerald-500" : "justify-start bg-slate-300",
                       )}
-                      onClick={() => void updateTour({ tourId: t._id, isActive: !t.isActive })}
+                      onClick={() => void toggleActive(t._id, !t.isActive)}
                     >
                       <span
                         className="pointer-events-none block h-[18px] w-[18px] shrink-0 rounded-full bg-white shadow-sm ring-1 ring-slate-900/10"
@@ -173,7 +201,7 @@ export function AdminToursPanel() {
                       className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
                       onClick={() => {
                         if (confirm("Delete this tour?")) {
-                          void deleteTour({ tourId: t._id });
+                          void removeTour(t._id);
                         }
                       }}
                     >
@@ -267,6 +295,7 @@ export function AdminToursPanel() {
             batchSize: 10,
             importBatch: async (batch) =>
               bulkUpsert({
+                sessionToken: sessionToken as string,
                 rows: batch.map((b) => ({
                   title: b.title,
                   slug: b.slug,

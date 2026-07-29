@@ -7,16 +7,22 @@ import type { Id } from "@convex/_generated/dataModel";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { FieldLabel, TextAreaField } from "@/components/ui/FormField";
+import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected";
 
 export function AdminAiPlannerRequestsPanel() {
+  const sessionToken = useConvexSessionToken();
+  const canMutate = typeof sessionToken === "string";
   const [filter, setFilter] = useState<StatusFilter>("pending");
   const listArgs =
     filter === "all"
       ? ({} as { status?: "pending" | "approved" | "rejected" })
       : { status: filter };
-  const rows = useQuery(api.customItineraries.listForAdmin, listArgs);
+  const rows = useQuery(
+    api.customItineraries.listForAdmin,
+    canMutate ? { sessionToken, ...listArgs } : "skip",
+  );
   const setStatus = useMutation(api.customItineraries.setRequestStatus);
   const setAdminNote = useMutation(api.customItineraries.setAdminNote);
   const setAdminDraft = useMutation(api.customItineraries.setAdminDraft);
@@ -39,7 +45,9 @@ export function AdminAiPlannerRequestsPanel() {
         ? "Optional note for records (or leave blank)"
         : "Reason for rejection (optional)",
     );
+    if (!canMutate) return;
     await setStatus({
+      sessionToken,
       requestId: id,
       status,
       adminNote: note?.trim() || undefined,
@@ -49,7 +57,9 @@ export function AdminAiPlannerRequestsPanel() {
   async function editNote(id: Id<"customItineraryRequests">, current?: string) {
     const note = window.prompt("Update admin note (optional)", current ?? "");
     if (note === null) return;
+    if (!canMutate) return;
     await setAdminNote({
+      sessionToken,
       requestId: id,
       adminNote: note.trim() || undefined,
     });
@@ -58,9 +68,11 @@ export function AdminAiPlannerRequestsPanel() {
   async function saveDraft(id: Id<"customItineraryRequests">) {
     const key = id as unknown as string;
     const next = (draftEdits[key] ?? "").trim();
+    if (!canMutate) return;
     setSavingDraft((m) => ({ ...m, [key]: true }));
     try {
       await setAdminDraft({
+        sessionToken,
         requestId: id,
         adminDraft: next || undefined,
       });

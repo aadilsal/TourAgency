@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server.js";
-import { requireAdmin } from "./lib/authHelpers.js";
+import { requireAdminFromSession } from "./lib/authHelpers.js";
 
 export const createLeadFromAi = internalMutation({
   args: {
@@ -37,9 +37,9 @@ export const createLead = mutation({
 });
 
 export const getLeads = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const rows = await ctx.db.query("leads").collect();
     return rows.sort((a, b) => b.createdAt - a.createdAt);
   },

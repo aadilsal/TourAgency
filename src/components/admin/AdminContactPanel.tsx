@@ -14,7 +14,7 @@ export function AdminContactPanel() {
     api.siteSettings.getAdminSiteSettings,
     canQuery ? { sessionToken } : "skip",
   );
-  const leads = useQuery(api.leads.getLeads, {});
+  const leads = useQuery(api.leads.getLeads, canQuery ? { sessionToken } : "skip");
   const upsert = useMutation(api.siteSettings.upsertAdminSiteSettings);
 
   const [officeAddress, setOfficeAddress] = useState("");

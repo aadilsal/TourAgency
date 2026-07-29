@@ -34,6 +34,7 @@ export function AdminBlogPanel() {
       ? { includeDrafts: true, sessionToken }
       : { includeDrafts: false },
   );
+  const canMutate = typeof sessionToken === "string";
   const createPost = useMutation(api.blog.createPost);
   const deletePost = useMutation(api.blog.deletePost);
   const updatePost = useMutation(api.blog.updatePost);
@@ -88,13 +89,58 @@ export function AdminBlogPanel() {
     return () => window.removeEventListener("keydown", onKey);
   }, [editorOpen]);
 
+  /** These used to be fire-and-forget: failures now surface in the panel. */
+  async function togglePublished(postId: Id<"blogPosts">, published: boolean) {
+    setErr(null);
+    if (typeof sessionToken !== "string") {
+      setErr("Session expired — refresh and sign in again.");
+      return;
+    }
+    try {
+      await updatePost({ sessionToken, postId, published });
+    } catch (e) {
+      setErr(toUserFacingErrorMessage(e));
+    }
+  }
+
+  async function removePost(postId: Id<"blogPosts">) {
+    setErr(null);
+    if (typeof sessionToken !== "string") {
+      setErr("Session expired — refresh and sign in again.");
+      return;
+    }
+    try {
+      await deletePost({ sessionToken, postId });
+    } catch (e) {
+      setErr(toUserFacingErrorMessage(e));
+    }
+  }
+
+  async function runSeedPosts() {
+    setErr(null);
+    if (typeof sessionToken !== "string") {
+      setErr("Session expired — refresh and sign in again.");
+      return;
+    }
+    try {
+      await seedPosts({ sessionToken });
+    } catch (e) {
+      setErr(toUserFacingErrorMessage(e));
+    }
+  }
+
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
     setErr(null);
+    if (typeof sessionToken !== "string") {
+      setErr("Session expired — refresh and sign in again.");
+      return;
+    }
     setSaving(true);
     try {
       if (editingId) {
         await updatePost({
+          sessionToken,
           postId: editingId,
           title,
           slug: slug || title.toLowerCase().replace(/\s+/g, "-"),
@@ -105,6 +151,7 @@ export function AdminBlogPanel() {
         });
       } else {
         await createPost({
+          sessionToken,
           title,
           slug: slug || title.toLowerCase().replace(/\s+/g, "-"),
           content,
@@ -137,7 +184,7 @@ export function AdminBlogPanel() {
         <Button type="button" variant="secondary" onClick={() => setBulkOpen(true)}>
           Bulk upload
         </Button>
-        <Button type="button" variant="secondary" onClick={() => void seedPosts({})}>
+        <Button type="button" variant="secondary" onClick={() => void runSeedPosts()}>
           Seed sample posts
         </Button>
         <p className="text-xs text-slate-500">
@@ -179,7 +226,7 @@ export function AdminBlogPanel() {
                     role="switch"
                     aria-checked={p.published}
                     onClick={() =>
-                      void updatePost({ postId: p._id, published: !p.published })
+                      void togglePublished(p._id, !p.published)
                     }
                   >
                     <span
@@ -227,7 +274,7 @@ export function AdminBlogPanel() {
                       className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
                       onClick={() => {
                         if (confirm("Delete this post?")) {
-                          void deletePost({ postId: p._id });
+                          void removePost(p._id);
                         }
                       }}
                     >
@@ -383,7 +430,10 @@ export function AdminBlogPanel() {
           return await importInBatches({
             rows,
             batchSize: 25,
-            importBatch: async (batch) => bulkUpsert({ rows: batch }),
+            importBatch: async (batch) => {
+              if (typeof sessionToken !== "string") throw new Error("Not authenticated");
+              return bulkUpsert({ sessionToken, rows: batch });
+            },
             merge: (a, b) => ({
               processed: a.processed + b.processed,
               created: (a.created ?? 0) + (b.created ?? 0),

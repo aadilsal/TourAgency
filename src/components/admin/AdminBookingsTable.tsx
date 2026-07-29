@@ -7,6 +7,8 @@ import { api } from "@convex/_generated/api";
 import { cn } from "@/lib/cn";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { formatMoney, type CurrencyCode } from "@/lib/money";
+import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
+import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 
 const statuses = ["pending", "confirmed", "cancelled"] as const;
 
@@ -165,10 +167,33 @@ function statusBadgeClass(status: string) {
 }
 
 export function AdminBookingsTable() {
-  const rows = useQuery(api.bookings.getAllBookings, {});
+  const sessionToken = useConvexSessionToken();
+  const rows = useQuery(
+    api.bookings.getAllBookings,
+    typeof sessionToken === "string" ? { sessionToken } : "skip",
+  );
   const updateStatus = useMutation(api.bookings.updateBookingStatus);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [statusError, setStatusError] = useState<string | null>(null);
+
+  /** Surfaces failures: a dropped status change used to fail silently. */
+  async function setBookingStatus(
+    kind: "user" | "guest",
+    id: string,
+    status: (typeof statuses)[number],
+  ) {
+    setStatusError(null);
+    if (typeof sessionToken !== "string") {
+      setStatusError("Session expired — refresh and sign in again.");
+      return;
+    }
+    try {
+      await updateStatus({ sessionToken, kind, id, status });
+    } catch (e) {
+      setStatusError(toUserFacingErrorMessage(e));
+    }
+  }
 
   function toggleExpanded(key: string) {
     setExpanded((prev) => {
@@ -192,6 +217,11 @@ export function AdminBookingsTable() {
 
   return (
     <div className="space-y-4">
+      {statusError ? (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm font-medium text-red-700">
+          {statusError}
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           Status
@@ -295,11 +325,11 @@ export function AdminBookingsTable() {
                     value={r.status}
                     aria-label={`Set status for ${r.name}`}
                     onChange={(e) => {
-                      void updateStatus({
-                        kind: r.kind,
-                        id: r.id as string,
-                        status: e.target.value as (typeof statuses)[number],
-                      });
+                      void setBookingStatus(
+                        r.kind,
+                        r.id as string,
+                        e.target.value as (typeof statuses)[number],
+                      );
                     }}
                   >
                     {statuses.map((s) => (

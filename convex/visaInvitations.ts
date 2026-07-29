@@ -5,7 +5,7 @@ import {
   query,
 } from "./_generated/server.js";
 import { internal } from "./_generated/api.js";
-import { requireAdmin, requireUserFromSession } from "./lib/authHelpers.js";
+import { requireAdminFromSession, requireUserFromSession } from "./lib/authHelpers.js";
 import { validateVisaSubmission } from "./lib/visaValidation.js";
 
 const travelerValidator = v.object({
@@ -93,6 +93,7 @@ export const getRequestDoc = internalQuery({
 
 export const listForAdmin = query({
   args: {
+    sessionToken: v.string(),
     status: v.optional(
       v.union(
         v.literal("pending"),
@@ -101,8 +102,8 @@ export const listForAdmin = query({
       ),
     ),
   },
-  handler: async (ctx, { status }) => {
-    await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, status }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const all = await ctx.db.query("visaInvitationRequests").collect();
     const filtered = status ? all.filter((r) => r.status === status) : all;
     return filtered.sort((a, b) => b.createdAt - a.createdAt);
@@ -137,9 +138,9 @@ export const setStatus = mutation({
 });
 
 export const countPending = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const all = await ctx.db.query("visaInvitationRequests").collect();
     return all.filter((r) => r.status === "pending").length;
   },

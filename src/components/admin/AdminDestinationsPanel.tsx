@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMemo, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
@@ -43,7 +44,12 @@ function fromLines(v: string): string[] {
 }
 
 export function AdminDestinationsPanel() {
-  const rows = useQuery(api.destinations.listForAdmin, {});
+  const sessionToken = useConvexSessionToken();
+  const canMutate = typeof sessionToken === "string";
+  const rows = useQuery(
+    api.destinations.listForAdmin,
+    canMutate ? { sessionToken } : "skip",
+  );
   const seedDestinations = useMutation(api.destinations.seedDefaults);
   const createDestination = useMutation(api.destinations.createDestination);
   const updateDestination = useMutation(api.destinations.updateDestination);
@@ -129,7 +135,8 @@ export function AdminDestinationsPanel() {
     setHeroUploading(true);
     setMsg(null);
     try {
-      const postUrl = await generateHeroUploadUrl({});
+      if (!canMutate) throw new Error("Not authenticated");
+      const postUrl = await generateHeroUploadUrl({ sessionToken });
       const res = await fetch(postUrl, {
         method: "POST",
         headers: { "Content-Type": file.type || "image/jpeg" },
@@ -176,11 +183,21 @@ export function AdminDestinationsPanel() {
     };
 
     try {
+      if (!canMutate) throw new Error("Not authenticated");
       if (editingId) {
-        await updateDestination({ destinationId: editingId, ...base, heroStorageId });
+        await updateDestination({
+          sessionToken,
+          destinationId: editingId,
+          ...base,
+          heroStorageId,
+        });
         setMsg("Destination updated.");
       } else {
-        await createDestination({ ...base, heroStorageId: heroStorageId ?? undefined });
+        await createDestination({
+          sessionToken,
+          ...base,
+          heroStorageId: heroStorageId ?? undefined,
+        });
         setMsg("Destination created.");
       }
       setModalOpen(false);
@@ -205,7 +222,19 @@ export function AdminDestinationsPanel() {
         <Button type="button" variant="secondary" onClick={() => setBulkOpen(true)}>
           Bulk upload
         </Button>
-        <Button type="button" variant="secondary" onClick={() => void seedDestinations({})}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            if (!canMutate) {
+              setMsg("Session expired — refresh and sign in again.");
+              return;
+            }
+            void seedDestinations({ sessionToken }).catch((e) =>
+              setMsg(toUserFacingErrorMessage(e)),
+            );
+          }}
+        >
           Seed sample destinations
         </Button>
         {msg && !modalOpen ? (
@@ -256,7 +285,14 @@ export function AdminDestinationsPanel() {
                       className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
                       onClick={() => {
                         if (confirm("Delete this destination? Tours assigned to it will be unassigned.")) {
-                          void deleteDestination({ destinationId: d._id });
+                          if (!canMutate) {
+                            setMsg("Session expired — refresh and sign in again.");
+                            return;
+                          }
+                          void deleteDestination({
+                            sessionToken,
+                            destinationId: d._id,
+                          }).catch((e) => setMsg(toUserFacingErrorMessage(e)));
                         }
                       }}
                     >
@@ -488,7 +524,10 @@ export function AdminDestinationsPanel() {
           return await importInBatches({
             rows,
             batchSize: 25,
-            importBatch: async (batch) => bulkUpsert({ rows: batch }),
+            importBatch: async (batch) => {
+              if (!canMutate) throw new Error("Not authenticated");
+              return bulkUpsert({ sessionToken, rows: batch });
+            },
             merge: (a, b) => ({
               processed: a.processed + b.processed,
               created: (a.created ?? 0) + (b.created ?? 0),

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import {
@@ -15,6 +15,8 @@ import {
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
+import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
+import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 
 type Props = {
   role: "admin" | "super_admin";
@@ -47,11 +49,37 @@ function statusBadgeClass(status: string) {
 }
 
 export function AdminDashboardClient({ role }: Props) {
-  const snap = useQuery(api.dashboard.getAdminDashboardSnapshot, {
-    windowDays: 30,
-    includeAdmins: role === "super_admin",
-  });
+  const sessionToken = useConvexSessionToken();
+  const snap = useQuery(
+    api.dashboard.getAdminDashboardSnapshot,
+    typeof sessionToken === "string"
+      ? {
+          sessionToken,
+          windowDays: 30,
+          includeAdmins: role === "super_admin",
+        }
+      : "skip",
+  );
   const updateStatus = useMutation(api.bookings.updateBookingStatus);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
+  /** Surfaces failures: a dropped status change used to fail silently. */
+  async function setBookingStatus(
+    kind: "user" | "guest",
+    id: string,
+    status: "pending" | "confirmed" | "cancelled",
+  ) {
+    setStatusError(null);
+    if (typeof sessionToken !== "string") {
+      setStatusError("Session expired — refresh and sign in again.");
+      return;
+    }
+    try {
+      await updateStatus({ sessionToken, kind, id, status });
+    } catch (e) {
+      setStatusError(toUserFacingErrorMessage(e));
+    }
+  }
 
   const kpis = snap?.kpis;
   const recent = snap?.recent;
@@ -72,6 +100,11 @@ export function AdminDashboardClient({ role }: Props) {
 
   return (
     <div className="space-y-8">
+      {statusError ? (
+        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm font-medium text-red-700">
+          {statusError}
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">{snap.windowLabel}</p>
         <div className="flex flex-wrap gap-2">
@@ -225,11 +258,11 @@ export function AdminDashboardClient({ role }: Props) {
                     value={b.status}
                     aria-label={`Set status for ${b.name}`}
                     onChange={(e) => {
-                      void updateStatus({
-                        kind: b.kind,
-                        id: b.id,
-                        status: e.target.value as "pending" | "confirmed" | "cancelled",
-                      });
+                      void setBookingStatus(
+                        b.kind,
+                        b.id,
+                        e.target.value as "pending" | "confirmed" | "cancelled",
+                      );
                     }}
                   >
                     {["pending", "confirmed", "cancelled"].map((s) => (

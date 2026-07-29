@@ -32,28 +32,34 @@ export async function requireUserFromSession(
 }
 
 /**
- * WARNING: Any client can call Convex. Without JWT, this only checks that an
- * admin row exists — not that the caller is that admin. Restore JWT (or another
- * gate) before production.
+ * Admin gate for admin-only endpoints. Resolves the CALLER from their session
+ * token and checks that caller's role.
+ *
+ * Never gate an endpoint on "an admin exists somewhere in the users table":
+ * every Convex function is reachable by anyone who has the deployment URL, and
+ * that URL ships in the browser bundle.
  */
-export async function requireAdmin(
+export async function requireAdminFromSession(
   ctx: QueryCtx | MutationCtx,
+  sessionToken: string,
 ): Promise<Doc<"users">> {
-  const users = await ctx.db.query("users").collect();
-  const u =
-    users.find((x) => x.role === "super_admin") ??
-    users.find((x) => x.role === "admin");
-  if (!u) throw new Error("Admin access required");
-  return u;
+  const user = await requireUserFromSession(ctx, sessionToken);
+  if (user.role !== "admin" && user.role !== "super_admin") {
+    throw new Error("Admin access required");
+  }
+  return user;
 }
 
-export async function requireSuperAdmin(
+/** Super-admin gate. Same rules as {@link requireAdminFromSession}. */
+export async function requireSuperAdminFromSession(
   ctx: QueryCtx | MutationCtx,
+  sessionToken: string,
 ): Promise<Doc<"users">> {
-  const users = await ctx.db.query("users").collect();
-  const u = users.find((x) => x.role === "super_admin");
-  if (!u) throw new Error("Super admin access required");
-  return u;
+  const user = await requireUserFromSession(ctx, sessionToken);
+  if (user.role !== "super_admin") {
+    throw new Error("Super admin access required");
+  }
+  return user;
 }
 
 export function normalizePhone(phone: string): string {

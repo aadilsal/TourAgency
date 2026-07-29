@@ -8,6 +8,7 @@ import { Eye } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { AdminRoleBadge } from "@/components/admin/AdminRoleBadge";
+import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 
 type UserRow = {
   _id: Id<"users">;
@@ -20,7 +21,11 @@ type UserRow = {
 };
 
 export function AdminUsersTable() {
-  const users = useQuery(api.admin.getUsers, {});
+  const sessionToken = useConvexSessionToken();
+  const users = useQuery(
+    api.admin.getUsers,
+    typeof sessionToken === "string" ? { sessionToken } : "skip",
+  );
   const [detail, setDetail] = useState<UserRow | null>(null);
 
   if (users === undefined) {

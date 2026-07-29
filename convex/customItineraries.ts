@@ -6,7 +6,7 @@ import {
   query,
 } from "./_generated/server.js";
 import { internal } from "./_generated/api.js";
-import { requireAdmin } from "./lib/authHelpers.js";
+import { requireAdminFromSession } from "./lib/authHelpers.js";
 
 export const createRequest = internalMutation({
   args: {
@@ -47,6 +47,7 @@ export const getRequestDoc = internalQuery({
 
 export const listForAdmin = query({
   args: {
+    sessionToken: v.string(),
     status: v.optional(
       v.union(
         v.literal("pending"),
@@ -55,8 +56,8 @@ export const listForAdmin = query({
       ),
     ),
   },
-  handler: async (ctx, { status }) => {
-    await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, status }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const all = await ctx.db.query("customItineraryRequests").collect();
     const filtered = status
       ? all.filter((r) => r.status === status)
@@ -67,12 +68,13 @@ export const listForAdmin = query({
 
 export const setRequestStatus = mutation({
   args: {
+    sessionToken: v.string(),
     requestId: v.id("customItineraryRequests"),
     status: v.union(v.literal("approved"), v.literal("rejected")),
     adminNote: v.optional(v.string()),
   },
-  handler: async (ctx, { requestId, status, adminNote }) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, requestId, status, adminNote }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     const row = await ctx.db.get(requestId);
     if (!row) throw new Error("Request not found");
     const nextAdminNote = adminNote?.trim() || undefined;
@@ -110,11 +112,12 @@ export const setRequestStatus = mutation({
 
 export const setAdminNote = mutation({
   args: {
+    sessionToken: v.string(),
     requestId: v.id("customItineraryRequests"),
     adminNote: v.optional(v.string()),
   },
-  handler: async (ctx, { requestId, adminNote }) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, requestId, adminNote }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     const row = await ctx.db.get(requestId);
     if (!row) throw new Error("Request not found");
     if (row.status === "pending") {
@@ -149,11 +152,12 @@ export const setAdminNote = mutation({
 
 export const setAdminDraft = mutation({
   args: {
+    sessionToken: v.string(),
     requestId: v.id("customItineraryRequests"),
     adminDraft: v.optional(v.string()),
   },
-  handler: async (ctx, { requestId, adminDraft }) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, requestId, adminDraft }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     const row = await ctx.db.get(requestId);
     if (!row) throw new Error("Request not found");
     await ctx.db.patch(requestId, {

@@ -8,7 +8,7 @@ import {
 } from "./_generated/server.js";
 import { internal } from "./_generated/api.js";
 import type { Doc, Id } from "./_generated/dataModel.js";
-import { requireAdmin } from "./lib/authHelpers.js";
+import { requireAdminFromSession } from "./lib/authHelpers.js";
 import { resolveTourImageUrls } from "./lib/resolveTourImages.js";
 
 const FALLBACK_HERO =
@@ -302,9 +302,9 @@ const DEFAULT_DESTINATIONS: DestinationSeedRow[] = [
 ];
 
 export const seedDefaults = mutation({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const any = await ctx.db.query("destinations").take(1);
     if (any.length > 0) return { inserted: 0, skipped: true as const };
     const now = Date.now();
@@ -323,9 +323,9 @@ export const seedDefaults = mutation({
 
 /** Upsert culture + heritage default destinations by slug (safe for existing DBs). */
 export const syncDefaultCatalog = mutation({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     let created = 0;
     let updated = 0;
@@ -381,9 +381,9 @@ export const listForTourAssignment = query({
 });
 
 export const listForAdmin = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const rows = await ctx.db.query("destinations").collect();
     const tours = await ctx.db.query("tours").collect();
     return Promise.all(
@@ -400,15 +400,16 @@ export const listForAdmin = query({
 
 /** Convex upload URL for a destination hero image — POST the file, use returned `storageId`. */
 export const generateDestinationHeroUploadUrl = mutation({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     return await ctx.storage.generateUploadUrl();
   },
 });
 
 export const createDestination = mutation({
   args: {
+    sessionToken: v.string(),
     name: v.string(),
     slug: v.optional(v.string()),
     line: v.string(),
@@ -422,8 +423,8 @@ export const createDestination = mutation({
     bullets: v.array(v.string()),
     sortOrder: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, ...args }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     const base = (args.slug?.trim() || slugifyLocation(args.name)).toLowerCase();
     const slug = await ensureUniqueSlug(ctx, base);
@@ -451,6 +452,7 @@ export const createDestination = mutation({
 
 export const updateDestination = mutation({
   args: {
+    sessionToken: v.string(),
     destinationId: v.id("destinations"),
     name: v.optional(v.string()),
     slug: v.optional(v.string()),
@@ -465,8 +467,8 @@ export const updateDestination = mutation({
     bullets: v.optional(v.array(v.string())),
     sortOrder: v.optional(v.number()),
   },
-  handler: async (ctx, { destinationId, ...patch }) => {
-    await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, destinationId, ...patch }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const existing = await ctx.db.get(destinationId);
     if (!existing) throw new Error("Destination not found");
 
@@ -521,9 +523,9 @@ export const updateDestination = mutation({
 });
 
 export const deleteDestination = mutation({
-  args: { destinationId: v.id("destinations") },
-  handler: async (ctx, { destinationId }) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string(), destinationId: v.id("destinations") },
+  handler: async (ctx, { sessionToken, destinationId }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const tours = await ctx.db.query("tours").collect();
     for (const t of tours) {
       const nextDestinationIds = Array.isArray(t.destinationIds)
@@ -862,6 +864,7 @@ export const listRelatedTours = query({
 
 export const bulkUpsert = mutation({
   args: {
+    sessionToken: v.string(),
     rows: v.array(
       v.object({
         slug: v.optional(v.string()),
@@ -878,8 +881,8 @@ export const bulkUpsert = mutation({
       }),
     ),
   },
-  handler: async (ctx, { rows }) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, rows }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     let created = 0;
     let updated = 0;

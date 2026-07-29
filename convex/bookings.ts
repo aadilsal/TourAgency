@@ -6,7 +6,7 @@ import {
 } from "./_generated/server.js";
 import { internal } from "./_generated/api.js";
 import {
-  requireAdmin,
+  requireAdminFromSession,
   requireUserFromSession,
   normalizePhone,
 } from "./lib/authHelpers.js";
@@ -291,9 +291,9 @@ export type UnifiedBooking =
     };
 
 export const getAllBookings = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const guests = await ctx.db.query("guestBookings").collect();
     const usersB = await ctx.db.query("bookings").collect();
     const guestRows: UnifiedBooking[] = await Promise.all(
@@ -378,6 +378,7 @@ export const getAllBookings = query({
 
 export const updateBookingStatus = mutation({
   args: {
+    sessionToken: v.string(),
     kind: v.union(v.literal("guest"), v.literal("user")),
     id: v.string(),
     status: v.union(
@@ -386,8 +387,8 @@ export const updateBookingStatus = mutation({
       v.literal("cancelled"),
     ),
   },
-  handler: async (ctx, { kind, id, status }) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, kind, id, status }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     if (kind === "guest") {
       await ctx.db.patch(id as Id<"guestBookings">, { status });
     } else {

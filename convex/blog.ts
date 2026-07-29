@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
-import { resolveUserFromSessionToken, requireAdmin } from "./lib/authHelpers.js";
+import { resolveUserFromSessionToken, requireAdminFromSession } from "./lib/authHelpers.js";
 import type { Doc } from "./_generated/dataModel.js";
 
 const MAX_PUBLIC_POSTS = 200;
@@ -147,6 +147,7 @@ export const getPostBySlug = query({
 
 export const createPost = mutation({
   args: {
+    sessionToken: v.string(),
     title: v.string(),
     slug: v.string(),
     content: v.string(),
@@ -154,8 +155,8 @@ export const createPost = mutation({
     metaDescription: v.optional(v.string()),
     published: v.boolean(),
   },
-  handler: async (ctx, args) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, ...args }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     const id = await ctx.db.insert("blogPosts", {
       ...args,
@@ -174,6 +175,7 @@ export const createPost = mutation({
 
 export const updatePost = mutation({
   args: {
+    sessionToken: v.string(),
     postId: v.id("blogPosts"),
     title: v.optional(v.string()),
     slug: v.optional(v.string()),
@@ -182,8 +184,8 @@ export const updatePost = mutation({
     metaDescription: v.optional(v.string()),
     published: v.optional(v.boolean()),
   },
-  handler: async (ctx, { postId, ...patch }) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, postId, ...patch }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     const next: Record<string, unknown> = {};
     for (const [k, val] of Object.entries(patch)) {
       if (val !== undefined) next[k] = val;
@@ -208,9 +210,9 @@ export const updatePost = mutation({
 });
 
 export const deletePost = mutation({
-  args: { postId: v.id("blogPosts") },
-  handler: async (ctx, { postId }) => {
-    const admin = await requireAdmin(ctx);
+  args: { sessionToken: v.string(), postId: v.id("blogPosts") },
+  handler: async (ctx, { sessionToken, postId }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     await ctx.db.delete(postId);
     await ctx.db.insert("adminLogs", {
       action: "delete_blog_post",
@@ -222,9 +224,9 @@ export const deletePost = mutation({
 });
 
 export const seedSamplePosts = mutation({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const existing = await ctx.db.query("blogPosts").take(1);
     if (existing.length > 0) return { inserted: 0, skipped: true as const };
     const now = Date.now();
@@ -247,6 +249,7 @@ export const seedSamplePosts = mutation({
 
 export const bulkUpsert = mutation({
   args: {
+    sessionToken: v.string(),
     rows: v.array(
       v.object({
         title: v.string(),
@@ -259,8 +262,8 @@ export const bulkUpsert = mutation({
       }),
     ),
   },
-  handler: async (ctx, { rows }) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, rows }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     let created = 0;
     let updated = 0;

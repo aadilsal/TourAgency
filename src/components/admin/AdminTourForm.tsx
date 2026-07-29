@@ -443,6 +443,10 @@ export function AdminTourForm({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setMsg(null);
+    if (typeof sessionToken !== "string") {
+      setMsg("Session expired — refresh and sign in again.");
+      return;
+    }
     const itinerary: Doc<"tours">["itinerary"] = itineraryDays
       .map((d, i) => ({
         day: typeof d.day === "number" ? d.day : i + 1,
@@ -483,6 +487,7 @@ export function AdminTourForm({
       if (mode === "edit" && tourId) {
         // `null` clears an optional field; `updateTour` maps null → field removal.
         await updateTour({
+          sessionToken,
           tourId,
           title,
           slug: finalSlug,
@@ -513,6 +518,7 @@ export function AdminTourForm({
         });
       } else {
         await createTour({
+          sessionToken,
           title,
           slug: finalSlug,
           description,

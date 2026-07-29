@@ -1,6 +1,6 @@
 import { mutation } from "./_generated/server.js";
 import { v } from "convex/values";
-import { requireAdmin } from "./lib/authHelpers.js";
+import { requireAdminFromSession } from "./lib/authHelpers.js";
 
 function roundUsdFromPkr(pkr: number, ratePkrPerUsd: number): number {
   const safeRate = Number.isFinite(ratePkrPerUsd) && ratePkrPerUsd > 0 ? ratePkrPerUsd : 280;
@@ -9,6 +9,7 @@ function roundUsdFromPkr(pkr: number, ratePkrPerUsd: number): number {
 
 export const backfillTourUsdPrices = mutation({
   args: {
+    sessionToken: v.string(),
     /** Conversion rate used only when `priceUsd` is missing. Default 280 PKR/USD. */
     ratePkrPerUsd: v.optional(v.number()),
     /** If true, only reports what would change. */
@@ -16,8 +17,8 @@ export const backfillTourUsdPrices = mutation({
     /** Safety: max tours to patch per run. */
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, ...args }) => {
+    await requireAdminFromSession(ctx, sessionToken);
 
     const dryRun = args.dryRun ?? false;
     const limit = Math.max(1, Math.min(args.limit ?? 200, 2000));

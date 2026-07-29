@@ -6,16 +6,22 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import type { Id } from "@convex/_generated/dataModel";
+import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected";
 
 export function AdminCustomItinerariesPanel() {
+  const sessionToken = useConvexSessionToken();
+  const canMutate = typeof sessionToken === "string";
   const [filter, setFilter] = useState<StatusFilter>("pending");
   const listArgs =
     filter === "all"
       ? ({} as { status?: "pending" | "approved" | "rejected" })
       : { status: filter };
-  const rows = useQuery(api.customItineraries.listForAdmin, listArgs);
+  const rows = useQuery(
+    api.customItineraries.listForAdmin,
+    canMutate ? { sessionToken, ...listArgs } : "skip",
+  );
   const setStatus = useMutation(api.customItineraries.setRequestStatus);
   const setAdminNote = useMutation(api.customItineraries.setAdminNote);
 
@@ -28,7 +34,9 @@ export function AdminCustomItinerariesPanel() {
         ? "Optional note for records (or leave blank)"
         : "Reason for rejection (optional)",
     );
+    if (!canMutate) return;
     await setStatus({
+      sessionToken,
       requestId: id,
       status,
       adminNote: note?.trim() || undefined,
@@ -38,7 +46,9 @@ export function AdminCustomItinerariesPanel() {
   async function editNote(id: Id<"customItineraryRequests">, current?: string) {
     const note = window.prompt("Update admin note (optional)", current ?? "");
     if (note === null) return;
+    if (!canMutate) return;
     await setAdminNote({
+      sessionToken,
       requestId: id,
       adminNote: note.trim() || undefined,
     });

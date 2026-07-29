@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMemo, useState } from "react";
 import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
@@ -49,7 +50,12 @@ const NEW_PROVINCE_VISUAL_DEFAULTS = {
 } as const;
 
 export function AdminProvincesPanel() {
-  const rows = useQuery(api.provinces.listForAdmin, {});
+  const sessionToken = useConvexSessionToken();
+  const canMutate = typeof sessionToken === "string";
+  const rows = useQuery(
+    api.provinces.listForAdmin,
+    canMutate ? { sessionToken } : "skip",
+  );
   const syncCatalog = useMutation(api.provinces.syncDefaultCatalog);
   const syncSites = useMutation(api.sites.syncDefaultCatalog);
   const createProvince = useMutation(api.provinces.createProvince);
@@ -110,8 +116,10 @@ export function AdminProvincesPanel() {
       .map((t) => t.trim().toLowerCase())
       .filter(Boolean);
     try {
+      if (!canMutate) throw new Error("Not authenticated");
       if (editingId) {
         await updateProvince({
+          sessionToken,
           provinceId: editingId,
           name: name.trim(),
           tagline: tagline.trim(),
@@ -125,6 +133,7 @@ export function AdminProvincesPanel() {
         setMsg("Saved.");
       } else {
         await createProvince({
+          sessionToken,
           slug: slugify(name),
           name: name.trim(),
           tagline: tagline.trim(),
@@ -162,7 +171,8 @@ export function AdminProvincesPanel() {
     if (!ok) return;
     setMsg(null);
     try {
-      await deleteProvince({ provinceId: p._id });
+      if (!canMutate) throw new Error("Not authenticated");
+      await deleteProvince({ sessionToken, provinceId: p._id });
       setMsg("Province deleted.");
     } catch (err) {
       setMsg(toUserFacingErrorMessage(err));
@@ -173,8 +183,9 @@ export function AdminProvincesPanel() {
     setSyncing(true);
     setMsg(null);
     try {
-      const p = await syncCatalog({});
-      const s = await syncSites({});
+      if (!canMutate) throw new Error("Not authenticated");
+      const p = await syncCatalog({ sessionToken });
+      const s = await syncSites({ sessionToken });
       setMsg(
         `Synced provinces (${p.created} new, ${p.updated} updated) and sites (${s.created} new, ${s.updated} updated).`,
       );

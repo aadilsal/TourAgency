@@ -1,5 +1,6 @@
+import { v } from "convex/values";
 import { mutation } from "./_generated/server.js";
-import { requireAdmin } from "./lib/authHelpers.js";
+import { requireAdminFromSession } from "./lib/authHelpers.js";
 
 const TOUR_DESTINATION_MULTI_HINTS: Record<string, string[]> = {
   "hunza-valley-explorer": ["hunza", "naran"],
@@ -432,9 +433,9 @@ const sampleTours = [
 ];
 
 export const seedSampleTours = mutation({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const destinations = await ctx.db.query("destinations").collect();
     const provinces = await ctx.db.query("provinces").collect();
     const destinationBySlug = new Map(

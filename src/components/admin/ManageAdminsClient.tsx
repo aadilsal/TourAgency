@@ -24,7 +24,10 @@ const inputClass =
 
 export function ManageAdminsClient() {
   const sessionToken = useConvexSessionToken();
-  const users = useQuery(api.admin.getUsers, {});
+  const users = useQuery(
+    api.admin.getUsers,
+    typeof sessionToken === "string" ? { sessionToken } : "skip",
+  );
   const promote = useMutation(api.admin.promoteUser);
   const demote = useMutation(api.admin.demoteAdmin);
   const createAdmin = useAction(api.authActions.createAdminUser);
@@ -35,6 +38,21 @@ export function ManageAdminsClient() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const pwOk = analyzePassword(password).meetsMinimum;
+
+  /** Role changes report failures instead of dropping them on the floor. */
+  async function changeRole(kind: "promote" | "demote", userId: Id<"users">) {
+    setMsg(null);
+    if (typeof sessionToken !== "string") {
+      setMsg("Session expired — refresh and sign in again.");
+      return;
+    }
+    try {
+      if (kind === "promote") await promote({ sessionToken, userId });
+      else await demote({ sessionToken, userId });
+    } catch (er) {
+      setMsg(toUserFacingErrorMessage(er));
+    }
+  }
 
   async function onCreateAdmin(e: React.FormEvent) {
     e.preventDefault();
@@ -144,7 +162,7 @@ export function ManageAdminsClient() {
                         <button
                           type="button"
                           className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
-                          onClick={() => void promote({ userId: u._id })}
+                          onClick={() => void changeRole("promote", u._id)}
                         >
                           <UserPlus className="h-3.5 w-3.5" aria-hidden />
                           Promote to admin
@@ -154,7 +172,7 @@ export function ManageAdminsClient() {
                         <button
                           type="button"
                           className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
-                          onClick={() => void demote({ userId: u._id })}
+                          onClick={() => void changeRole("demote", u._id)}
                         >
                           <UserMinus className="h-3.5 w-3.5" aria-hidden />
                           Demote to customer

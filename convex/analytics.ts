@@ -1,10 +1,11 @@
+import { v } from "convex/values";
 import { query } from "./_generated/server.js";
-import { requireAdmin } from "./lib/authHelpers.js";
+import { requireAdminFromSession } from "./lib/authHelpers.js";
 
 export const getAnalyticsSnapshot = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const [
       guestBookings,
       userBookings,

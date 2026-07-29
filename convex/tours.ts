@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, internalQuery } from "./_generated/server.js";
 import { paginationOptsValidator } from "convex/server";
 import { internal } from "./_generated/api.js";
-import { resolveUserFromSessionToken, requireAdmin } from "./lib/authHelpers.js";
+import { resolveUserFromSessionToken, requireAdminFromSession } from "./lib/authHelpers.js";
 import type { Doc } from "./_generated/dataModel.js";
 import { resolveTourImageUrls } from "./lib/resolveTourImages.js";
 import {
@@ -167,6 +167,7 @@ export const getTourForAdmin = query({
 
 export const createTour = mutation({
   args: {
+    sessionToken: v.string(),
     title: v.string(),
     slug: v.string(),
     description: v.string(),
@@ -207,8 +208,8 @@ export const createTour = mutation({
     ),
     isActive: v.boolean(),
   },
-  handler: async (ctx, args) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, ...args }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     const normalizedSlug = args.slug.trim().toLowerCase().replace(/\s+/g, "-");
     const imageFolderKey = `tours/${normalizedSlug}`;
@@ -237,6 +238,7 @@ export const createTour = mutation({
 
 export const updateTour = mutation({
   args: {
+    sessionToken: v.string(),
     tourId: v.id("tours"),
     title: v.optional(v.string()),
     slug: v.optional(v.string()),
@@ -283,8 +285,8 @@ export const updateTour = mutation({
     ),
     isActive: v.optional(v.boolean()),
   },
-  handler: async (ctx, { tourId, ...patch }) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, tourId, ...patch }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     const tour = await ctx.db.get(tourId);
     if (!tour) throw new Error("Tour not found");
     const next: Record<string, unknown> = {};
@@ -330,9 +332,9 @@ export const updateTour = mutation({
 });
 
 export const deleteTour = mutation({
-  args: { tourId: v.id("tours") },
-  handler: async (ctx, { tourId }) => {
-    const admin = await requireAdmin(ctx);
+  args: { sessionToken: v.string(), tourId: v.id("tours") },
+  handler: async (ctx, { sessionToken, tourId }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     await deleteTourImageAssetsForTour(ctx, tourId);
     await ctx.db.delete(tourId);
     await ctx.db.insert("adminLogs", {
@@ -346,6 +348,7 @@ export const deleteTour = mutation({
 
 export const bulkUpsert = mutation({
   args: {
+    sessionToken: v.string(),
     rows: v.array(
       v.object({
         title: v.string(),
@@ -388,8 +391,8 @@ export const bulkUpsert = mutation({
       }),
     ),
   },
-  handler: async (ctx, { rows }) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, rows }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     let created = 0;
     let updated = 0;

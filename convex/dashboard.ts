@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server.js";
-import { requireAdmin } from "./lib/authHelpers.js";
+import { requireAdminFromSession } from "./lib/authHelpers.js";
 
 type DashboardBookingRow = {
   kind: "guest" | "user";
@@ -41,11 +41,12 @@ type DashboardAdminRow = {
 
 export const getAdminDashboardSnapshot = query({
   args: {
+    sessionToken: v.string(),
     windowDays: v.optional(v.number()),
     includeAdmins: v.optional(v.boolean()),
   },
-  handler: async (ctx, { windowDays, includeAdmins }) => {
-    await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, windowDays, includeAdmins }) => {
+    await requireAdminFromSession(ctx, sessionToken);
 
     const now = Date.now();
     const days = windowDays && Number.isFinite(windowDays) ? windowDays : 30;

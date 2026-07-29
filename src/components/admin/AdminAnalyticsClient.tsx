@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { BarChart3, CalendarCheck, Coins, Users } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
@@ -17,7 +18,11 @@ type Snapshot = {
 };
 
 export function AdminAnalyticsClient() {
-  const snap = useQuery(api.analytics.getAnalyticsSnapshot, {});
+  const sessionToken = useConvexSessionToken();
+  const snap = useQuery(
+    api.analytics.getAnalyticsSnapshot,
+    typeof sessionToken === "string" ? { sessionToken } : "skip",
+  );
   const wa = useQuery(api.whatsapp.getWhatsAppClickLink, {
     presetMessage: "Hi JunketTours — I saw a tour on your site.",
   });

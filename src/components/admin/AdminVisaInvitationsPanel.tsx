@@ -51,7 +51,10 @@ function statusBadgeClass(status: string) {
 export function AdminVisaInvitationsPanel() {
   const sessionToken = useConvexSessionToken();
   const canMutate = typeof sessionToken === "string";
-  const rows = useQuery(api.visaInvitations.listForAdmin, {});
+  const rows = useQuery(
+    api.visaInvitations.listForAdmin,
+    canMutate ? { sessionToken } : "skip",
+  );
   const setStatus = useMutation(api.visaInvitations.setStatus);
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);

@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query, type MutationCtx } from "./_generated/server.js";
 import type { Doc, Id } from "./_generated/dataModel.js";
-import { requireAdmin } from "./lib/authHelpers.js";
+import { requireAdminFromSession } from "./lib/authHelpers.js";
 import { resolveTourImageUrls } from "./lib/resolveTourImages.js";
 
 const FALLBACK_HERO =
@@ -257,9 +257,9 @@ const DEFAULT_PROVINCES: ProvinceSeedRow[] = [
 ];
 
 export const syncDefaultCatalog = mutation({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     let created = 0;
     let updated = 0;
@@ -394,9 +394,9 @@ export const listForTourAssignment = query({
 });
 
 export const listForAdmin = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const rows = await ctx.db.query("provinces").collect();
     const tours = await ctx.db.query("tours").collect();
     const sites = await ctx.db.query("sites").collect();
@@ -415,6 +415,7 @@ export const listForAdmin = query({
 
 export const createProvince = mutation({
   args: {
+    sessionToken: v.string(),
     slug: v.string(),
     name: v.string(),
     tagline: v.string(),
@@ -437,8 +438,8 @@ export const createProvince = mutation({
     paletteTo: v.string(),
     paletteAccent: v.string(),
   },
-  handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, ...args }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     const slug = await ensureUniqueSlug(ctx, args.slug.trim().toLowerCase());
     return await ctx.db.insert("provinces", {
@@ -452,6 +453,7 @@ export const createProvince = mutation({
 
 export const updateProvince = mutation({
   args: {
+    sessionToken: v.string(),
     provinceId: v.id("provinces"),
     name: v.optional(v.string()),
     tagline: v.optional(v.string()),
@@ -474,8 +476,8 @@ export const updateProvince = mutation({
     paletteTo: v.optional(v.string()),
     paletteAccent: v.optional(v.string()),
   },
-  handler: async (ctx, { provinceId, ...patch }) => {
-    await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, provinceId, ...patch }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const existing = await ctx.db.get(provinceId);
     if (!existing) throw new Error("Province not found");
     const next: Record<string, unknown> = {};
@@ -488,9 +490,9 @@ export const updateProvince = mutation({
 });
 
 export const deleteProvince = mutation({
-  args: { provinceId: v.id("provinces") },
-  handler: async (ctx, { provinceId }) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string(), provinceId: v.id("provinces") },
+  handler: async (ctx, { sessionToken, provinceId }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const siteRows = await ctx.db
       .query("sites")
       .withIndex("by_province", (q) => q.eq("provinceId", provinceId))

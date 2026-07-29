@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
+import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMemo, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
@@ -32,11 +33,16 @@ function slugify(value: string): string {
 }
 
 export function AdminSitesPanel() {
+  const sessionToken = useConvexSessionToken();
+  const canMutate = typeof sessionToken === "string";
   const provinces = useQuery(api.provinces.listForTourAssignment, {});
   const [filterProvince, setFilterProvince] = useState("");
-  const rows = useQuery(api.sites.listForAdmin, {
-    provinceSlug: filterProvince || undefined,
-  });
+  const rows = useQuery(
+    api.sites.listForAdmin,
+    canMutate
+      ? { sessionToken, provinceSlug: filterProvince || undefined }
+      : "skip",
+  );
   const createSite = useMutation(api.sites.createSite);
   const updateSite = useMutation(api.sites.updateSite);
   const deleteSite = useMutation(api.sites.deleteSite);
@@ -96,8 +102,10 @@ export function AdminSitesPanel() {
     setSaving(true);
     setMsg(null);
     try {
+      if (!canMutate) throw new Error("Not authenticated");
       if (editingId) {
         await updateSite({
+          sessionToken,
           siteId: editingId,
           name: name.trim(),
           type,
@@ -116,6 +124,7 @@ export function AdminSitesPanel() {
           return;
         }
         await createSite({
+          sessionToken,
           provinceId,
           slug: slugify(name),
           name: name.trim(),
@@ -194,7 +203,15 @@ export function AdminSitesPanel() {
                   <button
                     type="button"
                     className="rounded-lg p-2 text-red-600 hover:bg-red-50"
-                    onClick={() => void deleteSite({ siteId: s._id })}
+                    onClick={() => {
+                      if (!canMutate) {
+                        setMsg("Session expired — refresh and sign in again.");
+                        return;
+                      }
+                      void deleteSite({ sessionToken, siteId: s._id }).catch((e) =>
+                        setMsg(toUserFacingErrorMessage(e)),
+                      );
+                    }}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>

@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
 import type { QueryCtx, MutationCtx } from "./_generated/server.js";
 import type { Doc, Id } from "./_generated/dataModel.js";
-import { requireAdmin } from "./lib/authHelpers.js";
+import { requireAdminFromSession } from "./lib/authHelpers.js";
 import { SITES_SEED_ROWS } from "./lib/sitesSeed.js";
 
 const siteType = v.union(
@@ -109,9 +109,9 @@ export const getBySlug = query({
 });
 
 export const listForAdmin = query({
-  args: { provinceSlug: v.optional(v.string()) },
-  handler: async (ctx, { provinceSlug }) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string(), provinceSlug: v.optional(v.string()) },
+  handler: async (ctx, { sessionToken, provinceSlug }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     let provinceId: Id<"provinces"> | undefined;
     if (provinceSlug) {
       const p = await getProvinceBySlug(ctx, provinceSlug);
@@ -137,9 +137,9 @@ export const listForAdmin = query({
 });
 
 export const syncDefaultCatalog = mutation({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     let created = 0;
     let updated = 0;
@@ -194,6 +194,7 @@ export const syncDefaultCatalog = mutation({
 
 export const createSite = mutation({
   args: {
+    sessionToken: v.string(),
     provinceId: v.id("provinces"),
     slug: v.string(),
     name: v.string(),
@@ -209,8 +210,8 @@ export const createSite = mutation({
     sortOrder: v.number(),
     isActive: v.boolean(),
   },
-  handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, ...args }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     const slug = args.slug.trim().toLowerCase();
     const conflict = await ctx.db
@@ -231,6 +232,7 @@ export const createSite = mutation({
 
 export const updateSite = mutation({
   args: {
+    sessionToken: v.string(),
     siteId: v.id("sites"),
     name: v.optional(v.string()),
     type: v.optional(siteType),
@@ -245,8 +247,8 @@ export const updateSite = mutation({
     sortOrder: v.optional(v.number()),
     isActive: v.optional(v.boolean()),
   },
-  handler: async (ctx, { siteId, ...patch }) => {
-    await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, siteId, ...patch }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const existing = await ctx.db.get(siteId);
     if (!existing) throw new Error("Site not found");
     const next: Record<string, unknown> = {};
@@ -259,15 +261,16 @@ export const updateSite = mutation({
 });
 
 export const deleteSite = mutation({
-  args: { siteId: v.id("sites") },
-  handler: async (ctx, { siteId }) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string(), siteId: v.id("sites") },
+  handler: async (ctx, { sessionToken, siteId }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     await ctx.db.delete(siteId);
   },
 });
 
 export const bulkUpsert = mutation({
   args: {
+    sessionToken: v.string(),
     rows: v.array(
       v.object({
         provinceSlug: v.string(),
@@ -287,8 +290,8 @@ export const bulkUpsert = mutation({
       }),
     ),
   },
-  handler: async (ctx, { rows }) => {
-    const admin = await requireAdmin(ctx);
+  handler: async (ctx, { sessionToken, rows }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     let created = 0;
     let updated = 0;

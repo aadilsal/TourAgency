@@ -1,11 +1,14 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
-import { requireAdmin, requireSuperAdmin } from "./lib/authHelpers.js";
+import {
+  requireAdminFromSession,
+  requireSuperAdminFromSession,
+} from "./lib/authHelpers.js";
 
 export const getUsers = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const all = await ctx.db.query("users").collect();
     return all.map((u) => ({
       _id: u._id,
@@ -22,9 +25,9 @@ export const getUsers = query({
 });
 
 export const getAdmins = query({
-  args: {},
-  handler: async (ctx) => {
-    await requireAdmin(ctx);
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
     const all = await ctx.db.query("users").collect();
     return all
       .filter((u) => u.role === "admin" || u.role === "super_admin")
@@ -43,9 +46,9 @@ export const getAdmins = query({
 });
 
 export const promoteUser = mutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
-    const admin = await requireSuperAdmin(ctx);
+  args: { sessionToken: v.string(), userId: v.id("users") },
+  handler: async (ctx, { sessionToken, userId }) => {
+    const admin = await requireSuperAdminFromSession(ctx, sessionToken);
     const target = await ctx.db.get(userId);
     if (!target) throw new Error("User not found");
     if (target.role === "super_admin") throw new Error("Cannot change super admin");
@@ -61,9 +64,9 @@ export const promoteUser = mutation({
 });
 
 export const demoteAdmin = mutation({
-  args: { userId: v.id("users") },
-  handler: async (ctx, { userId }) => {
-    const admin = await requireSuperAdmin(ctx);
+  args: { sessionToken: v.string(), userId: v.id("users") },
+  handler: async (ctx, { sessionToken, userId }) => {
+    const admin = await requireSuperAdminFromSession(ctx, sessionToken);
     if (admin._id === userId) throw new Error("Cannot demote yourself");
     const target = await ctx.db.get(userId);
     if (!target) throw new Error("User not found");
