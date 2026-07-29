@@ -45,6 +45,103 @@ async function groqComplete(system: string, user: string): Promise<string> {
   return data.choices?.[0]?.message?.content ?? "";
 }
 
+/** Strips currency amounts so a generated line can never read as a quote. */
+function stripMoney(text: string): string {
+  return text
+    .replace(/\b(?:PKR|Rs\.?|USD|INR)\s*[\d,.]+\s*(?:k|thousand|lakh|million)?/gi, "")
+    .replace(/\$\s*[\d,.]+/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/**
+ * Drafts the day-by-day route outline for an itinerary. Route narrative only:
+ * no hotel names, no prices — those are commercial commitments the admin must
+ * enter. Returns rows for review; it does not write to the itinerary.
+ */
+export const draftItineraryDays = action({
+  args: {
+    sessionToken: v.string(),
+    itineraryId: v.id("itineraries"),
+  },
+  handler: async (ctx, { sessionToken, itineraryId }) => {
+    const session = await ctx.runQuery(api.auth.validateSession, { token: sessionToken });
+    if (!session) throw new Error("Not authenticated");
+    if (session.role !== "admin" && session.role !== "super_admin") {
+      throw new Error("Admin access required");
+    }
+
+    const itin = (await ctx.runQuery(api.itineraries.getForAdmin, {
+      sessionToken,
+      itineraryId,
+    })) as {
+      title: string;
+      days: number;
+      pickupDropoff?: string;
+      startDate?: string;
+      endDate?: string;
+    } | null;
+    if (!itin) throw new Error("Itinerary not found");
+
+    const days = Math.max(1, Math.min(60, Math.floor(itin.days || 1)));
+    const system = `You draft day-by-day route outlines for JunketTours, a Pakistan tour operator.
+Reply with STRICT JSON only, no prose, in this exact shape:
+{"days":[{"dayNumber":1,"title":"...","detail":"...","overnight":"..."}]}
+Rules:
+- Return exactly ${days} objects, dayNumber 1 to ${days} in order.
+- "title": a short route label of 3 to 8 words, e.g. "Islamabad to Naran".
+- "detail": 1-2 sentences covering the drive, stops and sightseeing for that day. Max 300 characters.
+- "overnight": the town, city or valley of the night stay ONLY. Never name a hotel, motel, resort or guesthouse.
+- Never mention prices, costs, currency amounts, package tiers or vehicle rates.
+- Keep the routing geographically sensible and conventional for Pakistan travel; do not invent places that are not on the route.
+- Use the real travel day pattern: arrival/drive days, sightseeing days, and a final departure day.`;
+
+    const userPrompt = [
+      `Trip title: ${itin.title || "Untitled"}`,
+      `Total days: ${days}`,
+      itin.pickupDropoff?.trim() ? `Pickup / drop-off: ${itin.pickupDropoff.trim()}` : "",
+      itin.startDate && itin.endDate ? `Travel dates: ${itin.startDate} to ${itin.endDate}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const raw = await groqComplete(system, userPrompt);
+    const jsonStart = raw.indexOf("{");
+    const jsonEnd = raw.lastIndexOf("}");
+    if (jsonStart < 0 || jsonEnd <= jsonStart) {
+      throw new Error("The assistant returned an unreadable draft. Try again.");
+    }
+
+    let parsed: { days?: Array<Record<string, unknown>> };
+    try {
+      parsed = JSON.parse(raw.slice(jsonStart, jsonEnd + 1)) as typeof parsed;
+    } catch {
+      throw new Error("The assistant returned an unreadable draft. Try again.");
+    }
+
+    const rows = Array.isArray(parsed.days) ? parsed.days : [];
+    const drafted = Array.from({ length: days }, (_, i) => {
+      const row = rows[i] ?? {};
+      const overnight = stripMoney(String(row.overnight ?? "")).slice(0, 120);
+      return {
+        dayNumber: i + 1,
+        title: stripMoney(String(row.title ?? "")).slice(0, 120),
+        detail: stripMoney(String(row.detail ?? "")).slice(0, 400),
+        overnight: overnight || undefined,
+      };
+    });
+
+    await ctx.runMutation(internal.aiRequests.persist, {
+      userId: session.userId,
+      input: userPrompt,
+      output: JSON.stringify(drafted),
+      type: "draftItineraryDays",
+    });
+
+    return { days: drafted };
+  },
+});
+
 export const generateTrip = action({
   args: {
     query: v.string(),

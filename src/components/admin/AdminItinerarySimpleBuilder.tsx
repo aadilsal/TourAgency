@@ -4,7 +4,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
@@ -84,6 +84,33 @@ function linesToList(input: string): string[] {
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/**
+ * How much real content a snapshot holds. Used to compare the browser backup
+ * against what the server has, so a blank/poorer form can never overwrite a
+ * richer local backup — that backup may be the only surviving copy.
+ */
+function snapshotContentScore(
+  snapshot: Partial<SimpleBuilderDraftSnapshot> | null | undefined,
+): number {
+  if (!snapshot) return 0;
+  let score = 0;
+  for (const d of snapshot.atGlanceDays ?? []) {
+    if ((d?.title ?? "").trim()) score++;
+    if ((d?.detail ?? "").trim()) score++;
+    if ((d?.overnight ?? "").trim()) score++;
+  }
+  score += linesToList(snapshot.includedInput ?? "").length;
+  score += linesToList(snapshot.notIncludedInput ?? "").length;
+  for (const t of snapshot.packageTiers ?? []) {
+    if (typeof t?.pricePkr === "number") score++;
+    if ((t?.vehicle ?? "").trim()) score++;
+    for (const stay of t?.stays ?? []) {
+      if ((stay?.hotel ?? "").trim()) score++;
+    }
+  }
+  return score;
 }
 
 function getSimpleBuilderStorageKey(itineraryId: string | null) {
@@ -344,6 +371,7 @@ export function AdminItinerarySimpleBuilder({
   const defaultLogoUrlAbs = useMemo(() => toAbsoluteUrl(DEFAULT_LOGO_URL), []);
 
   const createDraft = useMutation(api.itineraries.createDraft);
+  const draftItineraryDays = useAction(api.ai.draftItineraryDays);
   const patchDraft = useMutation(api.itineraries.patchDraft);
   const markFinal = useMutation(api.itineraries.markFinal);
   const generateUploadUrl = useMutation(api.media.generateItineraryImageUploadUrl);
@@ -397,6 +425,7 @@ export function AdminItinerarySimpleBuilder({
   );
   const [msg, setMsg] = useState<string | null>(null);
   const [creatingDraft, setCreatingDraft] = useState(false);
+  const [drafting, setDrafting] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [mobileTab, setMobileTab] = useState<"form" | "pdf">("form");
 
@@ -411,6 +440,13 @@ export function AdminItinerarySimpleBuilder({
   const legacyMigratedKey = useRef<string | null>(null);
   const localDraftHydratedKey = useRef<string | null>(null);
   const localDraftJsonRef = useRef<string>("");
+  /** The browser backup found on load, before this session overwrites it. */
+  const localSnapshotRef = useRef<Partial<SimpleBuilderDraftSnapshot> | null>(null);
+  const restoreCheckedKey = useRef<string | null>(null);
+  const [restorable, setRestorable] = useState<{
+    snapshot: Partial<SimpleBuilderDraftSnapshot>;
+    extra: number;
+  } | null>(null);
 
   const computedDaysFromDates = useMemo(() => {
     if (!startDate || !endDate) return null;
@@ -572,19 +608,7 @@ export function AdminItinerarySimpleBuilder({
     }
   }, [adminSettings, existing, itineraryId]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const storageKey = getSimpleBuilderStorageKey(itineraryId ? String(itineraryId) : null);
-    if (localDraftHydratedKey.current === storageKey) return;
-
-    const snapshot = parseSimpleBuilderSnapshot(window.localStorage.getItem(storageKey));
-    if (!snapshot) {
-      localDraftHydratedKey.current = storageKey;
-      return;
-    }
-
-    localDraftHydratedKey.current = storageKey;
-
+  const applySnapshot = useCallback((snapshot: Partial<SimpleBuilderDraftSnapshot>) => {
     if (typeof snapshot.title === "string") setTitle(snapshot.title);
     if (typeof snapshot.clientName === "string") setClientName(snapshot.clientName);
     if (typeof snapshot.startDate === "string") setStartDate(snapshot.startDate);
@@ -621,7 +645,24 @@ export function AdminItinerarySimpleBuilder({
     }
     if (typeof snapshot.includedInput === "string") setIncludedInput(snapshot.includedInput);
     if (typeof snapshot.notIncludedInput === "string") setNotIncludedInput(snapshot.notIncludedInput);
-  }, [itineraryId]);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const storageKey = getSimpleBuilderStorageKey(itineraryId ? String(itineraryId) : null);
+    if (localDraftHydratedKey.current === storageKey) return;
+    localDraftHydratedKey.current = storageKey;
+
+    const snapshot = parseSimpleBuilderSnapshot(window.localStorage.getItem(storageKey));
+    localSnapshotRef.current = snapshot;
+    if (!snapshot) return;
+
+    // For a saved itinerary the server is the source of truth. The browser
+    // backup is offered explicitly through the restore banner instead, so a
+    // stale snapshot can never silently replace saved content.
+    if (itineraryId) return;
+    applySnapshot(snapshot);
+  }, [applySnapshot, itineraryId]);
 
   const saveTimer = useRef<number | null>(null);
   const lastPatchJson = useRef<string>("");
@@ -843,31 +884,59 @@ export function AdminItinerarySimpleBuilder({
     [itineraryId],
   );
 
+  /**
+   * Write the browser backup, but never replace a richer one with a poorer one.
+   * Loading an itinerary whose content failed to save would otherwise blank the
+   * backup on mount — destroying the only remaining copy.
+   */
+  const writeLocalBackup = useCallback(
+    (json: string, candidate: Partial<SimpleBuilderDraftSnapshot>) => {
+      if (typeof window === "undefined") return;
+      try {
+        const stored = parseSimpleBuilderSnapshot(
+          window.localStorage.getItem(localDraftStorageKey),
+        );
+        if (stored && snapshotContentScore(stored) > snapshotContentScore(candidate)) return;
+        window.localStorage.setItem(localDraftStorageKey, json);
+      } catch {
+        // ignore storage failures
+      }
+    },
+    [localDraftStorageKey],
+  );
+
   useEffect(() => {
     const json = JSON.stringify(localDraftSnapshot);
     localDraftJsonRef.current = json;
     if (typeof window === "undefined") return;
 
-    const timer = window.setTimeout(() => {
-      try {
-        window.localStorage.setItem(localDraftStorageKey, json);
-      } catch {
-        // ignore storage failures
-      }
-    }, 100);
+    const timer = window.setTimeout(() => writeLocalBackup(json, localDraftSnapshot), 100);
 
     return () => window.clearTimeout(timer);
-  }, [localDraftSnapshot, localDraftStorageKey]);
+  }, [localDraftSnapshot, writeLocalBackup]);
+
+  /** Offer the browser backup when it holds content the server copy is missing. */
+  useEffect(() => {
+    if (!itineraryId) return;
+    const key = String(itineraryId);
+    if (hydratedId !== key) return;
+    if (restoreCheckedKey.current === key) return;
+    restoreCheckedKey.current = key;
+
+    const snapshot = localSnapshotRef.current;
+    if (!snapshot) return;
+    const localScore = snapshotContentScore(snapshot);
+    const serverScore = snapshotContentScore(localDraftSnapshot);
+    if (localScore > serverScore) {
+      setRestorable({ snapshot, extra: localScore - serverScore });
+    }
+  }, [hydratedId, itineraryId, localDraftSnapshot]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const flushSnapshot = () => {
-      try {
-        window.localStorage.setItem(localDraftStorageKey, localDraftJsonRef.current);
-      } catch {
-        // ignore storage failures
-      }
+      writeLocalBackup(localDraftJsonRef.current, JSON.parse(localDraftJsonRef.current || "{}"));
     };
 
     window.addEventListener("pagehide", flushSnapshot);
@@ -876,7 +945,7 @@ export function AdminItinerarySimpleBuilder({
       window.removeEventListener("pagehide", flushSnapshot);
       window.removeEventListener("beforeunload", flushSnapshot);
     };
-  }, [localDraftStorageKey]);
+  }, [writeLocalBackup]);
 
   useEffect(() => {
     if (previewTimer.current) window.clearTimeout(previewTimer.current);
@@ -1000,6 +1069,53 @@ export function AdminItinerarySimpleBuilder({
     }
   }
 
+  /**
+   * Fills only the days left blank, so a draft can never overwrite text the
+   * admin wrote. The rows land in state and autosave persists them.
+   */
+  async function draftDaysWithAi() {
+    if (!canMutate || !itineraryId) return;
+    const blanks = atGlanceDays.filter(
+      (d) => !(d.title ?? "").trim() && !(d.detail ?? "").trim(),
+    ).length;
+    if (blanks === 0) {
+      setMsg("Every day already has content — clear a day first if you want it redrafted.");
+      return;
+    }
+    setDrafting(true);
+    setMsg(null);
+    try {
+      const res = await draftItineraryDays({ sessionToken, itineraryId });
+      const byDay = new Map(res.days.map((d) => [d.dayNumber, d]));
+      let filled = 0;
+      setAtGlanceDays((prev) =>
+        prev.map((row) => {
+          const hasContent = (row.title ?? "").trim() || (row.detail ?? "").trim();
+          const draft = byDay.get(row.dayNumber);
+          if (hasContent || !draft) return row;
+          if (!draft.title.trim() && !draft.detail.trim()) return row;
+          filled++;
+          return {
+            ...row,
+            title: draft.title,
+            detail: draft.detail,
+            overnight: row.overnight ?? draft.overnight,
+          };
+        }),
+      );
+      setMsg(
+        filled > 0
+          ? `Drafted ${filled} day${filled === 1 ? "" : "s"}. Review the text, then add hotels and prices yourself.`
+          : "The assistant returned nothing usable. Try again.",
+      );
+    } catch (e) {
+      console.error("AI day drafting failed", e);
+      setMsg(toUserFacingErrorMessage(e));
+    } finally {
+      setDrafting(false);
+    }
+  }
+
   async function downloadPdfNow(model: ItineraryPdfModel) {
     const blob = await pdf(<ItineraryPdf model={model} />).toBlob();
     const url = URL.createObjectURL(blob);
@@ -1069,6 +1185,32 @@ export function AdminItinerarySimpleBuilder({
           ) : null}
         </div>
       </div>
+
+      {restorable ? (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+          <p className="font-semibold text-foreground">
+            This browser has a backup with content the saved copy is missing
+          </p>
+          <p className="mt-1 text-muted">
+            {`${restorable.extra} field${restorable.extra === 1 ? "" : "s"} (day details, inclusions or package rows) exist in this browser but not on the server. Restoring loads them into the form and saves them.`}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                applySnapshot(restorable.snapshot);
+                setRestorable(null);
+                setMsg("Backup restored into the form — saving now.");
+              }}
+            >
+              Restore backup
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => setRestorable(null)}>
+              Keep saved version
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {msg ? (
         <div
@@ -1301,6 +1443,14 @@ export function AdminItinerarySimpleBuilder({
                     <Button
                       type="button"
                       variant="secondary"
+                      onClick={() => void draftDaysWithAi()}
+                      disabled={!itineraryId || drafting}
+                    >
+                      {drafting ? "Drafting…" : "Draft empty days with AI"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
                       onClick={() => setDayCountAndSync(safeDays - 1)}
                       disabled={safeDays <= 1}
                     >
@@ -1308,6 +1458,10 @@ export function AdminItinerarySimpleBuilder({
                     </Button>
                   </div>
                 </div>
+                <FieldHint>
+                  AI fills only days you have left blank, as a draft to edit. It never
+                  writes hotel names or prices — add those yourself.
+                </FieldHint>
                 <FieldHint>
                   {startDate || endDate
                     ? "If dates are set, changing day count updates the end date to match."
