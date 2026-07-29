@@ -34,7 +34,6 @@ export function AdminBlogPanel() {
       ? { includeDrafts: true, sessionToken }
       : { includeDrafts: false },
   );
-  const canMutate = typeof sessionToken === "string";
   const createPost = useMutation(api.blog.createPost);
   const deletePost = useMutation(api.blog.deletePost);
   const updatePost = useMutation(api.blog.updatePost);
