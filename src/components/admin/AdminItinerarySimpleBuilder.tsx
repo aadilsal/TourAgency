@@ -78,6 +78,14 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
+/** Textarea value -> list of non-empty trimmed lines. */
+function linesToList(input: string): string[] {
+  return input
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
 function getSimpleBuilderStorageKey(itineraryId: string | null) {
   return itineraryId
     ? `jt:admin:itinerary-simple-builder:${itineraryId}`
@@ -216,7 +224,9 @@ function normalizePackageTier(
   };
 }
 
-function editablePackageTiersToPatchPayload(tiers: EditablePackageTier[]): PackageTier[] {
+function editablePackageTiersToPatchPayload(
+  tiers: EditablePackageTier[],
+): Array<PackageTier & { hotels: NonNullable<PackageTier["hotels"]> }> {
   return tiers.map((tier) => ({
     name: String(tier.name ?? "").trim(),
     pricePkr: typeof tier.pricePkr === "number" ? tier.pricePkr : undefined,
@@ -391,6 +401,13 @@ export function AdminItinerarySimpleBuilder({
   const [mobileTab, setMobileTab] = useState<"form" | "pdf">("form");
 
   const hydratedKey = useRef<string | null>(null);
+  /**
+   * Autosave gate. Stays null until this itinerary's saved values are loaded
+   * into state (or until we just created the draft, when local state is the
+   * source of truth). Patching before that would overwrite the saved draft with
+   * this component's blank defaults.
+   */
+  const [hydratedId, setHydratedId] = useState<string | null>(null);
   const legacyMigratedKey = useRef<string | null>(null);
   const localDraftHydratedKey = useRef<string | null>(null);
   const localDraftJsonRef = useRef<string>("");
@@ -440,6 +457,7 @@ export function AdminItinerarySimpleBuilder({
     if (!itineraryIdProp) return;
     setItineraryId(itineraryIdProp as Id<"itineraries">);
     hydratedKey.current = null;
+    setHydratedId(null);
   }, [itineraryIdProp]);
 
   useEffect(() => {
@@ -447,6 +465,7 @@ export function AdminItinerarySimpleBuilder({
     const key = String(itineraryId);
     if (hydratedKey.current === key) return;
     hydratedKey.current = key;
+    setHydratedId(key);
 
     setTitle(existing.title ?? "");
     setClientName(existing.clientName ?? "");
@@ -610,6 +629,8 @@ export function AdminItinerarySimpleBuilder({
   const queuePatch = useCallback(
     (partial: Record<string, unknown> | null) => {
       if (!canMutate || !itineraryId || !partial) return;
+      // Never autosave before the saved draft has been loaded into state.
+      if (hydratedId !== String(itineraryId)) return;
       const payload = { sessionToken, itineraryId, ...partial };
       const json = JSON.stringify(payload);
       if (json === lastPatchJson.current) return;
@@ -623,13 +644,18 @@ export function AdminItinerarySimpleBuilder({
             setSavingState("saved");
             setMsg(null);
           } catch (e) {
+            // Keep the raw reason in the console: the user-facing copy is
+            // deliberately generic and hides validation details.
+            console.error("Itinerary autosave failed", e);
+            // Allow an identical payload to be retried after a failure.
+            lastPatchJson.current = "";
             setSavingState("error");
-            setMsg(toUserFacingErrorMessage(e));
+            setMsg(`Couldn’t save your changes. ${toUserFacingErrorMessage(e)}`);
           }
         })();
       }, 350);
     },
-    [canMutate, itineraryId, patchDraft, sessionToken],
+    [canMutate, hydratedId, itineraryId, patchDraft, sessionToken],
   );
 
   useEffect(() => {
@@ -676,14 +702,8 @@ export function AdminItinerarySimpleBuilder({
   }
 
   const pdfModel: ItineraryPdfModel = useMemo(() => {
-    const included = includedInput
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const notIncluded = notIncludedInput
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    const included = linesToList(includedInput);
+    const notIncluded = linesToList(notIncludedInput);
 
     const packages = tiersToPackagesForPdf([], packageTiers);
 
@@ -870,11 +890,14 @@ export function AdminItinerarySimpleBuilder({
 
   useEffect(() => {
     if (!itineraryId) return;
+    // `coverImageStorageId` is deliberately not part of the autosave payload:
+    // it is persisted by uploadCoverImage()/"Use map fallback" instead. Sending
+    // it here as `null` made Convex reject the whole patch (v.optional accepts
+    // a missing field, not null), which silently dropped every other field.
     queuePatch({
       headline,
       variantLabel,
       coverSubtitle,
-      coverImageStorageId: coverStorageId ?? null,
       complianceLine,
       pickupDropoff,
       title,
@@ -885,21 +908,14 @@ export function AdminItinerarySimpleBuilder({
       theme,
       atGlanceDays,
       packageTiers: editablePackageTiersToPatchPayload(packageTiers),
-      included: includedInput
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
-      notIncluded: notIncludedInput
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      included: linesToList(includedInput),
+      notIncluded: linesToList(notIncludedInput),
     });
   }, [
     itineraryId,
     headline,
     variantLabel,
     coverSubtitle,
-    coverStorageId,
     complianceLine,
     pickupDropoff,
     title,
@@ -932,6 +948,11 @@ export function AdminItinerarySimpleBuilder({
         sourceBookingId: sourceBookingId as Id<"bookings"> | undefined,
         sourceGuestBookingId: sourceGuestBookingId as Id<"guestBookings"> | undefined,
       });
+      // Everything typed so far is the source of truth for this brand-new
+      // draft, so unlock autosave immediately and skip re-hydrating from the
+      // (still mostly empty) freshly inserted document.
+      hydratedKey.current = String(id);
+      setHydratedId(String(id));
       setItineraryId(id);
       router.replace(`/admin/itineraries/${id}`);
       await patchDraft({
@@ -942,6 +963,13 @@ export function AdminItinerarySimpleBuilder({
         coverSubtitle,
         complianceLine,
         pickupDropoff,
+        // Persist whatever was filled in before the draft existed: this awaited
+        // patch lands before we navigate to the edit page, which hydrates from
+        // the server and would otherwise show blanks.
+        atGlanceDays,
+        packageTiers: editablePackageTiersToPatchPayload(packageTiers),
+        included: linesToList(includedInput),
+        notIncluded: linesToList(notIncludedInput),
       });
     } catch (e) {
       setMsg(toUserFacingErrorMessage(e));
@@ -997,13 +1025,17 @@ export function AdminItinerarySimpleBuilder({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm text-muted">
           {itineraryId ? (
-            <span>
+            <span
+              className={cn(
+                savingState === "error" && "font-semibold text-red-600 dark:text-red-400",
+              )}
+            >
               {savingState === "saving"
                 ? "Saving…"
                 : savingState === "saved"
                   ? "Saved"
                   : savingState === "error"
-                    ? "Save error"
+                    ? "Not saved — your changes are only on this device"
                     : ""}
             </span>
           ) : null}
@@ -1039,7 +1071,16 @@ export function AdminItinerarySimpleBuilder({
       </div>
 
       {msg ? (
-        <div className="rounded-xl border border-border bg-panel-elevated p-3 text-sm">{msg}</div>
+        <div
+          className={cn(
+            "rounded-xl border p-3 text-sm",
+            savingState === "error"
+              ? "border-red-500/40 bg-red-500/10 font-medium text-red-700 dark:text-red-300"
+              : "border-border bg-panel-elevated",
+          )}
+        >
+          {msg}
+        </div>
       ) : null}
 
       <div className="lg:hidden">
@@ -1223,9 +1264,13 @@ export function AdminItinerarySimpleBuilder({
                               onClick={async () => {
                             if (!itineraryId) return;
                             try {
-                              await patchDraft({ sessionToken, itineraryId, coverImageStorageId: undefined });
+                              // `null` clears the stored cover; `undefined` was
+                              // skipped server-side, so it never took effect.
+                              await patchDraft({ sessionToken, itineraryId, coverImageStorageId: null });
                             } catch (e) {
-                              console.warn(e);
+                              console.error("Failed to clear cover image", e);
+                              setMsg(toUserFacingErrorMessage(e));
+                              return;
                             }
                             setCoverStorageId(null);
                           }}

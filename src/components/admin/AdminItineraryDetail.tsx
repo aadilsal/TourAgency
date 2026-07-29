@@ -22,6 +22,8 @@ import {
   type PackageTier,
 } from "@/lib/itineraryPackageMatrix";
 
+const DEFAULT_LOGO_URL = "/images-removebg-preview.png";
+
 function pickMapFallbackImage(input: string) {
   const v = input.toLowerCase();
   if (v.includes("hunza")) return "hunza.jpg";
@@ -162,6 +164,17 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
       [itin.title, itin.pickupDropoff].filter(Boolean).join(" "),
     );
 
+    // Default artwork whenever no cover was uploaded — or when the uploaded
+    // one can't be resolved — so the cover page is never blank.
+    const coverImageUrl =
+      (itin.coverImageStorageId
+        ? toAbsoluteUrl(urlCursor.get(String(itin.coverImageStorageId)) ?? null)
+        : null) ?? toAbsoluteUrl(`/maps/${mapFallback}`);
+    const logoUrl =
+      (itin.logoStorageId
+        ? toAbsoluteUrl(urlCursor.get(String(itin.logoStorageId)) ?? null)
+        : null) ?? toAbsoluteUrl(DEFAULT_LOGO_URL);
+
     if (isSimple) {
       if (!adminSettings) return null;
       const rows =
@@ -201,12 +214,8 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
           website: (adminSettings as { website?: string }).website?.trim() || undefined,
           officeAddress: adminSettings.officeAddress?.trim() || undefined,
         },
-        coverImageUrl: itin.coverImageStorageId
-          ? toAbsoluteUrl(urlCursor.get(String(itin.coverImageStorageId)) ?? null)
-          : toAbsoluteUrl(`/maps/${mapFallback}`),
-        logoUrl: itin.logoStorageId
-          ? toAbsoluteUrl(urlCursor.get(String(itin.logoStorageId)) ?? null)
-          : toAbsoluteUrl("/images-removebg-preview.png"),
+        coverImageUrl,
+        logoUrl,
         atGlanceDays: itin.atGlanceDays ?? [],
         dayPlans: [],
         included: itin.included ?? [],
@@ -243,12 +252,8 @@ export function AdminItineraryDetail({ itineraryId }: { itineraryId: string }) {
         website: itin.contactWebsite,
         officeAddress: publicSettings?.officeAddress?.trim() || undefined,
       },
-      coverImageUrl: itin.coverImageStorageId
-        ? toAbsoluteUrl(urlCursor.get(String(itin.coverImageStorageId)) ?? null)
-        : null,
-      logoUrl: itin.logoStorageId
-        ? toAbsoluteUrl(urlCursor.get(String(itin.logoStorageId)) ?? null)
-        : toAbsoluteUrl("/images-removebg-preview.png"),
+      coverImageUrl,
+      logoUrl,
       dayPlans: (itin.dayPlans ?? []).map((d) => ({
         dayNumber: d.dayNumber,
         title: d.title,

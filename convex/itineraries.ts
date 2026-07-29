@@ -196,7 +196,8 @@ export const patchDraft = mutation({
       v.union(v.literal("luxury"), v.literal("minimal"), v.literal("adventure")),
     ),
 
-    coverImageStorageId: v.optional(v.id("_storage")),
+    /** Pass `null` to clear the cover and fall back to the default map image. */
+    coverImageStorageId: v.optional(v.union(v.id("_storage"), v.null())),
 
     companyDescription: v.optional(v.string()),
     logoStorageId: v.optional(v.id("_storage")),
@@ -242,6 +243,11 @@ export const patchDraft = mutation({
       if (k === "startDate" || k === "endDate") {
         next[k] =
           typeof val === "string" && val.trim() ? val.trim() : undefined;
+        continue;
+      }
+      if (k === "coverImageStorageId") {
+        // `null` means "clear it": patching a field to undefined removes it.
+        next[k] = val === null ? undefined : val;
         continue;
       }
       if (

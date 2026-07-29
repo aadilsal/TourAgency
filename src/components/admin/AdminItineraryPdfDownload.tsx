@@ -17,6 +17,8 @@ import {
 import { pdf } from "@react-pdf/renderer";
 import Link from "next/link";
 
+const DEFAULT_LOGO_URL = "/images-removebg-preview.png";
+
 function pickMapFallbackImage(input: string) {
   const v = input.toLowerCase();
   if (v.includes("hunza")) return "hunza.jpg";
@@ -95,20 +97,26 @@ export function AdminItineraryPdfDownload({ itineraryId }: { itineraryId: string
     canQuery ? { sessionToken, itineraryId: itineraryId as Id<"itineraries"> } : "skip",
   ) as ItineraryDoc | null | undefined;
 
-  const resolveUrls = useQuery(
-    api.media.resolveStorageIdsForAdmin,
-    canQuery && itin
-      ? {
-          sessionToken,
-          ids: ([
+  const storageIdsToResolve = useMemo(
+    () =>
+      itin
+        ? ([
             itin.coverImageStorageId,
             itin.logoStorageId,
             ...(itin.affiliationsStorageIds ?? []),
             ...((itin.dayPlans ?? []).map((d) => d.imageStorageId).filter(Boolean) ?? []),
-          ].filter((x): x is Id<"_storage"> => Boolean(x)) as unknown as string[]),
-        }
-      : "skip",
+          ].filter(Boolean) as string[])
+        : [],
+    [itin],
+  );
+
+  const resolveUrls = useQuery(
+    api.media.resolveStorageIdsForAdmin,
+    canQuery && itin ? { sessionToken, ids: storageIdsToResolve } : "skip",
   ) as (string | null)[] | undefined;
+
+  /** True until uploaded images have URLs — rendering earlier drops them from the PDF. */
+  const urlsPending = storageIdsToResolve.length > 0 && resolveUrls === undefined;
 
   const publicSettings = useQuery(api.siteSettings.getPublicSiteSettings, {});
   const adminSettings = useQuery(
@@ -117,26 +125,32 @@ export function AdminItineraryPdfDownload({ itineraryId }: { itineraryId: string
   );
 
   const urlCursor = useMemo(() => {
-    const ids = itin
-      ? ([
-          itin.coverImageStorageId,
-          itin.logoStorageId,
-          ...(itin.affiliationsStorageIds ?? []),
-          ...((itin.dayPlans ?? []).map((d) => d.imageStorageId).filter(Boolean) ?? []),
-        ].filter(Boolean) as string[])
-      : [];
     const urls = resolveUrls ?? [];
     const map = new Map<string, string | null>();
-    for (let i = 0; i < ids.length; i++) map.set(String(ids[i]), urls[i] ?? null);
+    for (let i = 0; i < storageIdsToResolve.length; i++) {
+      map.set(String(storageIdsToResolve[i]), urls[i] ?? null);
+    }
     return map;
-  }, [itin, resolveUrls]);
+  }, [resolveUrls, storageIdsToResolve]);
 
   const pdfModel: ItineraryPdfModel | null = useMemo(() => {
     if (!itin) return null;
+    if (urlsPending) return null;
     const safeDays = Math.max(1, itin.days || 1);
     const nights = Math.max(0, safeDays - 1);
     const isSimple = itin.layoutVariant === "simple";
     const mapFallback = pickMapFallbackImage([itin.title, itin.pickupDropoff].filter(Boolean).join(" "));
+
+    // Default artwork whenever no cover was uploaded — or when the uploaded
+    // one can't be resolved — so the cover page is never blank.
+    const coverImageUrl =
+      (itin.coverImageStorageId
+        ? toAbsoluteUrl(urlCursor.get(String(itin.coverImageStorageId)) ?? null)
+        : null) ?? toAbsoluteUrl(`/maps/${mapFallback}`);
+    const logoUrl =
+      (itin.logoStorageId
+        ? toAbsoluteUrl(urlCursor.get(String(itin.logoStorageId)) ?? null)
+        : null) ?? toAbsoluteUrl(DEFAULT_LOGO_URL);
 
     if (isSimple) {
       if (!adminSettings) return null;
@@ -172,12 +186,8 @@ export function AdminItineraryPdfDownload({ itineraryId }: { itineraryId: string
           website: (adminSettings as { website?: string }).website?.trim() || undefined,
           officeAddress: adminSettings.officeAddress?.trim() || undefined,
         },
-        coverImageUrl: itin.coverImageStorageId
-          ? toAbsoluteUrl(urlCursor.get(String(itin.coverImageStorageId)) ?? null)
-          : toAbsoluteUrl(`/maps/${mapFallback}`),
-        logoUrl: itin.logoStorageId
-          ? toAbsoluteUrl(urlCursor.get(String(itin.logoStorageId)) ?? null)
-          : toAbsoluteUrl("/images-removebg-preview.png"),
+        coverImageUrl,
+        logoUrl,
         atGlanceDays: itin.atGlanceDays ?? [],
         dayPlans: [],
         included: itin.included ?? [],
@@ -214,12 +224,8 @@ export function AdminItineraryPdfDownload({ itineraryId }: { itineraryId: string
         website: itin.contactWebsite,
         officeAddress: publicSettings?.officeAddress?.trim() || undefined,
       },
-      coverImageUrl: itin.coverImageStorageId
-        ? toAbsoluteUrl(urlCursor.get(String(itin.coverImageStorageId)) ?? null)
-        : null,
-      logoUrl: itin.logoStorageId
-        ? toAbsoluteUrl(urlCursor.get(String(itin.logoStorageId)) ?? null)
-        : toAbsoluteUrl("/images-removebg-preview.png"),
+      coverImageUrl,
+      logoUrl,
       dayPlans: (itin.dayPlans ?? []).map((d) => ({
         dayNumber: d.dayNumber,
         title: d.title,
@@ -243,7 +249,7 @@ export function AdminItineraryPdfDownload({ itineraryId }: { itineraryId: string
       bankDetails: itin.bankDetails,
       termsBlocks: itin.termsBlocks ?? [],
     };
-  }, [adminSettings, itin, publicSettings, urlCursor]);
+  }, [adminSettings, itin, publicSettings, urlCursor, urlsPending]);
 
   useEffect(() => {
     if (!canQuery) return;
