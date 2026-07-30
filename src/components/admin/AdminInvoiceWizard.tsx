@@ -155,6 +155,24 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
       | undefined
   )?.bankDetails;
 
+  /** Same rows the PDF/Word exports print, so the Payment step shows exactly
+   *  what the client will see — the admin never has to retype them. */
+  const bankRows = useMemo(
+    () =>
+      (
+        [
+          ["Bank name", bankDetails?.bankName],
+          ["Account title", bankDetails?.accountTitle],
+          ["Account number", bankDetails?.accountNumber],
+          ["IBAN", bankDetails?.iban],
+          ["Instruction", bankDetails?.instruction],
+        ] as Array<[string, string | undefined]>
+      )
+        .map(([label, value]): [string, string] => [label, value?.trim() ?? ""])
+        .filter(([, value]) => value.length > 0),
+    [bankDetails],
+  );
+
   const invoiceDoc = useQuery(
     api.invoices.getForAdmin,
     invoiceId && typeof sessionToken === "string"
@@ -753,6 +771,33 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               </SelectField>
             </div>
 
+            {paymentMethod === "bank" ? (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Bank details — printed on this invoice automatically
+                </p>
+                {bankRows.length > 0 ? (
+                  <dl className="mt-2 space-y-1 text-sm">
+                    {bankRows.map(([label, value]) => (
+                      <div key={label} className="flex flex-wrap gap-x-2">
+                        <dt className="min-w-[7.5rem] text-slate-500">{label}</dt>
+                        <dd className="font-semibold text-slate-800">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="mt-2 text-sm text-amber-700">
+                    No bank details saved yet — add them in Admin → Settings and they will appear
+                    here and on every invoice.
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-slate-500">
+                  Managed in <span className="font-semibold">Admin → Settings</span>. No need to
+                  retype them below — use the box only for extra instructions.
+                </p>
+              </div>
+            ) : null}
+
             <div>
               <FieldLabel required>Payment details</FieldLabel>
               <div className="mt-2 flex flex-wrap gap-2">
@@ -815,9 +860,8 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               />
               {paymentMethod === "bank" ? (
                 <FieldHint>
-                  Bank details{bankDetails?.accountNumber ? ` (${bankDetails.accountTitle} · ${bankDetails.accountNumber})` : ""}{" "}
-                  are managed in Admin → Settings and printed on every invoice
-                  automatically. Use this box only for extra instructions.
+                  The bank details above are added automatically — this box is for extra
+                  instructions only.
                 </FieldHint>
               ) : null}
             </div>

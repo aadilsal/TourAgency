@@ -28,7 +28,8 @@ import { TourHeroGallery } from "@/components/tours/TourHeroGallery";
 import { loadTourBySlug } from "@/lib/tours-server";
 import { getConvexServer } from "@/lib/convex-server";
 import { getServerCurrency } from "@/lib/currency-server";
-import { formatTourPrice, getTourUnitPrice, tourHasPrice } from "@/lib/tourPricing";
+import { tourHasPrice } from "@/lib/tourPricing";
+import { TourLivePrice, type TourPriceFields } from "@/components/tours/TourLivePrice";
 
 function lazyBlock(label: string, minH: string) {
   function LoadingBlock() {
@@ -78,6 +79,7 @@ type TourDetail = {
   price: number;
   pricePkr?: number;
   priceUsd?: number;
+  perHeadPrices?: Array<{ persons: number; pricePkr?: number; priceUsd?: number }>;
   durationDays: number;
   location: string;
   maxPeople?: number;
@@ -157,6 +159,7 @@ export default async function TourDetailPage({ params }: Props) {
     price: t.price,
     pricePkr: t.pricePkr,
     priceUsd: t.priceUsd,
+    perHeadPrices: t.perHeadPrices ?? [],
     durationDays: t.durationDays,
     location: t.location,
     images: t.images,
@@ -164,8 +167,13 @@ export default async function TourDetailPage({ params }: Props) {
 
   const currency = getServerCurrency();
   const bookable = tourHasPrice(tour);
-  const priceLabel = formatTourPrice(tour, currency);
-  const unitPrice = getTourUnitPrice(tour, currency) || undefined;
+  /** Seeds the client-side price subscription so it renders instantly on load. */
+  const initialPrices: TourPriceFields = {
+    price: tour.price,
+    pricePkr: tour.pricePkr,
+    priceUsd: tour.priceUsd,
+    perHeadPrices: tour.perHeadPrices ?? [],
+  };
   const hasRating =
     typeof tour.ratingAvg === "number" &&
     tour.ratingAvg > 0 &&
@@ -302,15 +310,12 @@ export default async function TourDetailPage({ params }: Props) {
               </dl>
 
               <div className="mt-5 border-t border-border pt-5">
-                {bookable && priceLabel ? (
-                  <p className="text-sm text-muted">
-                    From{" "}
-                    <span className="text-2xl font-extrabold text-foreground">{priceLabel}</span>
-                    <span className="text-sm"> / person</span>
-                  </p>
-                ) : (
-                  <p className="text-base font-semibold text-foreground">Tailored quote on request</p>
-                )}
+                <TourLivePrice
+                  slug={tour.slug}
+                  currency={currency}
+                  initial={initialPrices}
+                  variant="aside"
+                />
                 <a
                   href="#book"
                   className="mt-4 flex w-full items-center justify-center rounded-full bg-brand-cta px-6 py-3.5 text-sm font-bold text-white shadow-lg transition hover:brightness-110"
@@ -465,12 +470,12 @@ export default async function TourDetailPage({ params }: Props) {
                     {startCity} → {endCity}
                   </p>
                 </div>
-                {bookable && priceLabel ? (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">From</p>
-                    <p className="text-lg font-bold text-havezic-primary">{priceLabel} / person</p>
-                  </div>
-                ) : null}
+                <TourLivePrice
+                  slug={tour.slug}
+                  currency={currency}
+                  initial={initialPrices}
+                  variant="inline"
+                />
               </div>
               <p className="mt-5 text-sm leading-relaxed text-muted">
                 {bookable
@@ -481,13 +486,12 @@ export default async function TourDetailPage({ params }: Props) {
             <div>
               <TourStickyBooking
                 tourId={tour._id}
+                tourSlug={tour.slug}
                 tourTitle={tour.title}
                 durationDays={tour.durationDays}
                 location={tour.location}
                 whatsappUrl={whatsappUrl}
-                bookable={bookable}
-                priceLabel={priceLabel}
-                unitPrice={unitPrice}
+                initialPrices={initialPrices}
                 currency={currency}
               />
             </div>

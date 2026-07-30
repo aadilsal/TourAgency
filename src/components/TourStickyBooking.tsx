@@ -36,6 +36,17 @@ import {
   type TourCustomisationMessageInput,
 } from "@/lib/tourCustomisationWhatsApp";
 import { useOpenTourCustomisationWhatsApp } from "@/hooks/useOpenTourCustomisationWhatsApp";
+import {
+  PerHeadPriceList,
+  useLiveTourPrices,
+  type TourPriceFields,
+} from "@/components/tours/TourLivePrice";
+import {
+  formatTourPrice,
+  getPerHeadOptions,
+  getTourUnitPrice,
+  tourHasPrice,
+} from "@/lib/tourPricing";
 
 type FieldErrors = {
   name?: string;
@@ -47,25 +58,31 @@ type FieldErrors = {
 
 export function TourStickyBooking({
   tourId,
+  tourSlug,
   tourTitle,
   durationDays,
   location,
   whatsappUrl,
-  bookable = false,
-  priceLabel = null,
-  unitPrice,
+  initialPrices,
   currency = "USD",
 }: {
   tourId: Id<"tours">;
+  tourSlug: string;
   tourTitle: string;
   durationDays: number;
   location: string;
   whatsappUrl: string | null;
-  bookable?: boolean;
-  priceLabel?: string | null;
-  unitPrice?: number;
+  /** Server-rendered prices; the live subscription takes over once it resolves. */
+  initialPrices: TourPriceFields;
   currency?: "USD" | "PKR";
 }) {
+  // Prices are read live so an admin edit is reflected here — and in the
+  // `unitPrice` recorded on the booking — without a page reload.
+  const prices = useLiveTourPrices(tourSlug, initialPrices);
+  const bookable = tourHasPrice(prices);
+  const priceLabel = formatTourPrice(prices, currency);
+  const perHeadOptions = getPerHeadOptions(prices, currency);
+
   const router = useRouter();
   const sessionToken = useConvexSessionToken();
   const memberProfile = useMemberProfileForBooking();
@@ -82,6 +99,10 @@ export function TourStickyBooking({
   const [email, setEmail] = useState("");
   const [tourDate, setTourDate] = useState("");
   const [peopleCount, setPeopleCount] = useState(2);
+  // Bookings store a per-person `unitPrice` and derive the total from it, so
+  // this follows the traveler count: a matching per-head rate when one is
+  // published, otherwise the whole-tour total spread across the group.
+  const unitPrice = getTourUnitPrice(prices, currency, peopleCount) || undefined;
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -183,8 +204,16 @@ export function TourStickyBooking({
           {bookable && priceLabel ? (
             <p className="mt-3 text-2xl font-extrabold text-foreground">
               {priceLabel}
-              <span className="text-sm font-medium text-muted"> / person</span>
+              <span className="text-sm font-medium text-muted"> total tour</span>
             </p>
+          ) : null}
+          {perHeadOptions.length > 0 ? (
+            <div className="mt-3 rounded-xl border border-border bg-panel-elevated p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                Price per head
+              </p>
+              <PerHeadPriceList options={perHeadOptions} className="mt-1.5 space-y-1 text-sm" />
+            </div>
           ) : null}
           <p className="mt-2 text-sm text-muted">
             {bookable

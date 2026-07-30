@@ -89,6 +89,21 @@ export function AdminInvoiceDetail({ invoiceId }: { invoiceId: string }) {
       tripSummary: inv.tripSummary?.trim() || undefined,
       isFinal: inv.status === "paid",
       payment: { method: inv.paymentMethod, details: inv.paymentDetails },
+      // Bank details come from site settings so every invoice carries them
+      // without the admin retyping them into `paymentDetails`.
+      bankDetails: (
+        publicSettings as
+          | {
+              bankDetails?: {
+                bankName?: string;
+                accountTitle?: string;
+                accountNumber?: string;
+                iban?: string;
+                instruction?: string;
+              };
+            }
+          | undefined
+      )?.bankDetails,
       notes: { terms: inv.terms, cancellationPolicy: inv.cancellationPolicy },
     };
   }, [inv, companyLogoUrl, publicSettings, governmentLicenseNo2]);

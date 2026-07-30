@@ -12,6 +12,11 @@ const nextConfig = {
   experimental: {
     // Smaller dev/client graphs; avoids occasional webpack module factory issues with lucide barrel.
     optimizePackageImports: ["lucide-react"],
+    // Don't reuse cached RSC payloads for dynamic routes on client-side navigation.
+    // Without this, Next serves a prefetched /tours/[slug] payload for up to 30s,
+    // so an admin price edit showed on the (Convex-subscribed) tour cards while the
+    // detail page still rendered the old price.
+    staleTimes: { dynamic: 0, static: 0 },
   },
   webpack(config, { dev }) {
     // Windows can intermittently lose filesystem cache packs/chunks (AV/file-locking),

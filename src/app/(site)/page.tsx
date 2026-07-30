@@ -31,6 +31,7 @@ async function HomePageDeferred() {
       price: number;
       pricePkr?: number;
       priceUsd?: number;
+      perHeadPrices?: Array<{ persons: number; pricePkr?: number; priceUsd?: number }>;
       durationDays: number;
       location: string;
       images: string[];
@@ -45,6 +46,7 @@ async function HomePageDeferred() {
         price: t.price,
         pricePkr: t.pricePkr,
         priceUsd: t.priceUsd,
+        perHeadPrices: t.perHeadPrices ?? [],
         durationDays: t.durationDays,
         location: t.location,
         images: t.images ?? [],

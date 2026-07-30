@@ -32,6 +32,35 @@ type TourThemeFields = {
 
 type TourDoc = Doc<"tours"> & TourThemeFields;
 
+/** One editable "price per head for N persons" row. `""` = left blank. */
+type PerHeadRow = {
+  persons: number | "";
+  priceUsd: number | "";
+  pricePkr: number | "";
+};
+
+const emptyPerHeadRow: PerHeadRow = { persons: "", priceUsd: "", pricePkr: "" };
+
+/**
+ * Drop rows the admin left incomplete: a row only publishes when it has a
+ * group size and at least one currency amount.
+ */
+function toPerHeadPrices(rows: PerHeadRow[]) {
+  return rows
+    .filter(
+      (r) =>
+        typeof r.persons === "number" &&
+        r.persons > 0 &&
+        (typeof r.priceUsd === "number" || typeof r.pricePkr === "number"),
+    )
+    .map((r) => ({
+      persons: r.persons as number,
+      priceUsd: typeof r.priceUsd === "number" ? r.priceUsd : undefined,
+      pricePkr: typeof r.pricePkr === "number" ? r.pricePkr : undefined,
+    }))
+    .sort((a, b) => a.persons - b.persons);
+}
+
 const defaultItinerary: Doc<"tours">["itinerary"] = [
   {
     day: 0,
@@ -151,6 +180,7 @@ export function AdminTourForm({
   const [tourTypeLabel, setTourTypeLabel] = useState("");
   const [pricePkr, setPricePkr] = useState<number | "">("");
   const [priceUsd, setPriceUsd] = useState<number | "">("");
+  const [perHeadRows, setPerHeadRows] = useState<PerHeadRow[]>([]);
   const [ratingAvg, setRatingAvg] = useState<number | "">("");
   const [reviewsCount, setReviewsCount] = useState<number | "">("");
   const [office, setOffice] = useState(fallbackOffice);
@@ -262,6 +292,13 @@ export function AdminTourForm({
     setTourTypeLabel(typeof t.tourTypeLabel === "string" ? t.tourTypeLabel : "");
     setPricePkr(typeof t.pricePkr === "number" ? t.pricePkr : "");
     setPriceUsd(typeof t.priceUsd === "number" ? t.priceUsd : "");
+    setPerHeadRows(
+      (Array.isArray(t.perHeadPrices) ? t.perHeadPrices : []).map((r) => ({
+        persons: typeof r.persons === "number" ? r.persons : "",
+        priceUsd: typeof r.priceUsd === "number" ? r.priceUsd : "",
+        pricePkr: typeof r.pricePkr === "number" ? r.pricePkr : "",
+      })),
+    );
     setRatingAvg(typeof t.ratingAvg === "number" ? t.ratingAvg : "");
     setReviewsCount(typeof t.reviewsCount === "number" ? t.reviewsCount : "");
     setOffice(t.office ?? fallbackOffice());
@@ -500,6 +537,7 @@ export function AdminTourForm({
           location,
           pricePkr: pricePkr === "" ? null : pricePkr,
           priceUsd: priceUsd === "" ? null : priceUsd,
+          perHeadPrices: toPerHeadPrices(perHeadRows),
           maxPeople: maxPeople === "" ? null : maxPeople,
           minAge: minAge === "" ? null : minAge,
           tourTypeLabel: tourTypeLabel.trim() || null,
@@ -530,6 +568,7 @@ export function AdminTourForm({
           location,
           pricePkr: pricePkr === "" ? undefined : pricePkr,
           priceUsd: priceUsd === "" ? undefined : priceUsd,
+          perHeadPrices: toPerHeadPrices(perHeadRows),
           maxPeople: maxPeople === "" ? undefined : maxPeople,
           minAge: minAge === "" ? undefined : minAge,
           tourTypeLabel: tourTypeLabel.trim() || undefined,
@@ -733,14 +772,18 @@ export function AdminTourForm({
 
         <fieldset className="rounded-lg border border-slate-200 p-3">
           <legend className="px-1 text-xs font-semibold text-slate-600">Pricing</legend>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Total tour price
+          </p>
           <p className="mb-2 text-xs text-slate-500">
-            Set a price to publish this tour with a public price and a{" "}
-            <span className="font-semibold">Book now</span> button. Leave both blank to keep it as a{" "}
-            <span className="font-semibold">Customise</span> (request-a-quote) tour.
+            Total cost for the whole tour. Set a price to publish this tour with a public price and a{" "}
+            <span className="font-semibold">Book now</span> button. Leave everything in this section
+            blank to keep it as a <span className="font-semibold">Customise</span>{" "}
+            (request-a-quote) tour.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-xs font-semibold text-slate-600">
-              Price (USD) — shown to international visitors
+              Total tour price (USD) — shown to international visitors
               <input
                 type="number"
                 min={0}
@@ -751,7 +794,7 @@ export function AdminTourForm({
               />
             </label>
             <label className="block text-xs font-semibold text-slate-600">
-              Price (PKR) — shown to Pakistan visitors
+              Total tour price (PKR) — shown to Pakistan visitors
               <input
                 type="number"
                 min={0}
@@ -762,6 +805,116 @@ export function AdminTourForm({
               />
             </label>
           </div>
+
+          <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Price per head (optional)
+          </p>
+          <p className="mb-2 text-xs text-slate-500">
+            Per person rates for specific group sizes, e.g.{" "}
+            <span className="font-semibold">4 persons → $400 each</span>. Add as many options as you
+            need. Rows without a group size and at least one amount are ignored — with no rows at
+            all, the per head block is hidden on the website entirely.
+          </p>
+          {perHeadRows.length > 0 ? (
+            <div className="space-y-2">
+              <div className="hidden gap-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 sm:grid sm:grid-cols-[6rem_1fr_1fr_2.25rem]">
+                <span>Persons</span>
+                <span>Per head (USD)</span>
+                <span>Per head (PKR)</span>
+                <span className="sr-only">Remove</span>
+              </div>
+              {perHeadRows.map((row, i) => (
+                <div
+                  key={i}
+                  className="grid gap-2 rounded-lg border border-slate-200 p-2 sm:grid-cols-[6rem_1fr_1fr_2.25rem] sm:items-center sm:border-0 sm:p-0"
+                >
+                  <label className="block text-xs font-semibold text-slate-600 sm:contents">
+                    <span className="sm:hidden">Persons</span>
+                    <input
+                      type="number"
+                      min={1}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm sm:mt-0"
+                      placeholder="e.g. 4"
+                      value={row.persons}
+                      onChange={(e) =>
+                        setPerHeadRows((rows) =>
+                          rows.map((r, j) =>
+                            j === i
+                              ? {
+                                  ...r,
+                                  persons: e.target.value === "" ? "" : Number(e.target.value),
+                                }
+                              : r,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-600 sm:contents">
+                    <span className="sm:hidden">Per head (USD)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm sm:mt-0"
+                      placeholder="e.g. 400"
+                      value={row.priceUsd}
+                      onChange={(e) =>
+                        setPerHeadRows((rows) =>
+                          rows.map((r, j) =>
+                            j === i
+                              ? {
+                                  ...r,
+                                  priceUsd: e.target.value === "" ? "" : Number(e.target.value),
+                                }
+                              : r,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <label className="block text-xs font-semibold text-slate-600 sm:contents">
+                    <span className="sm:hidden">Per head (PKR)</span>
+                    <input
+                      type="number"
+                      min={0}
+                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm sm:mt-0"
+                      placeholder="e.g. 110000"
+                      value={row.pricePkr}
+                      onChange={(e) =>
+                        setPerHeadRows((rows) =>
+                          rows.map((r, j) =>
+                            j === i
+                              ? {
+                                  ...r,
+                                  pricePkr: e.target.value === "" ? "" : Number(e.target.value),
+                                }
+                              : r,
+                          ),
+                        )
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    aria-label={`Remove per head option ${i + 1}`}
+                    className="mt-1 h-9 w-9 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 sm:mt-0"
+                    onClick={() =>
+                      setPerHeadRows((rows) => rows.filter((_, j) => j !== i))
+                    }
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            className="mt-2 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            onClick={() => setPerHeadRows((rows) => [...rows, { ...emptyPerHeadRow }])}
+          >
+            + Add per head option
+          </button>
         </fieldset>
 
         <fieldset className="rounded-lg border border-slate-200 p-3">

@@ -6,6 +6,7 @@ import {
   tourMatchesDestination,
   getDestinationDetail,
 } from "@/lib/destinations-data";
+import type { PerHeadPrice } from "@/lib/tourPricing";
 
 export type DestinationIndexRow = {
   slug: string;
@@ -61,6 +62,8 @@ export async function loadDestinationIndexRows(): Promise<DestinationIndexRow[]>
       price: t.price,
       pricePkr: (t as unknown as { pricePkr?: number }).pricePkr,
       priceUsd: (t as unknown as { priceUsd?: number }).priceUsd,
+      perHeadPrices:
+        (t as unknown as { perHeadPrices?: PerHeadPrice[] }).perHeadPrices ?? [],
       images: t.images,
     }));
     return {
@@ -136,6 +139,7 @@ export async function loadDestinationDetailPageData(
       price: number;
       pricePkr?: number;
       priceUsd?: number;
+      perHeadPrices?: PerHeadPrice[];
       durationDays: number;
       location: string;
       images: string[];
@@ -150,6 +154,7 @@ export async function loadDestinationDetailPageData(
         price: t.price,
         pricePkr: t.pricePkr,
         priceUsd: t.priceUsd,
+        perHeadPrices: t.perHeadPrices ?? [],
         durationDays: t.durationDays,
         location: t.location,
         images: t.images,

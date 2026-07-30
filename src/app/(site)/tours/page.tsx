@@ -52,6 +52,7 @@ export default async function ToursPage({
     price: number;
     pricePkr?: number;
     priceUsd?: number;
+    perHeadPrices?: Array<{ persons: number; pricePkr?: number; priceUsd?: number }>;
     durationDays: number;
     location: string;
     images: string[];

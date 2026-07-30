@@ -94,8 +94,23 @@ export default defineSchema({
     /** Legacy single destination fallback kept for existing records. */
     destinationId: v.optional(v.id("destinations")),
     price: v.optional(v.number()),
+    /** Total price for the whole tour. */
     pricePkr: v.optional(v.number()),
     priceUsd: v.optional(v.number()),
+    /**
+     * Optional per-head (per person) rates by group size, e.g. "2 persons →
+     * $600 each". Empty/absent means no per-head pricing is published and the
+     * per-head block is hidden on the frontend.
+     */
+    perHeadPrices: v.optional(
+      v.array(
+        v.object({
+          persons: v.number(),
+          pricePkr: v.optional(v.number()),
+          priceUsd: v.optional(v.number()),
+        }),
+      ),
+    ),
     durationDays: v.number(),
     location: v.string(),
     /** ThemeForest-style facts row fields (optional for safe migration). */

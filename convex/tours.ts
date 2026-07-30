@@ -12,6 +12,15 @@ import {
 
 const MAX_TOURS_RETURNED = 500;
 
+type PerHeadPrice = NonNullable<Doc<"tours">["perHeadPrices"]>[number];
+
+/** Per-head (per person) rate for a given group size. */
+const perHeadPriceValidator = v.object({
+  persons: v.number(),
+  pricePkr: v.optional(v.number()),
+  priceUsd: v.optional(v.number()),
+});
+
 export const getTours = query({
   args: {
     includeInactive: v.optional(v.boolean()),
@@ -62,6 +71,7 @@ export const listActiveToursForExplore = query({
         price: t.price,
         pricePkr: (t as { pricePkr?: number }).pricePkr,
         priceUsd: (t as { priceUsd?: number }).priceUsd,
+        perHeadPrices: (t as { perHeadPrices?: PerHeadPrice[] }).perHeadPrices ?? [],
         durationDays: t.durationDays,
         location: t.location,
         isActive: t.isActive,
@@ -152,6 +162,31 @@ export const getTourBySlug = query({
 });
 
 /**
+ * Price fields only, for the tour detail page's live price subscription.
+ *
+ * The detail page is server-rendered, so its HTML (and the RSC payload Next
+ * caches on the client) can lag behind an admin price edit while the tour cards
+ * — which subscribe to Convex — update instantly. This keeps both in sync
+ * without paying for image URL resolution on every subscription update.
+ */
+export const getTourPricingBySlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }) => {
+    const tour = await ctx.db
+      .query("tours")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .unique();
+    if (!tour || !tour.isActive) return null;
+    return {
+      price: tour.price,
+      pricePkr: tour.pricePkr,
+      priceUsd: tour.priceUsd,
+      perHeadPrices: tour.perHeadPrices ?? [],
+    };
+  },
+});
+
+/**
  * Fetch a single tour by id for the admin editor. Returns the RAW row (storage
  * IDs, not resolved URLs) so the edit form can round-trip images unchanged.
  */
@@ -177,6 +212,7 @@ export const createTour = mutation({
     provinceIds: v.optional(v.array(v.id("provinces"))),
     pricePkr: v.optional(v.number()),
     priceUsd: v.optional(v.number()),
+    perHeadPrices: v.optional(v.array(perHeadPriceValidator)),
     durationDays: v.number(),
     location: v.string(),
     maxPeople: v.optional(v.number()),
@@ -252,6 +288,8 @@ export const updateTour = mutation({
     // `undefined` args on the wire, so `undefined` can only ever mean "leave as-is".)
     pricePkr: v.optional(v.union(v.number(), v.null())),
     priceUsd: v.optional(v.union(v.number(), v.null())),
+    /** Send `[]` to remove all per-head options. */
+    perHeadPrices: v.optional(v.array(perHeadPriceValidator)),
     durationDays: v.optional(v.number()),
     location: v.optional(v.string()),
     maxPeople: v.optional(v.union(v.number(), v.null())),
