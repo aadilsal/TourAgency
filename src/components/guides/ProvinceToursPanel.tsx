@@ -2,12 +2,17 @@ import Link from "next/link";
 import { TourCardCompact } from "@/components/shared/TourCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import type { CurrencyCode } from "@/lib/money";
+import type { PerHeadPrice } from "@/lib/tourPricing";
 
 type Tour = {
   slug: string;
   title: string;
   description: string;
   price: number;
+  pricePkr?: number;
+  priceUsd?: number;
+  perHeadPrices?: PerHeadPrice[];
   durationDays: number;
   location: string;
   images: string[];
@@ -17,9 +22,10 @@ type Props = {
   provinceSlug: string;
   provinceName: string;
   tours: Tour[];
+  currency: CurrencyCode;
 };
 
-export function ProvinceToursPanel({ provinceSlug, provinceName, tours }: Props) {
+export function ProvinceToursPanel({ provinceSlug, provinceName, tours, currency }: Props) {
   return (
     <Card className="p-5 md:p-6">
       <h2 className="font-display text-lg font-semibold text-foreground">
@@ -33,11 +39,15 @@ export function ProvinceToursPanel({ provinceSlug, provinceName, tours }: Props)
           {tours.slice(0, 6).map((t) => (
             <TourCardCompact
               key={t.slug}
+              currency={currency}
               tour={{
                 slug: t.slug,
                 title: t.title,
                 description: t.description,
                 price: t.price,
+                pricePkr: t.pricePkr,
+                priceUsd: t.priceUsd,
+                perHeadPrices: t.perHeadPrices ?? [],
                 durationDays: t.durationDays,
                 location: t.location,
                 images: t.images,

@@ -1,7 +1,7 @@
 import { getConvexServer } from "@/lib/convex-server";
 import { api } from "@convex/_generated/api";
 import type { Metadata } from "next";
-import { getSiteUrl } from "@/lib/site";
+import { buildMetadata } from "@/lib/seo";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { BlogPostCard } from "@/components/blog/BlogPostCard";
@@ -11,21 +11,11 @@ export const revalidate = 0;
 const desc =
   "Heritage travel guides across Pakistan — Lahore, Taxila, Swat, Hunza, and northern valley culture. Costs, seasons, routes, and trip planning from JunketTours.";
 
-export const metadata: Metadata = {
-  title: "Travel Guides",
+export const metadata: Metadata = buildMetadata({
+  title: "Pakistan Travel Blog & Trip Guides",
   description: desc,
-  openGraph: {
-    title: "Travel Guides | JunketTours",
-    description: desc,
-    type: "website",
-    url: `${getSiteUrl()}/blog`,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Travel Guides | JunketTours",
-    description: desc,
-  },
-};
+  path: "/blog",
+});
 
 export default async function BlogIndexPage() {
   let posts: Array<{

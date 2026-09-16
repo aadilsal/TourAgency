@@ -19,7 +19,7 @@ export function ProvinceGuideHero({
 }: Props) {
   return (
     <div className="relative min-h-[min(55vh,520px)] w-full overflow-hidden">
-      <Image src={heroUrl} alt="" fill priority sizes="100vw" className="object-cover" />
+      <Image src={heroUrl} alt={name} fill priority sizes="100vw" className="object-cover" />
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
       <PageContainer className="relative flex min-h-[min(55vh,520px)] flex-col justify-end pb-12 pt-32 text-white md:pb-16 md:pt-40">
         <p className="text-sm font-medium text-white/85">

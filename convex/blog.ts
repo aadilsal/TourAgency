@@ -1,9 +1,37 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server.js";
+import { paginationOptsValidator } from "convex/server";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server.js";
 import { resolveUserFromSessionToken, requireAdminFromSession } from "./lib/authHelpers.js";
-import type { Doc } from "./_generated/dataModel.js";
+import type { Doc, Id } from "./_generated/dataModel.js";
 
 const MAX_PUBLIC_POSTS = 200;
+
+function normalizeBlogSlug(raw: string): string {
+  return raw.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
+/** All posts sharing a slug (legacy data may contain duplicates). */
+async function postsWithSlug(ctx: QueryCtx | MutationCtx, slug: string) {
+  return await ctx.db
+    .query("blogPosts")
+    .withIndex("by_slug", (q) => q.eq("slug", slug))
+    .take(10);
+}
+
+/** Throws a clear error when another post already uses `slug`. */
+async function assertSlugAvailable(
+  ctx: MutationCtx,
+  slug: string,
+  exceptId?: Id<"blogPosts">,
+) {
+  if (!slug) throw new Error("Slug can't be empty");
+  const clash = (await postsWithSlug(ctx, slug)).find((p) => p._id !== exceptId);
+  if (clash) {
+    throw new Error(
+      `Another post ("${clash.title}") already uses the URL slug "${slug}". Choose a different slug.`,
+    );
+  }
+}
 
 const SAMPLE_POSTS = [
   {
@@ -92,6 +120,19 @@ export const getPosts = query({
   },
 });
 
+/** Admin list, newest first, paginated so no post silently falls off the list. */
+export const listAdminPage = query({
+  args: { sessionToken: v.string(), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { sessionToken, paginationOpts }) => {
+    await requireAdminFromSession(ctx, sessionToken);
+    return await ctx.db
+      .query("blogPosts")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .paginate(paginationOpts);
+  },
+});
+
 export const listPublicPosts = query({
   args: {},
   handler: async (ctx) => {
@@ -130,18 +171,16 @@ export const listRelatedPublic = query({
 export const getPostBySlug = query({
   args: { slug: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, { slug, sessionToken }) => {
-    const post = await ctx.db
-      .query("blogPosts")
-      .withIndex("by_slug", (q) => q.eq("slug", slug))
-      .unique();
-    if (!post) return null;
-    if (!post.published) {
-      const user = await resolveUserFromSessionToken(ctx, sessionToken);
-      if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
-        return null;
-      }
+    // Tolerate legacy duplicate slugs instead of throwing (which broke the page).
+    const matches = await postsWithSlug(ctx, slug);
+    if (matches.length === 0) return null;
+    const published = matches.find((p) => p.published);
+    if (published) return published;
+    const user = await resolveUserFromSessionToken(ctx, sessionToken);
+    if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
+      return null;
     }
-    return post;
+    return matches[0]!;
   },
 });
 
@@ -158,9 +197,18 @@ export const createPost = mutation({
   handler: async (ctx, { sessionToken, ...args }) => {
     const admin = await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
+    if (!args.title.trim()) throw new Error("Title can't be empty");
+    const slug = normalizeBlogSlug(args.slug);
+    await assertSlugAvailable(ctx, slug);
+    const metaTitle = args.metaTitle?.trim();
+    const metaDescription = args.metaDescription?.trim();
     const id = await ctx.db.insert("blogPosts", {
-      ...args,
-      slug: args.slug.trim().toLowerCase().replace(/\s+/g, "-"),
+      title: args.title,
+      content: args.content,
+      published: args.published,
+      ...(metaTitle ? { metaTitle } : {}),
+      ...(metaDescription ? { metaDescription } : {}),
+      slug,
       createdAt: now,
     });
     await ctx.db.insert("adminLogs", {
@@ -180,21 +228,32 @@ export const updatePost = mutation({
     title: v.optional(v.string()),
     slug: v.optional(v.string()),
     content: v.optional(v.string()),
-    metaTitle: v.optional(v.string()),
-    metaDescription: v.optional(v.string()),
+    // `undefined` = unchanged, `null` (or blank) = clear.
+    metaTitle: v.optional(v.union(v.string(), v.null())),
+    metaDescription: v.optional(v.union(v.string(), v.null())),
     published: v.optional(v.boolean()),
   },
   handler: async (ctx, { sessionToken, postId, ...patch }) => {
     const admin = await requireAdminFromSession(ctx, sessionToken);
+    const existing = await ctx.db.get(postId);
+    if (!existing) throw new Error("Post not found");
     const next: Record<string, unknown> = {};
-    for (const [k, val] of Object.entries(patch)) {
-      if (val !== undefined) next[k] = val;
+    if (patch.title !== undefined) {
+      if (!patch.title.trim()) throw new Error("Title can't be empty");
+      next.title = patch.title;
     }
-    if (next.slug) {
-      next.slug = String(next.slug)
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, "-");
+    if (patch.content !== undefined) next.content = patch.content;
+    if (patch.published !== undefined) next.published = patch.published;
+    for (const key of ["metaTitle", "metaDescription"] as const) {
+      const val = patch[key];
+      if (val === undefined) continue;
+      const trimmed = val === null ? "" : val.trim();
+      next[key] = trimmed ? trimmed : undefined; // undefined removes the field
+    }
+    if (patch.slug !== undefined) {
+      const slug = normalizeBlogSlug(patch.slug);
+      if (slug !== existing.slug) await assertSlugAvailable(ctx, slug, postId);
+      next.slug = slug;
     }
     await ctx.db.patch(
       postId,
@@ -273,18 +332,24 @@ export const bulkUpsert = mutation({
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!;
       try {
-        const slug = row.slug.trim().toLowerCase().replace(/\s+/g, "-");
+        const slug = normalizeBlogSlug(row.slug);
         if (!slug) throw new Error("slug is required");
-        const existing = await ctx.db
-          .query("blogPosts")
-          .withIndex("by_slug", (q) => q.eq("slug", slug))
-          .unique();
+        const matches = await postsWithSlug(ctx, slug);
+        if (matches.length > 1) {
+          throw new Error(
+            `${matches.length} posts share the slug "${slug}" - fix the duplicates in the editor first`,
+          );
+        }
+        const existing = matches[0];
+        const metaTitle = row.metaTitle?.trim();
+        const metaDescription = row.metaDescription?.trim();
+        // Blank meta cells are omitted: they never clear existing SEO text.
         const payload = {
           title: row.title.trim(),
           slug,
           content: row.content,
-          metaTitle: row.metaTitle?.trim() || undefined,
-          metaDescription: row.metaDescription?.trim() || undefined,
+          ...(metaTitle ? { metaTitle } : {}),
+          ...(metaDescription ? { metaDescription } : {}),
           published: row.published,
         };
         if (!payload.title) throw new Error("title is required");

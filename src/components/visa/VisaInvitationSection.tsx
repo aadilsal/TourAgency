@@ -8,7 +8,7 @@ import { VisaInvitationPromo } from "@/components/visa/VisaInvitationPromo";
 export function VisaInvitationSection() {
   return (
     <MotionSection>
-      <section id="visa-invitation" className="scroll-mt-24 py-16 md:py-20">
+      <section id="visa-invitation" className="scroll-mt-24 py-8 md:py-20">
         <PageContainer>
           <Card className="p-6 md:p-10">
             <VisaInvitationPromo layout="section" />

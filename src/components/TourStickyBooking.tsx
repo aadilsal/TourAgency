@@ -2,7 +2,7 @@
 
 import { useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CalendarDays,
   Mail,
@@ -19,15 +19,25 @@ import {
   TourMemberBooking,
   useMemberProfileForBooking,
 } from "@/components/TourMemberBooking";
-import { TourBookingSuccessModal } from "@/components/tours/TourBookingSuccessModal";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import {
   FieldLabel,
   FieldError,
+  FormAlert,
   TextInput,
   TextAreaField,
+  fieldErrorId,
+  fieldErrorProps,
 } from "@/components/ui/FormField";
+import {
+  FORM_MESSAGES,
+  focusFirstError,
+  isValidEmail,
+  isValidPhone,
+  shortRef,
+  thankYouHref,
+} from "@/lib/formValidation";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
@@ -51,6 +61,7 @@ import {
 type FieldErrors = {
   name?: string;
   phone?: string;
+  email?: string;
   tourDate?: string;
   people?: string;
   form?: string;
@@ -106,10 +117,7 @@ export function TourStickyBooking({
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
-  const [successOpen, setSuccessOpen] = useState(false);
-  const [successWhatsappUrl, setSuccessWhatsappUrl] = useState<string | null>(
-    null,
-  );
+  const submittingRef = useRef(false);
 
   const scrollToBook = useCallback(() => {
     document.getElementById("book")?.scrollIntoView({ behavior: "smooth" });
@@ -117,34 +125,46 @@ export function TourStickyBooking({
 
   const validate = useCallback((): boolean => {
     const next: FieldErrors = {};
-    if (!name.trim()) next.name = "Please enter your name.";
+    if (!name.trim()) next.name = FORM_MESSAGES.nameRequired;
     if (!phone.trim()) next.phone = "Phone is required so we can confirm your trip.";
+    else if (!isValidPhone(phone)) next.phone = FORM_MESSAGES.phoneInvalid;
+    if (email.trim() && !isValidEmail(email)) next.email = FORM_MESSAGES.emailInvalid;
     if (!tourDate) next.tourDate = "Choose your preferred start date.";
     if (peopleCount < 1) next.people = "Add at least one traveler.";
     if (minDate && tourDate && tourDate < minDate) {
       next.tourDate = "Past dates can't be selected.";
     }
     setErrors(next);
+    focusFirstError([
+      next.tourDate && "tb-date",
+      next.name && "tb-name",
+      next.phone && "tb-phone",
+      next.email && "tb-email",
+    ]);
     return Object.keys(next).length === 0;
-  }, [name, phone, tourDate, peopleCount, minDate]);
+  }, [name, phone, email, tourDate, peopleCount, minDate]);
 
   const finishCustomisation = useCallback(
-    async (input: TourCustomisationMessageInput) => {
+    async (input: TourCustomisationMessageInput, ref?: string) => {
       const message = buildTourCustomisationWhatsAppMessage(input);
-      const url = await openWhatsApp(message);
-      setSuccessWhatsappUrl(url ?? whatsappUrl);
-      setSuccessOpen(true);
+      // Best-effort: the request is already saved, so a blocked popup must not
+      // stop the visitor from reaching the confirmation page.
+      await openWhatsApp(message).catch(() => null);
+      router.push(thankYouHref("booking", ref));
     },
-    [openWhatsApp, whatsappUrl],
+    [openWhatsApp, router],
   );
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submittingRef.current) return;
     if (!validate()) return;
+    submittingRef.current = true;
     setLoading(true);
     setErrors((prev) => ({ ...prev, form: undefined }));
+    let bookingId: string;
     try {
-      await createGuest({
+      bookingId = await createGuest({
         tourId,
         name: name.trim(),
         phone: phone.trim(),
@@ -155,7 +175,17 @@ export function TourStickyBooking({
         currency,
         unitPrice: bookable ? unitPrice : undefined,
       });
-      await finishCustomisation({
+    } catch (er) {
+      setErrors({
+        form: toUserFacingErrorMessage(er),
+      });
+      submittingRef.current = false;
+      setLoading(false);
+      return;
+    }
+    // Saved: keep the button in its pending state while we redirect.
+    await finishCustomisation(
+      {
         tourTitle,
         name: name.trim(),
         phone: phone.trim(),
@@ -163,27 +193,9 @@ export function TourStickyBooking({
         preferredStart: tourDate,
         peopleCount,
         notes: notes.trim() || undefined,
-      });
-    } catch (er) {
-      setErrors({
-        form: toUserFacingErrorMessage(er),
-      });
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  const bookingsEntry =
-    "/login?next=" + encodeURIComponent("/dashboard/bookings");
-
-  function goBookings() {
-    setSuccessOpen(false);
-    router.push(bookingsEntry);
-  }
-
-  function onSuccessModalClose() {
-    setSuccessOpen(false);
-    router.push(bookingsEntry);
+      },
+      shortRef(bookingId),
+    );
   }
 
   const loggedIn = typeof sessionToken === "string";
@@ -272,9 +284,9 @@ export function TourStickyBooking({
                   setErrors((x) => ({ ...x, tourDate: undefined }));
                 }}
                 icon={<CalendarDays />}
-                error={!!errors.tourDate}
+                {...fieldErrorProps("tb-date", errors.tourDate)}
               />
-              <FieldError>{errors.tourDate}</FieldError>
+              <FieldError id={fieldErrorId("tb-date")}>{errors.tourDate}</FieldError>
             </div>
 
             <div>
@@ -330,9 +342,9 @@ export function TourStickyBooking({
                   setErrors((x) => ({ ...x, name: undefined }));
                 }}
                 icon={<User />}
-                error={!!errors.name}
+                {...fieldErrorProps("tb-name", errors.name)}
               />
-              <FieldError>{errors.name}</FieldError>
+              <FieldError id={fieldErrorId("tb-name")}>{errors.name}</FieldError>
             </div>
 
             <div>
@@ -349,9 +361,9 @@ export function TourStickyBooking({
                   setErrors((x) => ({ ...x, phone: undefined }));
                 }}
                 icon={<Phone />}
-                error={!!errors.phone}
+                {...fieldErrorProps("tb-phone", errors.phone)}
               />
-              <FieldError>{errors.phone}</FieldError>
+              <FieldError id={fieldErrorId("tb-phone")}>{errors.phone}</FieldError>
             </div>
 
             <div>
@@ -361,9 +373,14 @@ export function TourStickyBooking({
                 type="email"
                 autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setErrors((x) => ({ ...x, email: undefined }));
+                }}
                 icon={<Mail />}
+                {...fieldErrorProps("tb-email", errors.email)}
               />
+              <FieldError id={fieldErrorId("tb-email")}>{errors.email}</FieldError>
             <p className="mt-1 text-xs text-muted">
                 Optional — we&apos;ll email your request summary.
               </p>
@@ -380,13 +397,14 @@ export function TourStickyBooking({
               />
             </div>
 
-            <FieldError>{errors.form}</FieldError>
+            <FormAlert>{errors.form}</FormAlert>
 
             <Button
               type="submit"
               variant="primary"
               className="w-full py-3.5 text-base font-semibold"
               disabled={loading}
+              aria-busy={loading}
             >
               {loading ? "Sending…" : bookable ? "Book now" : "Customise your tour"}
             </Button>
@@ -413,14 +431,6 @@ export function TourStickyBooking({
           ) : null}
         </div>
       </Card>
-
-      <TourBookingSuccessModal
-        open={successOpen}
-        tourTitle={tourTitle}
-        whatsappUrl={successWhatsappUrl ?? whatsappUrl}
-        onViewBookings={goBookings}
-        onClose={onSuccessModalClose}
-      />
 
       <div
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-panel p-4 shadow-sm backdrop-blur-md lg:hidden"

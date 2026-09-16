@@ -77,6 +77,25 @@ export function formatTourPrice(
   return formatPair(tour.pricePkr, tour.priceUsd, currency);
 }
 
+/**
+ * One short price label for lists and compact cards, in the visitor's
+ * currency: the whole-tour total, else the cheapest per-person rate as
+ * "From $600 / person", else `null` (show "Price on request").
+ * Never reads the legacy `price` field, which is 0 on newer tours.
+ */
+export function formatTourPriceSummary(
+  tour: TourWithPrices,
+  currency: CurrencyCode,
+): string | null {
+  const total = formatTourPrice(tour, currency);
+  if (total) return total;
+  const cheapest = getPerHeadOptions(tour, currency).reduce<PerHeadOption | null>(
+    (best, o) => (best === null || o.amount < best.amount ? o : best),
+    null,
+  );
+  return cheapest ? `From ${cheapest.label} / person` : null;
+}
+
 export type PerHeadOption = {
   persons: number;
   amount: number;

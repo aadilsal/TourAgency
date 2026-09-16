@@ -15,6 +15,8 @@ type Snapshot = {
   };
   counts: Record<string, number>;
   pending: { guestBookings: number; userBookings: number };
+  /** true = count stopped at the server cap; the real number is at least this. */
+  capped?: Record<string, boolean>;
 };
 
 export function AdminAnalyticsClient() {
@@ -52,6 +54,7 @@ export function AdminAnalyticsClient() {
               </p>
               <p className="mt-2 text-3xl font-bold tabular-nums text-brand-ink">
                 {headline.totalBookings}
+                {data.capped?.guestBookings || data.capped?.userBookings ? "+" : ""}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 Guest + registered member bookings
@@ -70,6 +73,7 @@ export function AdminAnalyticsClient() {
               </p>
               <p className="mt-2 text-3xl font-bold tabular-nums text-brand-ink">
                 {headline.leads}
+                {data.capped?.leads ? "+" : ""}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 Inquiries captured (AI, booking, manual)
@@ -88,6 +92,7 @@ export function AdminAnalyticsClient() {
               </p>
               <p className="mt-2 text-3xl font-bold tabular-nums text-brand-ink">
                 PKR {headline.revenuePkr.toLocaleString()}
+                {data.capped?.revenue ? "+" : ""}
               </p>
               <p className="mt-1 text-xs text-slate-500">
                 Confirmed member totals + confirmed guest (tour × travelers)
@@ -116,6 +121,7 @@ export function AdminAnalyticsClient() {
               </p>
               <p className="mt-1 text-xl font-semibold tabular-nums text-brand-ink">
                 {typeof v === "number" ? v : String(v)}
+                {data.capped?.[k] ? "+" : ""}
               </p>
             </div>
           ))}

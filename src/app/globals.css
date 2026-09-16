@@ -89,6 +89,31 @@ html.theme-havezic {
     overflow-x: clip;
   }
 
+  /*
+   * <fieldset> defaults to `min-inline-size: min-content`, so a wide child
+   * (date input, grid) stretches the whole form past the phone viewport.
+   */
+  fieldset {
+    min-width: 0;
+  }
+
+  /*
+   * iOS Safari zooms the whole page when focusing a field whose font-size is
+   * under 16px (many forms use text-sm). Keep fields at 16px on phones.
+   */
+  @media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea {
+      font-size: max(16px, 1em) !important;
+    }
+  }
+
+  /* Preflight caps img/video; embeds (maps, video iframes) need the same. */
+  iframe {
+    max-width: 100%;
+  }
+
   /* Prevent long strings / code / URLs from forcing horizontal scroll. */
   * {
     overflow-wrap: anywhere;
@@ -227,4 +252,29 @@ html.theme-havezic {
 .embla__slide {
   min-width: 0;
   position: relative;
+}
+
+/* Route change indicator (RouteTransitionOverlay). */
+.jt-route-progress {
+  transform: translateX(-100%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .jt-route-progress {
+    animation: jt-route-progress 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .jt-route-progress {
+    width: 100%;
+    transform: none;
+    opacity: 0.8;
+  }
+}
+@keyframes jt-route-progress {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
 }

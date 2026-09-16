@@ -17,7 +17,9 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_email", ["email"])
-    .index("by_phone_normalized", ["phoneNormalized"]),
+    .index("by_phone_normalized", ["phoneNormalized"])
+    .index("by_role", ["role"])
+    .searchIndex("search_name", { searchField: "name" }),
 
   sessions: defineTable({
     userId: v.id("users"),
@@ -50,12 +52,18 @@ export default defineSchema({
       v.literal("cancelled"),
     ),
     linkedUserId: v.optional(v.id("users")),
+    /** Tour title snapshot at request time (survives tour rename/delete). */
+    tourTitle: v.optional(v.string()),
+    /** Internal admin note (never shown to the customer). */
+    adminNote: v.optional(v.string()),
+    adminNoteUpdatedAt: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_phone_normalized", ["phoneNormalized"])
     .index("by_email", ["email"])
     .index("by_tour", ["tourId"])
-    .index("by_linked_user", ["linkedUserId"]),
+    .index("by_linked_user", ["linkedUserId"])
+    .index("by_status", ["status"]),
 
   bookings: defineTable({
     userId: v.id("users"),
@@ -76,10 +84,16 @@ export default defineSchema({
     adults: v.optional(v.number()),
     children: v.optional(v.number()),
     specialNeeds: v.optional(v.string()),
+    /** Tour title snapshot at request time (survives tour rename/delete). */
+    tourTitle: v.optional(v.string()),
+    /** Internal admin note (never shown to the customer). */
+    adminNote: v.optional(v.string()),
+    adminNoteUpdatedAt: v.optional(v.number()),
     createdAt: v.number(),
   })
     .index("by_user", ["userId"])
-    .index("by_tour", ["tourId"]),
+    .index("by_tour", ["tourId"])
+    .index("by_status", ["status"]),
 
   tours: defineTable({
     title: v.string(),
@@ -117,8 +131,12 @@ export default defineSchema({
     maxPeople: v.optional(v.number()),
     minAge: v.optional(v.number()),
     tourTypeLabel: v.optional(v.string()),
+    /** Admin-entered rating shown until the tour has approved reviews. */
     ratingAvg: v.optional(v.number()),
     reviewsCount: v.optional(v.number()),
+    /** Computed from approved `tourReviews` (never hand-edited). See src/lib/tourRating.ts. */
+    approvedReviewAvg: v.optional(v.number()),
+    approvedReviewCount: v.optional(v.number()),
     office: v.optional(v.string()),
     email: v.optional(v.string()),
     /** Convex `_storage` ids and/or `https?://` or `/` paths (resolved at read time). */
@@ -148,10 +166,13 @@ export default defineSchema({
     ),
     isActive: v.boolean(),
     createdAt: v.number(),
+    /** Bumped on every admin write; editors send it back to detect conflicting saves. */
+    updatedAt: v.optional(v.number()),
   })
     .index("by_slug", ["slug"])
     .index("by_isActive", ["isActive"])
-    .index("by_isActive_and_createdAt", ["isActive", "createdAt"]),
+    .index("by_isActive_and_createdAt", ["isActive", "createdAt"])
+    .searchIndex("search_title", { searchField: "title" }),
 
   /** Cached Google Places reviews for the business (refreshed on a schedule). */
   googleReviewsCache: defineTable({
@@ -358,6 +379,18 @@ export default defineSchema({
       v.literal("Manual"),
     ),
     message: v.optional(v.string()),
+    /** Follow-up state; missing = "new" (legacy rows). */
+    status: v.optional(
+      v.union(
+        v.literal("new"),
+        v.literal("contacted"),
+        v.literal("converted"),
+        v.literal("closed"),
+      ),
+    ),
+    /** Internal admin note. */
+    adminNote: v.optional(v.string()),
+    updatedAt: v.optional(v.number()),
     createdAt: v.number(),
   }),
 
@@ -650,7 +683,11 @@ export default defineSchema({
     .index("by_status", ["status"])
     .index("by_created", ["createdAt"])
     .index("by_source_booking", ["sourceBookingId"])
-    .index("by_source_guest_booking", ["sourceGuestBookingId"]),
+    .index("by_source_guest_booking", ["sourceGuestBookingId"])
+    .index("by_source_tour", ["sourceTourId"])
+    /** Admin list search across every itinerary, not just the loaded page. */
+    .searchIndex("search_title", { searchField: "title" })
+    .searchIndex("search_client", { searchField: "clientName" }),
 
   invoices: defineTable({
     /** Unique invoice number label, e.g. "INV/26-27/0001" */
@@ -691,7 +728,11 @@ export default defineSchema({
   })
     .index("by_itinerary", ["itineraryId"])
     .index("by_status", ["status"])
-    .index("by_created", ["createdAt"]),
+    .index("by_created", ["createdAt"])
+    .index("by_invoice_number", ["invoiceNumber"])
+    /** Admin list search across every invoice, not just the loaded page. */
+    .searchIndex("search_client", { searchField: "clientName" })
+    .searchIndex("search_number", { searchField: "invoiceNumber" }),
 
   invoiceCounters: defineTable({
     /** Fiscal-year key, e.g. "26-27" */
@@ -763,6 +804,8 @@ export default defineSchema({
     ),
     partners: v.array(
       v.object({
+        /** Stable key (backfilled on write) so removals never hit the wrong partner. */
+        id: v.optional(v.string()),
         name: v.string(),
         logoStorageId: v.optional(v.id("_storage")),
         logoExternalUrl: v.optional(v.string()),

@@ -1,4 +1,8 @@
+import type { Metadata } from "next";
 import { DashboardProfile } from "@/components/DashboardProfile";
+
+// robots noindex is inherited from dashboard/layout.tsx
+export const metadata: Metadata = { title: "My Profile" };
 
 export default function DashboardProfilePage() {
   return (

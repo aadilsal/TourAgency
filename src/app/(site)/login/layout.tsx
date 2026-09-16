@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Log in",
-  robots: { index: false, follow: false },
+  description: "Log in to your JunketTours account to view bookings and trip requests.",
+  robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
 };
 
 export default function LoginLayout({ children }: { children: React.ReactNode }) {

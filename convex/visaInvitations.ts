@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import {
   internalQuery,
   mutation,
@@ -91,33 +92,73 @@ export const getRequestDoc = internalQuery({
   },
 });
 
+const visaStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("processed"),
+  v.literal("rejected"),
+);
+
+/**
+ * Patch semantics for notes: `undefined` = leave unchanged, "" (or whitespace)
+ * = explicitly clear, anything else = set.
+ */
+function notePatch(adminNote: string | undefined): { adminNote?: string | undefined } {
+  if (adminNote === undefined) return {};
+  return { adminNote: adminNote.trim() || undefined };
+}
+
+/** @deprecated Unbounded — use `listForAdminPage`. Kept for deployed clients. */
 export const listForAdmin = query({
   args: {
     sessionToken: v.string(),
-    status: v.optional(
-      v.union(
-        v.literal("pending"),
-        v.literal("processed"),
-        v.literal("rejected"),
-      ),
-    ),
+    status: v.optional(visaStatusValidator),
   },
   handler: async (ctx, { sessionToken, status }) => {
     await requireAdminFromSession(ctx, sessionToken);
-    const all = await ctx.db.query("visaInvitationRequests").collect();
-    const filtered = status ? all.filter((r) => r.status === status) : all;
-    return filtered.sort((a, b) => b.createdAt - a.createdAt);
+    const rows = status
+      ? await ctx.db
+          .query("visaInvitationRequests")
+          .withIndex("by_status", (q) => q.eq("status", status))
+          .order("desc")
+          .take(5000)
+      : await ctx.db
+          .query("visaInvitationRequests")
+          .withIndex("by_created")
+          .order("desc")
+          .take(5000);
+    return rows.sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
+/** Paginated admin inbox, newest first, optional status filter (indexed). */
+export const listForAdminPage = query({
+  args: {
+    sessionToken: v.string(),
+    status: v.optional(visaStatusValidator),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, { sessionToken, status, paginationOpts }) => {
+    await requireAdminFromSession(ctx, sessionToken);
+    if (status) {
+      return await ctx.db
+        .query("visaInvitationRequests")
+        .withIndex("by_status", (q) => q.eq("status", status))
+        .order("desc")
+        .paginate(paginationOpts);
+    }
+    return await ctx.db
+      .query("visaInvitationRequests")
+      .withIndex("by_created")
+      .order("desc")
+      .paginate(paginationOpts);
   },
 });
 
 export const setStatus = mutation({
   args: {
     requestId: v.id("visaInvitationRequests"),
-    status: v.union(
-      v.literal("pending"),
-      v.literal("processed"),
-      v.literal("rejected"),
-    ),
+    status: visaStatusValidator,
+    /** Omit to keep the existing note; "" clears it. */
     adminNote: v.optional(v.string()),
     sessionToken: v.string(),
   },
@@ -130,9 +171,28 @@ export const setStatus = mutation({
 
     await ctx.db.patch(requestId, {
       status,
-      adminNote: adminNote?.trim() || undefined,
+      ...notePatch(adminNote),
       reviewedAt: Date.now(),
       reviewedBy: user._id,
+    });
+  },
+});
+
+/** Update only the internal note (status untouched). "" clears it. */
+export const setAdminNote = mutation({
+  args: {
+    sessionToken: v.string(),
+    requestId: v.id("visaInvitationRequests"),
+    adminNote: v.string(),
+  },
+  handler: async (ctx, { sessionToken, requestId, adminNote }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
+    const row = await ctx.db.get(requestId);
+    if (!row) throw new Error("Request not found");
+    await ctx.db.patch(requestId, {
+      ...notePatch(adminNote),
+      reviewedAt: Date.now(),
+      reviewedBy: admin._id,
     });
   },
 });
@@ -141,7 +201,10 @@ export const countPending = query({
   args: { sessionToken: v.string() },
   handler: async (ctx, { sessionToken }) => {
     await requireAdminFromSession(ctx, sessionToken);
-    const all = await ctx.db.query("visaInvitationRequests").collect();
-    return all.filter((r) => r.status === "pending").length;
+    const pending = await ctx.db
+      .query("visaInvitationRequests")
+      .withIndex("by_status", (q) => q.eq("status", "pending"))
+      .take(1000);
+    return pending.length;
   },
 });

@@ -1,4 +1,8 @@
+import type { Metadata } from "next";
 import { DashboardBookings } from "@/components/DashboardBookings";
+
+// robots noindex is inherited from dashboard/layout.tsx
+export const metadata: Metadata = { title: "My Bookings" };
 
 export default function DashboardBookingsPage() {
   return (

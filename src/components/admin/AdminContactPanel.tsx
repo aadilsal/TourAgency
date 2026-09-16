@@ -1,171 +1,115 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import Link from "next/link";
+import { useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { Button } from "@/components/ui/Button";
-import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import type { Id } from "@convex/_generated/dataModel";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
+import { StatusSelect } from "@/components/admin/shared/StatusSelect";
+import { InlineNoteEditor } from "@/components/admin/shared/InlineNoteEditor";
+import { LoadMoreFooter } from "@/components/admin/shared/InboxControls";
 
+const leadStatuses = ["new", "contacted", "converted", "closed"] as const;
+const PAGE_SIZE = 25;
+
+/**
+ * Leads inbox. Public contact details (address, WhatsApp, email, map) used to
+ * be edited here AND on Settings — two forms writing the same fields. They now
+ * live only under Settings.
+ */
 export function AdminContactPanel() {
   const sessionToken = useConvexSessionToken();
   const canQuery = typeof sessionToken === "string";
-  const settings = useQuery(
-    api.siteSettings.getAdminSiteSettings,
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.leads.listLeadsPage,
     canQuery ? { sessionToken } : "skip",
+    { initialNumItems: PAGE_SIZE },
   );
-  const leads = useQuery(api.leads.getLeads, canQuery ? { sessionToken } : "skip");
-  const upsert = useMutation(api.siteSettings.upsertAdminSiteSettings);
+  const updateLead = useMutation(api.leads.updateLead);
 
-  const [officeAddress, setOfficeAddress] = useState("");
-  const [whatsappPhone, setWhatsappPhone] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [mapsEmbedUrl, setMapsEmbedUrl] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!settings) return;
-    setOfficeAddress(settings.officeAddress ?? "");
-    setWhatsappPhone(settings.whatsappPhone ?? "");
-    setContactEmail(settings.contactEmail ?? "");
-    setMapsEmbedUrl(settings.mapsEmbedUrl ?? "");
-  }, [settings]);
-
-  async function onSave(e: React.FormEvent) {
-    e.preventDefault();
-    if (!canQuery) return;
-    setMsg(null);
-    setSaving(true);
-    try {
-      await upsert({
-        sessionToken,
-        officeAddress,
-        whatsappPhone,
-        contactEmail,
-        mapsEmbedUrl,
-      });
-      setMsg("Contact settings updated.");
-    } catch (error) {
-      setMsg(toUserFacingErrorMessage(error));
-    } finally {
-      setSaving(false);
+  function requireToken(): string {
+    if (typeof sessionToken !== "string") {
+      throw new Error("Session expired — refresh and sign in again.");
     }
-  }
-
-  if (!canQuery) {
-    return (
-      <p className="text-sm text-muted">
-        {sessionToken === undefined ? "Loading…" : "You need an admin session."}
-      </p>
-    );
-  }
-
-  if (settings === undefined || leads === undefined) {
-    return <p className="text-sm text-muted">Loading…</p>;
+    return sessionToken;
   }
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-xl border border-border bg-panel p-5 shadow-sm backdrop-blur-xl">
-        <h2 className="text-lg font-bold text-foreground">Public contact settings</h2>
-        <p className="mt-1 text-sm text-muted">
-          These values appear on the frontend contact and footer sections.
-        </p>
-
-        <form onSubmit={onSave} className="mt-5 space-y-4">
-          <label className="block text-xs font-semibold text-muted">
-            Office address
-            <textarea
-              rows={3}
-              required
-              className="mt-1 w-full rounded-lg border border-border bg-panel-elevated px-3 py-2 text-sm text-foreground placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-sun"
-              value={officeAddress}
-              onChange={(e) => setOfficeAddress(e.target.value)}
-            />
-          </label>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-semibold text-muted">
-              WhatsApp phone
-              <input
-                required
-                className="mt-1 w-full rounded-lg border border-border bg-panel-elevated px-3 py-2 text-sm text-foreground placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-sun"
-                value={whatsappPhone}
-                onChange={(e) => setWhatsappPhone(e.target.value)}
-                placeholder="+92 300 1234567"
-              />
-            </label>
-            <label className="block text-xs font-semibold text-muted">
-              Public email
-              <input
-                type="email"
-                required
-                className="mt-1 w-full rounded-lg border border-border bg-panel-elevated px-3 py-2 text-sm text-foreground placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-sun"
-                value={contactEmail}
-                onChange={(e) => setContactEmail(e.target.value)}
-                placeholder="hello@example.com"
-              />
-            </label>
-          </div>
-
-          <label className="block text-xs font-semibold text-muted">
-            Google Maps embed URL
-            <input
-              className="mt-1 w-full rounded-lg border border-border bg-panel-elevated px-3 py-2 text-sm text-foreground placeholder:text-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-sun"
-              value={mapsEmbedUrl}
-              onChange={(e) => setMapsEmbedUrl(e.target.value)}
-              placeholder="https://www.google.com/maps/embed?..."
-            />
-          </label>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="submit" disabled={saving}>
-              {saving ? "Saving…" : "Save contact settings"}
-            </Button>
-            {msg ? <p className="text-sm text-muted">{msg}</p> : null}
-          </div>
-        </form>
-      </section>
+    <div className="space-y-6">
+      <p className="rounded-xl border border-border bg-panel-elevated p-3 text-sm text-muted">
+        Office address, WhatsApp, email and map are edited in{" "}
+        <Link href="/admin/settings" className="font-semibold text-brand-cta underline">
+          Site settings
+        </Link>
+        .
+      </p>
 
       <section className="rounded-xl border border-border bg-panel shadow-sm backdrop-blur-xl">
         <div className="border-b border-border px-5 py-4">
-          <h2 className="text-lg font-bold text-foreground">Contact messages</h2>
+          <h2 className="text-lg font-bold text-foreground">Leads & contact messages</h2>
           <p className="mt-1 text-sm text-muted">
-            Messages submitted from the contact page and other lead forms.
+            Messages from the contact page, tour customisation forms and the AI planner.
           </p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-[720px] w-full text-left text-sm">
-            <thead className="whitespace-nowrap border-b border-border bg-black/5 text-xs font-semibold uppercase tracking-wide text-muted dark:bg-white/5">
-              <tr>
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Phone</th>
-                <th className="px-4 py-3">Source</th>
-                <th className="px-4 py-3">Message</th>
-                <th className="px-4 py-3">Received</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leads.map((lead) => (
-                <tr key={lead._id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 font-medium text-foreground">{lead.name}</td>
-                  <td className="px-4 py-3 text-muted">{lead.phone}</td>
-                  <td className="px-4 py-3 text-muted">{lead.source}</td>
-                  <td className="max-w-[420px] px-4 py-3 text-muted">
-                    {lead.message?.trim() || "-"}
-                  </td>
-                  <td className="px-4 py-3 text-muted">
+        <ul className="divide-y divide-border">
+          {results.map((lead) => {
+            const leadId = lead._id as Id<"leads">;
+            return (
+              <li key={lead._id} className="grid gap-3 px-5 py-4 md:grid-cols-[1fr_auto]">
+                <div className="min-w-0">
+                  <p className="font-semibold text-foreground">
+                    {lead.name}
+                    <span className="ml-2 rounded-full bg-black/5 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-muted dark:bg-white/10">
+                      {lead.source}
+                    </span>
+                  </p>
+                  <p className="mt-0.5 text-sm text-muted">
+                    {lead.phone && lead.phone !== "—" ? (
+                      <a href={`tel:${lead.phone}`} className="hover:underline">
+                        {lead.phone}
+                      </a>
+                    ) : (
+                      "No phone"
+                    )}
+                    {" · "}
                     {new Date(lead.createdAt).toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {leads.length === 0 ? (
-          <p className="p-5 text-sm text-muted">No contact messages yet.</p>
-        ) : null}
+                  </p>
+                  <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground">
+                    {lead.message?.trim() || "—"}
+                  </p>
+                  <InlineNoteEditor
+                    className="mt-3"
+                    value={lead.adminNote}
+                    disabled={!canQuery}
+                    hint="Internal only."
+                    rows={2}
+                    onSave={(note) =>
+                      updateLead({ sessionToken: requireToken(), leadId, adminNote: note })
+                    }
+                  />
+                </div>
+                <div className="md:text-right">
+                  <StatusSelect
+                    value={lead.status ?? "new"}
+                    options={leadStatuses}
+                    disabled={!canQuery}
+                    label={`Set follow-up status for ${lead.name}`}
+                    onChange={(next) =>
+                      updateLead({ sessionToken: requireToken(), leadId, status: next })
+                    }
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <LoadMoreFooter
+          status={canQuery ? status : "LoadingFirstPage"}
+          count={results.length}
+          onLoadMore={() => loadMore(PAGE_SIZE)}
+          noun="leads"
+          emptyText="No contact messages yet."
+        />
       </section>
     </div>
   );

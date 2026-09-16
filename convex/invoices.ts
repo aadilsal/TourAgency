@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
 import type { MutationCtx } from "./_generated/server.js";
+import type { Doc } from "./_generated/dataModel.js";
 import { requireUserFromSession } from "./lib/authHelpers.js";
 import { paginationOptsValidator } from "convex/server";
 
@@ -107,7 +108,8 @@ export const patchDraft = mutation({
     invoiceId: v.id("invoices"),
 
     clientName: v.optional(v.string()),
-    itineraryId: v.optional(v.id("itineraries")),
+    /** Pass `null` to unlink the itinerary. */
+    itineraryId: v.optional(v.union(v.id("itineraries"), v.null())),
     invoiceDate: v.optional(v.string()),
     currency: v.optional(v.union(v.literal("PKR"), v.literal("USD"))),
 
@@ -135,6 +137,11 @@ export const patchDraft = mutation({
     const next: Record<string, unknown> = {};
     for (const [k, val] of Object.entries(patch)) {
       if (val === undefined) continue;
+      if (val === null) {
+        // `null` = clear the field (patching to undefined removes it).
+        next[k] = undefined;
+        continue;
+      }
       if (k === "advanceAmount" && typeof val === "number") {
         next[k] = Math.max(0, val);
         continue;
@@ -182,17 +189,66 @@ export const listForAdmin = query({
 
     return {
       ...paged,
-      page: paged.page.map((i) => ({
-        _id: i._id,
-        clientName: i.clientName,
-        itineraryId: i.itineraryId,
-        invoiceDate: i.invoiceDate,
-        currency: i.currency,
-        status: i.status,
-        createdAt: i.createdAt,
-        updatedAt: i.updatedAt,
-      })),
+      page: paged.page.map(toAdminListRow),
     };
+  },
+});
+
+function toAdminListRow(i: Doc<"invoices">) {
+  return {
+    _id: i._id,
+    invoiceNumber: i.invoiceNumber,
+    clientName: i.clientName,
+    itineraryId: i.itineraryId,
+    invoiceDate: i.invoiceDate,
+    currency: i.currency,
+    status: i.status,
+    createdAt: i.createdAt,
+    updatedAt: i.updatedAt,
+  };
+}
+
+/**
+ * Server-side search across ALL invoices (client name or invoice number), so
+ * records outside the currently loaded page are never "missing" from search.
+ */
+export const searchForAdmin = query({
+  args: {
+    sessionToken: v.string(),
+    search: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, { sessionToken, search, limit }) => {
+    const user = await requireUserFromSession(ctx, sessionToken);
+    assertAdminFromSession(user);
+
+    const term = search.trim();
+    if (!term) return [];
+    const max = Math.max(1, Math.min(100, Math.floor(limit ?? 50)));
+
+    const [exactNumber, byNumber, byClient] = await Promise.all([
+      ctx.db
+        .query("invoices")
+        .withIndex("by_invoice_number", (q) => q.eq("invoiceNumber", term.toUpperCase()))
+        .take(max),
+      ctx.db
+        .query("invoices")
+        .withSearchIndex("search_number", (q) => q.search("invoiceNumber", term))
+        .take(max),
+      ctx.db
+        .query("invoices")
+        .withSearchIndex("search_client", (q) => q.search("clientName", term))
+        .take(max),
+    ]);
+
+    const seen = new Set<string>();
+    const merged: Doc<"invoices">[] = [];
+    for (const row of [...exactNumber, ...byClient, ...byNumber]) {
+      if (seen.has(row._id)) continue;
+      seen.add(row._id);
+      merged.push(row);
+    }
+    return merged.slice(0, max).map(toAdminListRow);
   },
 });
 
@@ -271,7 +327,7 @@ export const createFromItinerary = mutation({
     advanceAmount: v.optional(v.number()),
     tripSummary: v.optional(v.string()),
   },
-  handler: async (ctx, { sessionToken, itineraryId, currency, tripSummary }) => {
+  handler: async (ctx, { sessionToken, itineraryId, currency, advanceAmount, tripSummary }) => {
     const user = await requireUserFromSession(ctx, sessionToken);
     assertAdminFromSession(user);
 
@@ -297,7 +353,7 @@ export const createFromItinerary = mutation({
       ],
       discount: 0,
       tax: 0,
-      advanceAmount: 0,
+      advanceAmount: typeof advanceAmount === "number" ? Math.max(0, advanceAmount) : 0,
       tripSummary: typeof tripSummary === "string" ? tripSummary.trim() : "",
       paymentMethod: "bank",
       paymentDetails: "",

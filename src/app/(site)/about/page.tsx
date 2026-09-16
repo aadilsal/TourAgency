@@ -3,6 +3,15 @@ import { getConvexServer } from "@/lib/convex-server";
 import { api } from "@convex/_generated/api";
 import { AboutPageClient } from "@/components/about/AboutPageClient";
 import { FaqSection } from "@/components/about/FaqSection";
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "About Us & FAQs",
+  description:
+    "Meet JunketTours, a licensed Lahore-based tour operator running heritage & culture trips across Pakistan — plus answers on visas, safety, payments and planning.",
+  path: "/about",
+});
 
 export const revalidate = 0;
 

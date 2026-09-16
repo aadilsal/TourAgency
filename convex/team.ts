@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server.js";
+import { mutation, query, type MutationCtx } from "./_generated/server.js";
 import type { Id } from "./_generated/dataModel.js";
 import { requireUserFromSession } from "./lib/authHelpers.js";
 
@@ -9,6 +9,25 @@ function assertAdminFromSession(
   if (user.role !== "admin" && user.role !== "super_admin") {
     throw new Error("Unauthorized");
   }
+}
+
+/**
+ * Hard cap for full-list reads. Admin lists show everything up to this; mutations
+ * that need the full ordering refuse to run past it instead of silently acting
+ * on a truncated list (which used to corrupt ordering / create duplicates).
+ */
+const MAX_TEAM_MEMBERS = 1000;
+
+async function readAllMembersForWrite(ctx: MutationCtx) {
+  const rows = await ctx.db
+    .query("teamMembers")
+    .withIndex("by_sort_order", (q) => q)
+    .order("asc")
+    .take(MAX_TEAM_MEMBERS + 1);
+  if (rows.length > MAX_TEAM_MEMBERS) {
+    throw new Error(`Too many team members (> ${MAX_TEAM_MEMBERS}). Remove unused members first.`);
+  }
+  return rows;
 }
 
 export const generateTeamMemberImageUploadUrl = mutation({
@@ -58,7 +77,7 @@ export const listForAdmin = query({
       .query("teamMembers")
       .withIndex("by_sort_order", (q) => q)
       .order("asc")
-      .take(200);
+      .take(MAX_TEAM_MEMBERS);
   },
 });
 
@@ -176,11 +195,7 @@ export const move = mutation({
     const user = await requireUserFromSession(ctx, sessionToken);
     assertAdminFromSession(user);
 
-    const rows = await ctx.db
-      .query("teamMembers")
-      .withIndex("by_sort_order", (q) => q)
-      .order("asc")
-      .take(200);
+    const rows = await readAllMembersForWrite(ctx);
 
     const idx = rows.findIndex((r) => r._id === id);
     if (idx < 0) throw new Error("Not found");
@@ -188,9 +203,25 @@ export const move = mutation({
     const swapWith = direction === "up" ? idx - 1 : idx + 1;
     if (swapWith < 0 || swapWith >= rows.length) return;
 
+    const now = Date.now();
+    const orders = rows.map((r) => r.sortOrder);
+    const hasTies = new Set(orders).size !== orders.length;
+    if (hasTies) {
+      // Equal sortOrders made swaps a silent no-op: renumber the list first.
+      const reordered = [...rows];
+      [reordered[idx], reordered[swapWith]] = [reordered[swapWith]!, reordered[idx]!];
+      for (let i = 0; i < reordered.length; i++) {
+        const r = reordered[i]!;
+        const nextOrder = (i + 1) * 10;
+        if (r.sortOrder !== nextOrder) {
+          await ctx.db.patch(r._id, { sortOrder: nextOrder, updatedAt: now });
+        }
+      }
+      return;
+    }
+
     const a = rows[idx]!;
     const b = rows[swapWith]!;
-    const now = Date.now();
     await ctx.db.patch(a._id, { sortOrder: b.sortOrder, updatedAt: now });
     await ctx.db.patch(b._id, { sortOrder: a.sortOrder, updatedAt: now });
   },
@@ -215,11 +246,7 @@ export const bulkUpsert = mutation({
     assertAdminFromSession(user);
 
     const now = Date.now();
-    const existing = await ctx.db
-      .query("teamMembers")
-      .withIndex("by_sort_order", (q) => q)
-      .order("asc")
-      .take(200);
+    const existing = await readAllMembersForWrite(ctx);
 
     const keyToId = new Map<string, Id<"teamMembers">>();
     for (const r of existing) {

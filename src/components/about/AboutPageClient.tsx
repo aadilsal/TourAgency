@@ -115,6 +115,7 @@ export function AboutPageClient({
           <img
             src="https://images.unsplash.com/photo-1482192596544-9eb780fc7f66?auto=format&fit=crop&w=2000&q=60"
             alt=""
+            aria-hidden
             className="h-full w-full object-cover"
           />
         </div>
@@ -192,7 +193,7 @@ export function AboutPageClient({
                 <>
                   <Image
                     src={tabContent.image}
-                    alt=""
+                    alt={tabContent.title}
                     fill
                     sizes="(min-width: 1024px) 480px, 100vw"
                     className="object-cover"
@@ -259,7 +260,7 @@ export function AboutPageClient({
                       {m.imageUrl ? (
                         <Image
                           src={m.imageUrl}
-                          alt=""
+                          alt={`Portrait of ${m.name}`}
                           fill
                           sizes="320px"
                           className="object-cover"

@@ -2,8 +2,15 @@
 
 import { EmblaRow } from "@/components/ui/EmblaRow";
 import { TourCardCompact, type TourCardData } from "@/components/shared/TourCard";
+import type { CurrencyCode } from "@/lib/money";
 
-export function RelatedToursCarousel({ tours }: { tours: TourCardData[] }) {
+export function RelatedToursCarousel({
+  tours,
+  currency,
+}: {
+  tours: TourCardData[];
+  currency: CurrencyCode;
+}) {
   if (tours.length === 0) return null;
 
   return (
@@ -17,7 +24,7 @@ export function RelatedToursCarousel({ tours }: { tours: TourCardData[] }) {
       <div className="mt-8">
         <EmblaRow slideClassName="min-w-0 flex-[0_0_88%] sm:flex-[0_0_55%] lg:flex-[0_0_36%]">
           {tours.map((t) => (
-            <TourCardCompact key={t.slug} tour={t} />
+            <TourCardCompact key={t.slug} tour={t} currency={currency} />
           ))}
         </EmblaRow>
       </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { cn } from "@/lib/cn";
@@ -9,6 +9,33 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import Link from "next/link";
 import { ArrowRight, Sparkles } from "lucide-react";
+import {
+  FieldError,
+  FormAlert,
+  fieldErrorId,
+  nativeFieldErrorProps,
+} from "@/components/ui/FormField";
+import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import {
+  FORM_MESSAGES,
+  focusFirstError,
+  isValidEmail,
+  isValidPhone,
+  type FieldErrorMap,
+} from "@/lib/formValidation";
+
+const newsletterInputBase =
+  "h-11 rounded-full border bg-white px-4 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2";
+
+function newsletterInputClass(hasError: boolean, extra?: string) {
+  return cn(
+    newsletterInputBase,
+    hasError
+      ? "border-red-500 focus:ring-red-200"
+      : "border-border focus:ring-havezic-primary/20",
+    extra,
+  );
+}
 
 type Dest = { slug: string; name: string; heroUrl?: string; tourCount?: number };
 
@@ -33,7 +60,7 @@ function DestinationMiniCard({
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={image}
-          alt=""
+          alt={label}
           className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
           loading="lazy"
           decoding="async"
@@ -65,7 +92,7 @@ function PhoneMock({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative w-[min(330px,56vw)] max-w-[380px]">
+    <div className="relative w-[min(300px,80vw)] max-w-[380px] sm:w-[min(330px,56vw)]">
       <div className="absolute -inset-1 rounded-[44px] bg-black/20 blur-md" aria-hidden />
       <div className="relative overflow-hidden rounded-[44px] bg-[#0B0F18] p-[10px] shadow-[0_28px_70px_rgba(0,0,0,0.45)]">
         <div className="relative overflow-hidden rounded-[36px] bg-white">
@@ -102,9 +129,25 @@ export function NewsletterSection({ className }: { className?: string }) {
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [sent, setSent] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrorMap<"email" | "phone">>({});
+  const submittingRef = useRef(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submittingRef.current) return;
+    setErr(null);
+    setSent(false);
+    const next: FieldErrorMap<"email" | "phone"> = {};
+    if (!email.trim()) next.email = FORM_MESSAGES.emailRequired;
+    else if (!isValidEmail(email)) next.email = FORM_MESSAGES.emailInvalid;
+    if (phone.trim() && !isValidPhone(phone)) next.phone = FORM_MESSAGES.phoneInvalid;
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) {
+      focusFirstError([next.phone && "newsletter-phone", next.email && "newsletter-email"]);
+      return;
+    }
+    submittingRef.current = true;
     setSaving(true);
     try {
       await createLead({
@@ -124,7 +167,10 @@ export function NewsletterSection({ className }: { className?: string }) {
       setPhone("");
       setEmail("");
       setMessage("");
+    } catch (error) {
+      setErr(toUserFacingErrorMessage(error));
     } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   }
@@ -154,46 +200,83 @@ export function NewsletterSection({ className }: { className?: string }) {
             </div>
 
             {sent ? (
-              <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+              <div
+                role="status"
+                className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
+              >
                 Thanks — we received your message.
               </div>
             ) : null}
 
-            <form onSubmit={onSubmit} className="mt-6 space-y-3">
+            <form onSubmit={onSubmit} noValidate className="mt-6 space-y-3">
               <div className="grid gap-3 sm:grid-cols-2">
                 <input
+                  id="newsletter-name"
+                  aria-label="Your name"
+                  autoComplete="name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your Name"
-                  className="h-11 rounded-full border border-border bg-white px-4 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-havezic-primary/20"
+                  className={newsletterInputClass(false)}
                 />
-                <input
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Your Phone Number"
-                  className="h-11 rounded-full border border-border bg-white px-4 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-havezic-primary/20"
-                />
+                <div>
+                  <input
+                    id="newsletter-phone"
+                    type="tel"
+                    aria-label="Your phone number (optional)"
+                    autoComplete="tel"
+                    value={phone}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      setFieldErrors((x) => ({ ...x, phone: undefined }));
+                    }}
+                    placeholder="Your Phone Number"
+                    className={newsletterInputClass(Boolean(fieldErrors.phone), "w-full")}
+                    {...nativeFieldErrorProps("newsletter-phone", fieldErrors.phone)}
+                  />
+                  <FieldError id={fieldErrorId("newsletter-phone")} className="px-4">
+                    {fieldErrors.phone}
+                  </FieldError>
+                </div>
               </div>
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Email Address"
-                className="h-11 w-full rounded-full border border-border bg-white px-4 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-havezic-primary/20"
-              />
+              <div>
+                <input
+                  id="newsletter-email"
+                  type="email"
+                  aria-label="Email address"
+                  aria-required="true"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setFieldErrors((x) => ({ ...x, email: undefined }));
+                  }}
+                  placeholder="Email Address"
+                  className={newsletterInputClass(Boolean(fieldErrors.email), "w-full")}
+                  {...nativeFieldErrorProps("newsletter-email", fieldErrors.email)}
+                />
+                <FieldError id={fieldErrorId("newsletter-email")} className="px-4">
+                  {fieldErrors.email}
+                </FieldError>
+              </div>
               <textarea
+                id="newsletter-message"
+                aria-label="Your message (optional)"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Your Message"
                 rows={5}
                 className="w-full resize-none rounded-3xl border border-border bg-white px-4 py-3 text-sm text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-havezic-primary/20"
               />
+              <FormAlert>{err}</FormAlert>
               <Button
                 type="submit"
                 variant="primary"
                 className="mt-2 rounded-full px-7 py-3 text-sm"
                 disabled={saving}
+                aria-busy={saving}
               >
-                {saving ? "Submitting…" : "Submit"}
+                {saving ? "Sending…" : "Submit"}
               </Button>
             </form>
           </Card>
@@ -204,6 +287,7 @@ export function NewsletterSection({ className }: { className?: string }) {
               <img
                 src="/images/marketing/newsletter-bg.jpg"
                 alt=""
+                aria-hidden
                 className="h-full w-full object-cover"
                 loading="lazy"
                 decoding="async"
@@ -262,6 +346,7 @@ export function NewsletterSection({ className }: { className?: string }) {
                         <img
                           src="/images/marketing/newsletter-side.jpg"
                           alt=""
+                          aria-hidden
                           className="absolute inset-0 h-full w-full object-cover"
                           loading="lazy"
                           decoding="async"

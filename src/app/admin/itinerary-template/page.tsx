@@ -3,7 +3,7 @@ import { AdminItineraryTemplatePanel } from "@/components/admin/AdminItineraryTe
 export default function AdminItineraryTemplatePage() {
   return (
     <main>
-      <h1 className="text-2xl font-semibold text-brand-ink">Itinerary constants</h1>
+      <h1 className="text-2xl font-semibold text-brand-ink">Itinerary template</h1>
       <p className="mt-1 text-sm text-muted">
         Payment terms, bank details, and terms &amp; conditions that appear on every proposal PDF.
       </p>

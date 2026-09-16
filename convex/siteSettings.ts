@@ -13,18 +13,27 @@ function assertAdminFromSession(
   }
 }
 
+/** Real JunketTours business details — used only when a field was never set. */
+export const BUSINESS_DEFAULTS = {
+  officeAddress:
+    "156, M Block, Main Blvd, near Khokhar Chowk, Phase 2 Johar Town, Lahore, Pakistan",
+  contactEmail: "info@junkettours.co",
+  whatsappPhone: "+92 320 9973486",
+  website: "https://www.junkettours.co",
+} as const;
+
 function envDefaults() {
   return {
-    officeAddress: process.env.NEXT_PUBLIC_OFFICE_ADDRESS?.trim() || "",
-    whatsappPhone: process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || "+92 300 0000000",
+    officeAddress:
+      process.env.NEXT_PUBLIC_OFFICE_ADDRESS?.trim() || BUSINESS_DEFAULTS.officeAddress,
+    whatsappPhone:
+      process.env.NEXT_PUBLIC_CONTACT_PHONE?.trim() || BUSINESS_DEFAULTS.whatsappPhone,
     contactEmail:
-      process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() ||
-      process.env.ADMIN_NOTIFICATION_EMAIL?.trim() ||
-      "hello@junkettours.example",
+      process.env.NEXT_PUBLIC_CONTACT_EMAIL?.trim() || BUSINESS_DEFAULTS.contactEmail,
     website:
       process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
       process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-      "",
+      BUSINESS_DEFAULTS.website,
     governmentLicenseNo:
       process.env.NEXT_PUBLIC_GOVERNMENT_LICENSE_NO?.trim() ||
       process.env.NEXT_PUBLIC_GOV_LICENSE_NO?.trim() ||
@@ -105,8 +114,60 @@ type SiteDoc = {
   defaultNotIncluded?: string[];
 };
 
+const TEXT_FIELDS = [
+  "officeAddress",
+  "whatsappPhone",
+  "contactEmail",
+  "website",
+  "governmentLicenseNo",
+  "governmentLicenseNo2",
+  "mapsEmbedUrl",
+] as const;
+type TextField = (typeof TEXT_FIELDS)[number];
+
+/**
+ * Old placeholder fallbacks that an earlier admin form wrote into the database
+ * as if they were real data. Treated as "never set" on read so the real
+ * business defaults show instead (the stored row itself is left untouched).
+ */
+const LEGACY_PLACEHOLDERS = new Set(["+92 300 0000000", "hello@junkettours.example"]);
+
+type StoredDoc = SiteDoc & Partial<Record<TextField, string>>;
+
+/** Drop legacy placeholder values so they read as unset. */
+function withoutPlaceholders<D extends StoredDoc>(doc: D | null | undefined): D | undefined {
+  if (!doc) return undefined;
+  const clean = { ...doc };
+  for (const f of TEXT_FIELDS) {
+    const val = clean[f];
+    if (typeof val === "string" && LEGACY_PLACEHOLDERS.has(val.trim())) {
+      delete clean[f];
+    }
+  }
+  return clean;
+}
+
+/**
+ * Raw stored values for the admin form: `null` = never set (the site shows the
+ * fallback), "" = explicitly cleared by an admin, otherwise the saved value.
+ */
+function storedValues(doc: StoredDoc | undefined) {
+  const text = Object.fromEntries(
+    TEXT_FIELDS.map((f) => [f, doc?.[f] ?? null]),
+  ) as Record<TextField, string | null>;
+  return {
+    ...text,
+    bankDetails: doc?.bankDetails ?? null,
+    paymentTerms: doc?.paymentTerms ?? null,
+    termsBlocks: doc?.termsBlocks ?? null,
+    defaultIncluded: doc?.defaultIncluded ?? null,
+    defaultNotIncluded: doc?.defaultNotIncluded ?? null,
+  };
+}
+
 /** Merge stored site settings with env + itinerary template fallbacks (admin PDF builder). */
-function mergeAdminSiteSettings(doc: SiteDoc | null | undefined) {
+function mergeAdminSiteSettings(rawDoc: StoredDoc | null | undefined) {
+  const doc = withoutPlaceholders(rawDoc);
   const env = envDefaults();
   const tmpl = itineraryTemplateDefaults();
   const base = { ...env, ...doc };
@@ -117,6 +178,17 @@ function mergeAdminSiteSettings(doc: SiteDoc | null | undefined) {
     termsBlocks: base.termsBlocks ?? [...tmpl.termsBlocks],
     defaultIncluded: base.defaultIncluded ?? [...tmpl.defaultIncluded],
     defaultNotIncluded: base.defaultNotIncluded ?? [...tmpl.defaultNotIncluded],
+    /** Raw DB values for editing forms (never pre-filled with fallbacks). */
+    stored: storedValues(doc),
+    /** What the site shows for a field that was never set. */
+    fallbacks: {
+      ...env,
+      paymentTerms: [...tmpl.paymentTerms],
+      bankDetails: { ...tmpl.bankDetails },
+      termsBlocks: [...tmpl.termsBlocks],
+      defaultIncluded: [...tmpl.defaultIncluded],
+      defaultNotIncluded: [...tmpl.defaultNotIncluded],
+    },
   };
 }
 
@@ -129,7 +201,7 @@ export const getPublicSiteSettings = query({
       .unique();
     const merged = {
       ...envDefaults(),
-      ...doc,
+      ...withoutPlaceholders(doc),
     };
     const mapsEmbedUrl = normalizeGoogleMapsEmbedUrl(merged.mapsEmbedUrl);
     const tmpl = itineraryTemplateDefaults();
@@ -200,22 +272,37 @@ export const upsertAdminSiteSettings = mutation({
       .withIndex("by_key", (q) => q.eq("key", GLOBAL_SETTINGS_KEY))
       .unique();
 
+    // Several admin screens share this mutation and each sends only its own
+    // (changed) fields. Only touch a field when the caller actually sent it —
+    // otherwise saving one screen wipes another's data.
+    //
+    // An explicit blank is stored as "" (not removed): removing the field would
+    // make the fallback silently re-appear on the site after an admin cleared it.
     const patch: Record<string, unknown> = {
-      officeAddress: args.officeAddress?.trim() || undefined,
-      whatsappPhone: args.whatsappPhone?.trim() || undefined,
-      contactEmail: args.contactEmail?.trim() || undefined,
-      website: args.website?.trim() || undefined,
-      mapsEmbedUrl:
-        normalizeGoogleMapsEmbedUrl(args.mapsEmbedUrl) || undefined,
       updatedAt: now,
       updatedBy: user._id,
     };
 
-    if (args.governmentLicenseNo !== undefined) {
-      patch.governmentLicenseNo = args.governmentLicenseNo.trim() || undefined;
-    }
-    if (args.governmentLicenseNo2 !== undefined) {
-      patch.governmentLicenseNo2 = args.governmentLicenseNo2.trim() || undefined;
+    for (const field of TEXT_FIELDS) {
+      const raw = args[field];
+      if (raw === undefined) continue;
+      if (field === "mapsEmbedUrl") {
+        const trimmed = raw.trim();
+        if (!trimmed) {
+          patch.mapsEmbedUrl = "";
+          continue;
+        }
+        const normalized = normalizeGoogleMapsEmbedUrl(trimmed);
+        if (!normalized) {
+          // Never silently drop what the admin pasted.
+          throw new Error(
+            "That Google Maps link isn't valid. Paste the embed URL (https://www.google.com/maps/embed?...) or the full <iframe> code.",
+          );
+        }
+        patch.mapsEmbedUrl = normalized;
+        continue;
+      }
+      patch[field] = raw.trim();
     }
 
     if (args.paymentTerms !== undefined) {

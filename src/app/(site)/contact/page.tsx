@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Mail, MapPin, MessageCircle, PhoneCall, Send } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -13,9 +14,20 @@ import {
   FieldError,
   FieldHint,
   FieldLabel,
+  FormAlert,
   TextAreaField,
   TextInput,
+  fieldErrorId,
+  fieldErrorProps,
 } from "@/components/ui/FormField";
+import {
+  FORM_MESSAGES,
+  focusFirstError,
+  isValidPhone,
+  shortRef,
+  thankYouHref,
+  type FieldErrorMap,
+} from "@/lib/formValidation";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { GovernmentLicenceText } from "@/components/GovernmentLicenceText";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
@@ -33,9 +45,13 @@ export default function ContactPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [message, setMessage] = useState("");
-  const [sent, setSent] = useState(false);
+  const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<
+    FieldErrorMap<"name" | "phone" | "message">
+  >({});
+  const submittingRef = useRef(false);
 
   const resolvedPhone = siteSettings?.whatsappPhone?.trim() || PHONE;
   const resolvedEmail = siteSettings?.contactEmail?.trim() || EMAIL;
@@ -49,24 +65,40 @@ export default function ContactPage() {
   )?.governmentLicenseNo2?.trim();
   const whatsappUrl = `https://wa.me/${resolvedPhone.replace(/\D/g, "") || "923209973486"}`;
 
+  function validate() {
+    const next: FieldErrorMap<"name" | "phone" | "message"> = {};
+    if (!name.trim()) next.name = FORM_MESSAGES.nameRequired;
+    if (!phone.trim()) next.phone = FORM_MESSAGES.phoneRequired;
+    else if (!isValidPhone(phone)) next.phone = FORM_MESSAGES.phoneInvalid;
+    if (!message.trim()) next.message = FORM_MESSAGES.messageRequired;
+    setFieldErrors(next);
+    focusFirstError([
+      next.name && "contact-name",
+      next.phone && "contact-phone",
+      next.message && "contact-message",
+    ]);
+    return Object.keys(next).length === 0;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submittingRef.current) return;
     setErr(null);
+    if (!validate()) return;
+    submittingRef.current = true;
     setSaving(true);
     try {
-      await createLead({
+      const leadId = await createLead({
         name: name.trim(),
         phone: phone.trim(),
         source: "Manual",
         message: message.trim() || undefined,
       });
-      setSent(true);
-      setName("");
-      setPhone("");
-      setMessage("");
+      // Keep the button disabled while we navigate away.
+      router.push(thankYouHref("contact", shortRef(leadId)));
     } catch (error) {
       setErr(toUserFacingErrorMessage(error));
-    } finally {
+      submittingRef.current = false;
       setSaving(false);
     }
   }
@@ -89,13 +121,7 @@ export default function ContactPage() {
               leave the site.
             </p>
 
-            {sent ? (
-              <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-4 text-sm text-emerald-900">
-                Thanks. We received your message and will get back to you soon.
-              </div>
-            ) : null}
-
-            <form onSubmit={onSubmit} className="mt-6 space-y-4">
+            <form onSubmit={onSubmit} noValidate className="mt-6 space-y-4">
               <div>
                 <FieldLabel htmlFor="contact-name" required>
                   Full name
@@ -106,8 +132,13 @@ export default function ContactPage() {
                   autoComplete="name"
                   placeholder="Your name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setFieldErrors((x) => ({ ...x, name: undefined }));
+                  }}
+                  {...fieldErrorProps("contact-name", fieldErrors.name)}
                 />
+                <FieldError id={fieldErrorId("contact-name")}>{fieldErrors.name}</FieldError>
               </div>
               <div>
                 <FieldLabel htmlFor="contact-phone" required>
@@ -116,11 +147,17 @@ export default function ContactPage() {
                 <TextInput
                   id="contact-phone"
                   required
+                  type="tel"
                   autoComplete="tel"
                   placeholder="+92 300 1234567"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    setFieldErrors((x) => ({ ...x, phone: undefined }));
+                  }}
+                  {...fieldErrorProps("contact-phone", fieldErrors.phone)}
                 />
+                <FieldError id={fieldErrorId("contact-phone")}>{fieldErrors.phone}</FieldError>
               </div>
               <div>
                 <FieldLabel htmlFor="contact-message" required>
@@ -132,14 +169,25 @@ export default function ContactPage() {
                   required
                   placeholder="Tell us your destination, dates, and number of travelers."
                   value={message}
-                  onChange={(e) => setMessage(e.target.value)}
+                  onChange={(e) => {
+                    setMessage(e.target.value);
+                    setFieldErrors((x) => ({ ...x, message: undefined }));
+                  }}
+                  {...fieldErrorProps("contact-message", fieldErrors.message)}
                 />
+                <FieldError id={fieldErrorId("contact-message")}>{fieldErrors.message}</FieldError>
                 <FieldHint>
                   Keep it short. We only need enough to reply with the next step.
                 </FieldHint>
               </div>
-              {err ? <FieldError>{err}</FieldError> : null}
-              <Button type="submit" variant="primary" className="w-full py-3" disabled={saving}>
+              <FormAlert>{err}</FormAlert>
+              <Button
+                type="submit"
+                variant="primary"
+                className="w-full py-3"
+                disabled={saving}
+                aria-busy={saving}
+              >
                 <Send className="h-4 w-4" aria-hidden />
                 {saving ? "Sending…" : "Send message"}
               </Button>

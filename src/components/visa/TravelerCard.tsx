@@ -7,6 +7,8 @@ import {
   FieldLabel,
   SelectField,
   TextInput,
+  fieldErrorId,
+  fieldErrorProps,
 } from "@/components/ui/FormField";
 import { CountrySelect } from "@/components/visa/CountrySelect";
 import type { VisaTravelerForm } from "@/lib/visa/validation";
@@ -56,7 +58,7 @@ export function TravelerCard({
         ) : null}
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <FieldLabel htmlFor={`${prefix}-name`} required>
             Full name (as on passport)
@@ -65,11 +67,13 @@ export function TravelerCard({
             id={`${prefix}-name`}
             value={traveler.name}
             onChange={(e) => onChange({ name: e.target.value })}
-            error={!!err(errors, index, "name")}
+            {...fieldErrorProps(`${prefix}-name`, err(errors, index, "name"))}
             autoComplete="name"
             placeholder="e.g. John Smith"
           />
-          <FieldError>{err(errors, index, "name")}</FieldError>
+          <FieldError id={fieldErrorId(`${prefix}-name`)}>
+            {err(errors, index, "name")}
+          </FieldError>
         </div>
 
         <div>
@@ -82,14 +86,16 @@ export function TravelerCard({
             onChange={(e) =>
               onChange({ sex: e.target.value as VisaTravelerForm["sex"] })
             }
-            error={!!err(errors, index, "sex")}
+            {...fieldErrorProps(`${prefix}-sex`, err(errors, index, "sex"))}
           >
             <option value="">Select…</option>
             <option value="male">Male</option>
             <option value="female">Female</option>
             <option value="other">Other</option>
           </SelectField>
-          <FieldError>{err(errors, index, "sex")}</FieldError>
+          <FieldError id={fieldErrorId(`${prefix}-sex`)}>
+            {err(errors, index, "sex")}
+          </FieldError>
         </div>
 
         <div>
@@ -111,9 +117,11 @@ export function TravelerCard({
             type="date"
             value={traveler.dateOfBirth}
             onChange={(e) => onChange({ dateOfBirth: e.target.value })}
-            error={!!err(errors, index, "dateOfBirth")}
+            {...fieldErrorProps(`${prefix}-dob`, err(errors, index, "dateOfBirth"))}
           />
-          <FieldError>{err(errors, index, "dateOfBirth")}</FieldError>
+          <FieldError id={fieldErrorId(`${prefix}-dob`)}>
+            {err(errors, index, "dateOfBirth")}
+          </FieldError>
         </div>
 
         <div>
@@ -124,11 +132,13 @@ export function TravelerCard({
             id={`${prefix}-passport`}
             value={traveler.passportNumber}
             onChange={(e) => onChange({ passportNumber: e.target.value })}
-            error={!!err(errors, index, "passportNumber")}
+            {...fieldErrorProps(`${prefix}-passport`, err(errors, index, "passportNumber"))}
             autoComplete="off"
             placeholder="e.g. AB1234567"
           />
-          <FieldError>{err(errors, index, "passportNumber")}</FieldError>
+          <FieldError id={fieldErrorId(`${prefix}-passport`)}>
+            {err(errors, index, "passportNumber")}
+          </FieldError>
         </div>
 
         <div>
@@ -140,9 +150,11 @@ export function TravelerCard({
             type="date"
             value={traveler.passportIssueDate}
             onChange={(e) => onChange({ passportIssueDate: e.target.value })}
-            error={!!err(errors, index, "passportIssueDate")}
+            {...fieldErrorProps(`${prefix}-issue`, err(errors, index, "passportIssueDate"))}
           />
-          <FieldError>{err(errors, index, "passportIssueDate")}</FieldError>
+          <FieldError id={fieldErrorId(`${prefix}-issue`)}>
+            {err(errors, index, "passportIssueDate")}
+          </FieldError>
         </div>
 
         <div>
@@ -154,9 +166,11 @@ export function TravelerCard({
             type="date"
             value={traveler.passportExpiryDate}
             onChange={(e) => onChange({ passportExpiryDate: e.target.value })}
-            error={!!err(errors, index, "passportExpiryDate")}
+            {...fieldErrorProps(`${prefix}-expiry`, err(errors, index, "passportExpiryDate"))}
           />
-          <FieldError>{err(errors, index, "passportExpiryDate")}</FieldError>
+          <FieldError id={fieldErrorId(`${prefix}-expiry`)}>
+            {err(errors, index, "passportExpiryDate")}
+          </FieldError>
         </div>
       </div>
     </div>

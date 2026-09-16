@@ -1,7 +1,8 @@
 import { api } from "@convex/_generated/api";
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import nextDynamic from "next/dynamic";
-import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
+import { ListingPageSkeleton } from "@/components/skeletons/PageSkeletons";
 import { getConvexServer } from "@/lib/convex-server";
 
 const ToursExploreClient = nextDynamic(
@@ -10,22 +11,22 @@ const ToursExploreClient = nextDynamic(
       default: m.ToursExploreClient,
     })),
   {
-    loading: () => (
-      <div className="flex min-h-[40vh] items-center justify-center">
-        <PageLoadingSpinner label="Loading tours…" variant="dark" />
-      </div>
-    ),
+    // Skeleton matches the explore layout (hero + filters + tour cards) so the
+    // client bundle swapping in doesn't shift the page.
+    loading: () => <ListingPageSkeleton variant="tour" label="Loading tours…" />,
     ssr: false,
   },
 );
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Explore tours",
+// Filtered/search URLs (/tours?q=…&type=…) canonicalise to /tours.
+export const metadata: Metadata = buildMetadata({
+  title: "Pakistan Tour Packages & Heritage Tours",
   description:
-    "Culture & history tours across Pakistan — heritage cities, ancient sites, and northern valley packages. Hunza, Skardu, Swat & more.",
-};
+    "Browse guided Pakistan tours — Lahore & Mughal heritage, Taxila and Gandhara sites, Hunza, Skardu and Swat. Private trips with English-speaking guides and USD prices.",
+  path: "/tours",
+});
 
 type Search = {
   type?: string;

@@ -1,24 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getSiteUrl } from "@/lib/site";
+import { buildMetadata } from "@/lib/seo";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
-export const metadata: Metadata = {
-  title: "Pakistan tourist visa guide for foreigners (2026)",
+export const metadata: Metadata = buildMetadata({
+  title: "Pakistan Tourist Visa Guide (2026)",
   description:
-    "What foreign travellers need to know about a Pakistan tourist visa — the e-Visa process, typical documents required, invitation letters, and how JunketTours can help.",
-  alternates: { canonical: "/pakistan-tourist-visa-guide" },
-  openGraph: {
-    title: "Pakistan tourist visa guide for foreigners (2026) | JunketTours",
-    description:
-      "The Pakistan tourist visa process explained for foreign travellers — documents, invitation letters, and next steps.",
-    url: `${getSiteUrl()}/pakistan-tourist-visa-guide`,
-    type: "article",
-  },
-};
+    "Pakistan tourist visa for foreigners explained: the e-Visa process, documents you need, invitation letters and how JunketTours supports your application.",
+  path: "/pakistan-tourist-visa-guide",
+  type: "article",
+});
 
 const faqs = [
   {

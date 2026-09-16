@@ -1,24 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSiteUrl } from "@/lib/site";
+import { buildMetadata } from "@/lib/seo";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
-export const metadata: Metadata = {
-  title: "Best travel agency in Pakistan",
+export const metadata: Metadata = buildMetadata({
+  title: "Best Travel Agency in Pakistan: A Guide",
   description:
-    "A practical guide to choosing a Pakistan travel agency — and how JunketTours plans culture, history, and northern heritage tours (Lahore, Taxila, Hunza, Skardu and more).",
-  alternates: { canonical: "/best-travel-agency-in-pakistan" },
-  openGraph: {
-    title: "Best travel agency in Pakistan | JunketTours",
-    description:
-      "How to choose a travel agency in Pakistan: safety, itinerary quality, pricing transparency, and support — plus how JunketTours helps you book confidently.",
-    url: `${getSiteUrl()}/best-travel-agency-in-pakistan`,
-    type: "article",
-  },
-};
+    "How to choose a Pakistan travel agency — safety, itinerary quality, transparent pricing and support — and how JunketTours plans heritage tours from Lahore to Hunza.",
+  path: "/best-travel-agency-in-pakistan",
+  type: "article",
+});
 
 const faqs = [
   {

@@ -18,6 +18,9 @@ export type DestinationIndexRow = {
     slug: string;
     title: string;
     price: number;
+    pricePkr?: number;
+    priceUsd?: number;
+    perHeadPrices?: PerHeadPrice[];
     images: string[];
   }>;
   moreCount: number;
@@ -93,6 +96,9 @@ export type DestinationDetailPageData = {
     title: string;
     description: string;
     price: number;
+    pricePkr?: number;
+    priceUsd?: number;
+    perHeadPrices?: PerHeadPrice[];
     durationDays: number;
     location: string;
     images: string[];

@@ -88,6 +88,11 @@ export function BulkUploadModal<T>({
     <Modal
       open={open}
       onClose={onClose}
+      confirmClose={
+        busy
+          ? "An import is still running. Closing hides its result (rows already sent keep importing). Close anyway?"
+          : false
+      }
       title={title}
       description={description}
       panelClassName="max-w-3xl"
@@ -162,6 +167,15 @@ export function BulkUploadModal<T>({
             {typeof result.updated === "number" ? ` • updated ${result.updated}` : ""}
             {typeof result.skipped === "number" ? ` • skipped ${result.skipped}` : ""}
             {result.errors?.length ? ` • errors ${result.errors.length}` : ""}
+            {result.errors?.length ? (
+              <ul className="mt-2 max-h-40 list-disc overflow-auto pl-5 text-xs text-red-800">
+                {result.errors.slice(0, 50).map((e, i) => (
+                  <li key={`${e.index}-${i}`}>
+                    Row {e.index + 1}: {e.message}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
         ) : null}
 

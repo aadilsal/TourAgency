@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server.js";
+import { internalMutation, mutation, query } from "./_generated/server.js";
 import type { MutationCtx } from "./_generated/server.js";
+import { internal } from "./_generated/api.js";
 import type { Id } from "./_generated/dataModel.js";
 import {
   requireUserFromSession,
@@ -13,7 +14,15 @@ function assertAdmin(user: { role: string }) {
   }
 }
 
-/** Recompute a tour's cached rating average + count from its approved reviews. */
+/**
+ * Recompute a tour's cached approved-review stats.
+ *
+ * Writes ONLY `approvedReviewAvg` / `approvedReviewCount`. The admin-entered
+ * `ratingAvg` / `reviewsCount` are never touched (moderating a review used to
+ * overwrite them). Public pages pick between the two via `src/lib/tourRating.ts`.
+ * `updatedAt` is deliberately not bumped: these fields aren't part of the tour
+ * editor, so moderation must not make an open editor report a conflict.
+ */
 async function recomputeTourRating(ctx: MutationCtx, tourId: Id<"tours">) {
   const approved = await ctx.db
     .query("tourReviews")
@@ -29,10 +38,32 @@ async function recomputeTourRating(ctx: MutationCtx, tourId: Id<"tours">) {
   const tour = await ctx.db.get(tourId);
   if (!tour) return;
   await ctx.db.patch(tourId, {
-    reviewsCount: count,
-    ratingAvg: avg,
+    approvedReviewCount: count,
+    approvedReviewAvg: avg,
   });
 }
+
+/**
+ * One-off backfill of approved-review stats for tours moderated before the
+ * stats moved to their own fields. Safe to re-run; pages through tours.
+ */
+export const backfillApprovedReviewStats = internalMutation({
+  args: { cursor: v.optional(v.union(v.string(), v.null())) },
+  handler: async (ctx, { cursor }) => {
+    const result = await ctx.db
+      .query("tours")
+      .paginate({ numItems: 50, cursor: cursor ?? null });
+    for (const tour of result.page) {
+      await recomputeTourRating(ctx, tour._id);
+    }
+    if (!result.isDone) {
+      await ctx.scheduler.runAfter(0, internal.tourReviews.backfillApprovedReviewStats, {
+        cursor: result.continueCursor,
+      });
+    }
+    return { processed: result.page.length, isDone: result.isDone };
+  },
+});
 
 export const submitReview = mutation({
   args: {

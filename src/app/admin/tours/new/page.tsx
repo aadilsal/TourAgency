@@ -11,10 +11,11 @@ export default function NewTourPage() {
 
   useEffect(() => {
     try {
+      // Kept until the tour is created (AdminTourForm removes it), so a refresh
+      // doesn't lose the imported document. "Add tour" clears it for a blank form.
       const raw = sessionStorage.getItem(TOUR_PDF_DRAFT_STORAGE_KEY);
       if (raw) {
         setDraft(JSON.parse(raw) as TourPdfImportDraft);
-        sessionStorage.removeItem(TOUR_PDF_DRAFT_STORAGE_KEY);
       }
     } catch {
       /* ignore malformed draft */

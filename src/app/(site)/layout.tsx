@@ -1,6 +1,7 @@
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
+import { MobileStickyCta } from "@/components/MobileStickyCta";
 import { getWhatsAppClickUrl } from "@/lib/whatsapp-server";
 import { getConvexServer } from "@/lib/convex-server";
 import { api } from "@convex/_generated/api";
@@ -40,7 +41,12 @@ async function SiteFooterData() {
 
 async function WhatsAppFloatData() {
   const whatsappUrl = await getWhatsAppClickUrl();
-  return <WhatsAppFloat url={whatsappUrl} />;
+  return (
+    <>
+      <WhatsAppFloat url={whatsappUrl} />
+      <MobileStickyCta whatsappUrl={whatsappUrl} />
+    </>
+  );
 }
 
 export default function SiteChromeLayout({

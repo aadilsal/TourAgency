@@ -84,3 +84,30 @@ export const landingPages: LandingPage[] = [
     keywords: ["Swat", "Buddhist heritage", "Gandhara", "Pakistan culture"],
   },
 ];
+
+/**
+ * Landing slugs that next.config.mjs `rewrites()` serves at the site root
+ * (`/<slug>` → `/landings/<slug>`). KEEP IN SYNC with `landingSlugs` in
+ * next.config.mjs. Slugs not listed here are only reachable at
+ * `/landings/<slug>`, so canonical + sitemap URLs must use that path.
+ */
+export const ROOT_REWRITTEN_LANDING_SLUGS: readonly string[] = [
+  "hunza-trip-from-lahore",
+  "skardu-tour-cost",
+  "hunza-tour-package-price",
+  "skardu-tour-by-air-vs-road",
+  "swat-tour-from-lahore",
+  "naran-kaghan-tour-from-lahore",
+  "lahore-heritage-tour-package",
+  "taxila-day-trip-from-islamabad",
+  "multan-heritage-tour",
+  "pakistan-cultural-tour-packages",
+  "swat-buddhist-heritage-trail",
+];
+
+/** Public, crawlable path for a landing page (never a 404). */
+export function landingPath(slug: string): string {
+  return ROOT_REWRITTEN_LANDING_SLUGS.includes(slug)
+    ? `/${slug}`
+    : `/landings/${slug}`;
+}

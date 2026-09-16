@@ -3,7 +3,7 @@ import Link from "next/link";
 import { Calendar, Clock } from "lucide-react";
 import { api } from "@convex/_generated/api";
 import type { Metadata } from "next";
-import { getSiteUrl } from "@/lib/site";
+import { buildMetadata } from "@/lib/seo";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Card } from "@/components/ui/Card";
 import { BlogPostBody } from "@/components/blog/BlogPostBody";
@@ -36,32 +36,23 @@ function readingMinutes(content: string): number {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const post = await loadBlogPostBySlug(params.slug);
-    if (!post) return { title: "Post" };
-    const base = getSiteUrl();
+    if (!post) return { title: "Article not found", robots: { index: false } };
     const plain =
       post.content.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     const description =
-      post.metaDescription?.trim() ||
-      (plain.length > 160 ? `${plain.slice(0, 157)}…` : plain || post.title);
+      post.metaDescription?.trim() || plain || post.title;
     const title = post.metaTitle?.trim() || post.title;
-    return {
-      title,
+    return buildMetadata({
+      title: title.replace(/\s*\|\s*JunketTours\s*$/i, ""),
       description,
-      openGraph: {
-        title: post.title,
-        description,
-        url: `${base}/blog/${post.slug}`,
-        type: "article",
-        images: [{ url: blogCoverImage(post.slug), width: 900, height: 600 }],
-      },
-      twitter: {
-        card: "summary_large_image",
-        title: post.title,
-        description,
-      },
-    };
+      path: `/blog/${post.slug}`,
+      image: blogCoverImage(post.slug),
+      imageAlt: post.title,
+      type: "article",
+      publishedTime: new Date(post.createdAt).toISOString(),
+    });
   } catch {
-    return { title: "Post" };
+    return { title: "Travel guide" };
   }
 }
 
@@ -109,7 +100,7 @@ export default async function BlogPostPage({ params }: Props) {
       <div className="relative h-[min(42vh,380px)] w-full overflow-hidden md:h-[min(48vh,440px)]">
         <Image
           src={hero}
-          alt=""
+          alt={post.title}
           fill
           priority
           sizes="100vw"

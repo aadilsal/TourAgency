@@ -1,24 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getSiteUrl } from "@/lib/site";
+import { buildMetadata } from "@/lib/seo";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
-export const metadata: Metadata = {
-  title: "Is Pakistan safe for tourists? (2026 guide)",
+export const metadata: Metadata = buildMetadata({
+  title: "Is Pakistan Safe for Tourists? (2026 Guide)",
   description:
-    "A practical, honest look at travelling to Pakistan as a foreign tourist in 2026 — which regions are established tourist circuits, what to check before you book, and how guided travel reduces risk.",
-  alternates: { canonical: "/is-pakistan-safe-for-tourists" },
-  openGraph: {
-    title: "Is Pakistan safe for tourists? (2026 guide) | JunketTours",
-    description:
-      "What foreign travellers should know before visiting Pakistan — established tourist regions, practical precautions, and how guided tours help.",
-    url: `${getSiteUrl()}/is-pakistan-safe-for-tourists`,
-    type: "article",
-  },
-};
+    "An honest 2026 guide for foreign travellers: established tourist regions in Pakistan, practical precautions, what to check before booking and how guided tours help.",
+  path: "/is-pakistan-safe-for-tourists",
+  type: "article",
+});
 
 const faqs = [
   {

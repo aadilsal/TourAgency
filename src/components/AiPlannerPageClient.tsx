@@ -4,6 +4,18 @@ import { useAction, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  FORM_MESSAGES,
+  focusFirstError,
+  isValidEmail,
+  isValidPhone,
+  thankYouHref,
+  type FieldErrorMap,
+} from "@/lib/formValidation";
+
+type LeadField = "name" | "phone" | "email" | "start" | "end" | "adults";
+
 import {
   Sparkles,
   Loader2,
@@ -22,6 +34,9 @@ import {
   TextAreaField,
   FieldHint,
   FieldError,
+  FormAlert,
+  fieldErrorId,
+  fieldErrorProps,
 } from "@/components/ui/FormField";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
@@ -125,6 +140,10 @@ export function AiPlannerPageClient() {
   const [cChildren, setCChildren] = useState(0);
   const [customSending, setCustomSending] = useState(false);
   const [customDone, setCustomDone] = useState(false);
+  const [leadErrors, setLeadErrors] = useState<FieldErrorMap<LeadField>>({});
+  const [customErr, setCustomErr] = useState<string | null>(null);
+  const customSubmittingRef = useRef(false);
+  const router = useRouter();
   const didPrefill = useRef(false);
 
   useEffect(() => {
@@ -210,14 +229,44 @@ export function AiPlannerPageClient() {
     URL.revokeObjectURL(url);
   }
 
-  async function onSubmitCustom() {
-    if (!plan) return;
-    if (!cName.trim() || !cPhone.trim() || !cEmail.trim()) {
-      setErr("Please add your name, phone, and email so we can follow up.");
-      return;
+  function clearLeadError(field: LeadField) {
+    setLeadErrors((x) => ({ ...x, [field]: undefined }));
+  }
+
+  function validateCustomLead() {
+    const next: FieldErrorMap<LeadField> = {};
+    if (!cName.trim()) next.name = FORM_MESSAGES.nameRequired;
+    if (!cPhone.trim()) next.phone = FORM_MESSAGES.phoneRequired;
+    else if (!isValidPhone(cPhone)) next.phone = FORM_MESSAGES.phoneInvalid;
+    if (!cEmail.trim()) next.email = FORM_MESSAGES.emailRequired;
+    else if (!isValidEmail(cEmail)) next.email = FORM_MESSAGES.emailInvalid;
+    if (cPreferredStart && cPreferredStart < minDate) {
+      next.start = "Past dates can't be selected.";
     }
+    if (cPreferredEnd && cPreferredStart && cPreferredEnd < cPreferredStart) {
+      next.end = "End date must be on or after the start date.";
+    }
+    if (cAdults < 1) next.adults = "Add at least one adult.";
+    setLeadErrors(next);
+    focusFirstError([
+      next.name && "lead-name",
+      next.phone && "lead-phone",
+      next.email && "lead-email",
+      next.start && "lead-s",
+      next.end && "lead-e",
+      next.adults && "lead-a",
+    ]);
+    return Object.keys(next).length === 0;
+  }
+
+  async function onSubmitCustom(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!plan) return;
+    if (customSubmittingRef.current) return;
+    setCustomErr(null);
+    if (!validateCustomLead()) return;
+    customSubmittingRef.current = true;
     setCustomSending(true);
-    setErr(null);
     try {
       const summary = messages
         .filter((m) => m.role === "user")
@@ -240,12 +289,15 @@ export function AiPlannerPageClient() {
         adults: cAdults > 0 ? cAdults : undefined,
         children: cChildren > 0 ? cChildren : undefined,
       });
-      setCustomDone(true);
     } catch (e) {
-      setErr(toUserFacingErrorMessage(e));
-    } finally {
+      setCustomErr(toUserFacingErrorMessage(e));
+      customSubmittingRef.current = false;
       setCustomSending(false);
+      return;
     }
+    // Saved: keep the button pending while we redirect to the confirmation page.
+    setCustomDone(true);
+    router.push(thankYouHref("itinerary"));
   }
 
   const hasAssistantMessage = messages.some((m) => m.role === "assistant");
@@ -444,11 +496,15 @@ export function AiPlannerPageClient() {
                 availability, and contact you with next steps.
               </p>
               {customDone ? (
-                <p className="mt-4 text-sm font-semibold text-emerald-700">
+                <p className="mt-4 text-sm font-semibold text-emerald-700" role="status">
                   Request sent — we&apos;ll contact you soon.
                 </p>
               ) : (
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <form
+                  noValidate
+                  onSubmit={(e) => void onSubmitCustom(e)}
+                  className="mt-4 grid gap-3 sm:grid-cols-2"
+                >
                   <div className="sm:col-span-2">
                     <FieldLabel htmlFor="lead-name" required>
                       Name
@@ -457,8 +513,13 @@ export function AiPlannerPageClient() {
                       id="lead-name"
                       placeholder={sessionToken ? undefined : "e.g. Aadil"}
                       value={cName}
-                      onChange={(e) => setCName(e.target.value)}
+                      onChange={(e) => {
+                        setCName(e.target.value);
+                        clearLeadError("name");
+                      }}
+                      {...fieldErrorProps("lead-name", leadErrors.name)}
                     />
+                    <FieldError id={fieldErrorId("lead-name")}>{leadErrors.name}</FieldError>
                   </div>
                   <div>
                     <FieldLabel htmlFor="lead-phone" required>
@@ -469,8 +530,13 @@ export function AiPlannerPageClient() {
                       type="tel"
                       placeholder={sessionToken ? undefined : "e.g. +92 300 1234567"}
                       value={cPhone}
-                      onChange={(e) => setCPhone(e.target.value)}
+                      onChange={(e) => {
+                        setCPhone(e.target.value);
+                        clearLeadError("phone");
+                      }}
+                      {...fieldErrorProps("lead-phone", leadErrors.phone)}
                     />
+                    <FieldError id={fieldErrorId("lead-phone")}>{leadErrors.phone}</FieldError>
                   </div>
                   <div>
                     <FieldLabel htmlFor="lead-email" required>
@@ -481,8 +547,13 @@ export function AiPlannerPageClient() {
                       type="email"
                       placeholder={sessionToken ? undefined : "e.g. name@email.com"}
                       value={cEmail}
-                      onChange={(e) => setCEmail(e.target.value)}
+                      onChange={(e) => {
+                        setCEmail(e.target.value);
+                        clearLeadError("email");
+                      }}
+                      {...fieldErrorProps("lead-email", leadErrors.email)}
                     />
+                    <FieldError id={fieldErrorId("lead-email")}>{leadErrors.email}</FieldError>
                   </div>
                   <div>
                     <FieldLabel htmlFor="lead-s">Trip start</FieldLabel>
@@ -491,8 +562,13 @@ export function AiPlannerPageClient() {
                       type="date"
                       min={minDate}
                       value={cPreferredStart}
-                      onChange={(e) => setCPreferredStart(e.target.value)}
+                      onChange={(e) => {
+                        setCPreferredStart(e.target.value);
+                        clearLeadError("start");
+                      }}
+                      {...fieldErrorProps("lead-s", leadErrors.start)}
                     />
+                    <FieldError id={fieldErrorId("lead-s")}>{leadErrors.start}</FieldError>
                   </div>
                   <div>
                     <FieldLabel htmlFor="lead-e">Trip end</FieldLabel>
@@ -501,8 +577,13 @@ export function AiPlannerPageClient() {
                       type="date"
                       min={minDate}
                       value={cPreferredEnd}
-                      onChange={(e) => setCPreferredEnd(e.target.value)}
+                      onChange={(e) => {
+                        setCPreferredEnd(e.target.value);
+                        clearLeadError("end");
+                      }}
+                      {...fieldErrorProps("lead-e", leadErrors.end)}
                     />
+                    <FieldError id={fieldErrorId("lead-e")}>{leadErrors.end}</FieldError>
                   </div>
                   <div>
                     <FieldLabel htmlFor="lead-a">Adults</FieldLabel>
@@ -511,10 +592,13 @@ export function AiPlannerPageClient() {
                       type="number"
                       min={1}
                       value={cAdults}
-                      onChange={(e) =>
-                        setCAdults(Number.parseInt(e.target.value, 10) || 0)
-                      }
+                      onChange={(e) => {
+                        setCAdults(Number.parseInt(e.target.value, 10) || 0);
+                        clearLeadError("adults");
+                      }}
+                      {...fieldErrorProps("lead-a", leadErrors.adults)}
                     />
+                    <FieldError id={fieldErrorId("lead-a")}>{leadErrors.adults}</FieldError>
                   </div>
                   <div>
                     <FieldLabel htmlFor="lead-c">Children</FieldLabel>
@@ -528,18 +612,23 @@ export function AiPlannerPageClient() {
                       }
                     />
                   </div>
+                  {customErr ? (
+                    <div className="sm:col-span-2">
+                      <FormAlert>{customErr}</FormAlert>
+                    </div>
+                  ) : null}
                   <div className="sm:col-span-2">
                     <Button
-                      type="button"
+                      type="submit"
                       variant="primary"
                       className="w-full py-3"
                       disabled={customSending}
-                      onClick={() => void onSubmitCustom()}
+                      aria-busy={customSending}
                     >
                       {customSending ? "Sending…" : "Send to our team"}
                     </Button>
                   </div>
-                </div>
+                </form>
               )}
             </Card>
 

@@ -32,7 +32,8 @@ export function VisaInvitationPromo({ layout = "section", onCtaClick }: Props) {
       <div
         className={cn(
           "flex items-start gap-4",
-          !isModal && "md:items-center",
+          // Stack the icon above the copy on phones so the text gets full width.
+          !isModal && "flex-col sm:flex-row md:items-center",
         )}
       >
         <span

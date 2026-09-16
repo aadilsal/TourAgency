@@ -140,6 +140,7 @@ export function SiteSearch({
                         <img
                           src={t.images[0]}
                           alt=""
+                          aria-hidden
                           className="h-full w-full object-cover"
                           loading="lazy"
                         />

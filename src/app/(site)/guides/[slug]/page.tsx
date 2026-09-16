@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { loadProvinceGuidePageData, loadProvinceSlugs } from "@/lib/provinces-server";
 import { ProvinceGuideHero } from "@/components/guides/ProvinceGuideHero";
 import { ProvinceSitesSection } from "@/components/guides/ProvinceSitesSection";
 import { ProvinceToursPanel } from "@/components/guides/ProvinceToursPanel";
+import { getServerCurrency } from "@/lib/currency-server";
 import { ProvinceCityDestinations } from "@/components/guides/ProvinceCityDestinations";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { ButtonLink } from "@/components/ui/Button";
@@ -22,11 +24,14 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const data = await loadProvinceGuidePageData(params.slug);
-  if (!data) return { title: "Province guide" };
-  return {
-    title: `${data.name} travel guide — sites, history & tours`,
-    description: data.intro.slice(0, 160),
-  };
+  if (!data) return { title: "Guide not found", robots: { index: false } };
+  return buildMetadata({
+    title: `${data.name} Travel Guide: Sites, History & Tours`,
+    description: data.intro,
+    path: `/guides/${data.slug}`,
+    image: data.heroUrl,
+    imageAlt: `${data.name}, Pakistan`,
+  });
 }
 
 export default async function ProvinceGuidePage({ params }: Props) {
@@ -84,6 +89,7 @@ export default async function ProvinceGuidePage({ params }: Props) {
               provinceSlug={data.slug}
               provinceName={data.name}
               tours={data.relatedTours}
+              currency={getServerCurrency()}
             />
           </aside>
         </div>

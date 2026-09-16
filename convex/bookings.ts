@@ -1,8 +1,10 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import {
   mutation,
   query,
   internalQuery,
+  type QueryCtx,
 } from "./_generated/server.js";
 import { internal } from "./_generated/api.js";
 import {
@@ -10,7 +12,7 @@ import {
   requireUserFromSession,
   normalizePhone,
 } from "./lib/authHelpers.js";
-import type { Id } from "./_generated/dataModel.js";
+import type { Doc, Id } from "./_generated/dataModel.js";
 
 type CurrencyCode = "PKR" | "USD";
 
@@ -88,6 +90,7 @@ export const createGuestBooking = mutation({
       children: args.children,
       specialNeeds: args.specialNeeds?.trim() || undefined,
       status: "pending",
+      tourTitle: tour.title,
       createdAt: now,
     });
     const start = args.preferredStart?.trim() || "—";
@@ -152,6 +155,7 @@ export const createBooking = mutation({
       adults: args.adults,
       children: args.children,
       specialNeeds: args.specialNeeds?.trim() || undefined,
+      tourTitle: tour.title,
       createdAt: now,
     });
     const start = args.preferredStart?.trim() || "—";
@@ -195,8 +199,8 @@ export const getUserBookings = query({
           source: "member" as const,
           _id: b._id,
           peopleCount: b.peopleCount,
-          currency: normalizeCurrency((b as any).currency),
-          unitPrice: Number.isFinite((b as any).unitPrice) ? (b as any).unitPrice : undefined,
+          currency: normalizeCurrency(b.currency),
+          unitPrice: Number.isFinite(b.unitPrice) ? b.unitPrice : undefined,
           totalPrice: b.totalPrice,
           status: b.status,
           createdAt: b.createdAt,
@@ -211,9 +215,9 @@ export const getUserBookings = query({
     const guestRows = await Promise.all(
       linkedGuests.map(async (g) => {
         const tour = await ctx.db.get(g.tourId);
-        const currency = normalizeCurrency((g as any).currency);
-        const unitPrice = Number.isFinite((g as any).unitPrice)
-          ? ((g as any).unitPrice as number)
+        const currency = normalizeCurrency(g.currency);
+        const unitPrice = Number.isFinite(g.unitPrice)
+          ? g.unitPrice
           : undefined;
         const totalPrice =
           unitPrice != null ? unitPrice * g.peopleCount : 0;
@@ -264,6 +268,9 @@ export type UnifiedBooking =
       notes?: string;
       itineraryId?: Id<"itineraries">;
       itineraryTitle?: string;
+      adminNote?: string;
+      /** True when the tour document no longer exists. */
+      tourDeleted?: boolean;
     }
   | {
       kind: "user";
@@ -288,117 +295,216 @@ export type UnifiedBooking =
       notes?: string;
       itineraryId?: Id<"itineraries">;
       itineraryTitle?: string;
+      adminNote?: string;
+      /** True when the tour document no longer exists. */
+      tourDeleted?: boolean;
     };
 
+const DELETED_TOUR_LABEL = "Deleted tour";
+
+async function toGuestRow(
+  ctx: QueryCtx,
+  g: Doc<"guestBookings">,
+): Promise<UnifiedBooking> {
+  const tour = await ctx.db.get(g.tourId);
+  const currency = normalizeCurrency(g.currency);
+  const unitPrice = Number.isFinite(g.unitPrice)
+    ? g.unitPrice
+    : undefined;
+  const itinerary = await ctx.db
+    .query("itineraries")
+    .withIndex("by_source_guest_booking", (q) =>
+      q.eq("sourceGuestBookingId", g._id),
+    )
+    .first();
+  return {
+    kind: "guest" as const,
+    id: g._id,
+    tourId: g.tourId,
+    name: g.name,
+    phone: g.phone,
+    email: g.email,
+    tourTitle: g.tourTitle ?? tour?.title ?? DELETED_TOUR_LABEL,
+    tourDeleted: tour === null,
+    peopleCount: g.peopleCount,
+    status: g.status,
+    currency,
+    unitPrice,
+    totalPrice: unitPrice != null ? unitPrice * g.peopleCount : 0,
+    createdAt: g.createdAt,
+    preferredStart: g.preferredStart,
+    preferredEnd: g.preferredEnd,
+    departureCity: g.departureCity,
+    adults: g.adults,
+    children: g.children,
+    specialNeeds: g.specialNeeds,
+    notes: g.notes,
+    itineraryId: itinerary?._id,
+    itineraryTitle: itinerary?.title,
+    adminNote: g.adminNote,
+  };
+}
+
+async function toUserRow(
+  ctx: QueryCtx,
+  b: Doc<"bookings">,
+): Promise<UnifiedBooking> {
+  const tour = await ctx.db.get(b.tourId);
+  const user = await ctx.db.get(b.userId);
+  const itinerary = await ctx.db
+    .query("itineraries")
+    .withIndex("by_source_booking", (q) => q.eq("sourceBookingId", b._id))
+    .first();
+  return {
+    kind: "user" as const,
+    id: b._id,
+    tourId: b.tourId,
+    name: user?.name ?? "User",
+    email: user?.email ?? "",
+    phone: user?.phone,
+    tourTitle: b.tourTitle ?? tour?.title ?? DELETED_TOUR_LABEL,
+    tourDeleted: tour === null,
+    peopleCount: b.peopleCount,
+    status: b.status,
+    currency: normalizeCurrency(b.currency),
+    unitPrice: Number.isFinite(b.unitPrice) ? b.unitPrice : undefined,
+    totalPrice: b.totalPrice,
+    createdAt: b.createdAt,
+    preferredStart: b.preferredStart,
+    preferredEnd: b.preferredEnd,
+    departureCity: b.departureCity,
+    adults: b.adults,
+    children: b.children,
+    specialNeeds: b.specialNeeds,
+    notes: b.notes,
+    itineraryId: itinerary?._id,
+    itineraryTitle: itinerary?.title,
+    adminNote: b.adminNote,
+  };
+}
+
+const bookingKindValidator = v.union(v.literal("guest"), v.literal("user"));
+
+const bookingStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("confirmed"),
+  v.literal("cancelled"),
+);
+
+/**
+ * @deprecated Loads bookings plus 2-3 lookups per row; use `listBookingsPage`.
+ * Kept (bounded, newest first) for the currently deployed admin UI.
+ */
 export const getAllBookings = query({
   args: { sessionToken: v.string() },
   handler: async (ctx, { sessionToken }) => {
     await requireAdminFromSession(ctx, sessionToken);
-    const guests = await ctx.db.query("guestBookings").collect();
-    const usersB = await ctx.db.query("bookings").collect();
-    const guestRows: UnifiedBooking[] = await Promise.all(
-      guests.map(async (g) => {
-        const tour = await ctx.db.get(g.tourId);
-        const currency = normalizeCurrency((g as any).currency);
-        const unitPrice = Number.isFinite((g as any).unitPrice)
-          ? ((g as any).unitPrice as number)
-          : undefined;
-        const itinerary = await ctx.db
-          .query("itineraries")
-          .withIndex("by_source_guest_booking", (q) =>
-            q.eq("sourceGuestBookingId", g._id),
-          )
-          .first();
-        return {
-          kind: "guest" as const,
-          id: g._id,
-          tourId: g.tourId,
-          name: g.name,
-          phone: g.phone,
-          email: g.email,
-          tourTitle: tour?.title ?? "Unknown",
-          peopleCount: g.peopleCount,
-          status: g.status,
-          currency,
-          unitPrice,
-          totalPrice:
-            unitPrice != null ? unitPrice * g.peopleCount : 0,
-          createdAt: g.createdAt,
-          preferredStart: g.preferredStart,
-          preferredEnd: g.preferredEnd,
-          departureCity: g.departureCity,
-          adults: g.adults,
-          children: g.children,
-          specialNeeds: g.specialNeeds,
-          notes: g.notes,
-          itineraryId: itinerary?._id,
-          itineraryTitle: itinerary?.title,
-        };
-      }),
-    );
-    const userRows: UnifiedBooking[] = await Promise.all(
-      usersB.map(async (b) => {
-        const tour = await ctx.db.get(b.tourId);
-        const user = await ctx.db.get(b.userId);
-        const itinerary = await ctx.db
-          .query("itineraries")
-          .withIndex("by_source_booking", (q) => q.eq("sourceBookingId", b._id))
-          .first();
-        return {
-          kind: "user" as const,
-          id: b._id,
-          tourId: b.tourId,
-          name: user?.name ?? "User",
-          email: user?.email ?? "",
-          phone: user?.phone,
-          tourTitle: tour?.title ?? "Unknown",
-          peopleCount: b.peopleCount,
-          status: b.status,
-          currency: normalizeCurrency((b as any).currency),
-          unitPrice: Number.isFinite((b as any).unitPrice) ? (b as any).unitPrice : undefined,
-          totalPrice: b.totalPrice,
-          createdAt: b.createdAt,
-          preferredStart: b.preferredStart,
-          preferredEnd: b.preferredEnd,
-          departureCity: b.departureCity,
-          adults: b.adults,
-          children: b.children,
-          specialNeeds: b.specialNeeds,
-          notes: b.notes,
-          itineraryId: itinerary?._id,
-          itineraryTitle: itinerary?.title,
-        };
-      }),
-    );
+    const guests = await ctx.db.query("guestBookings").order("desc").take(1000);
+    const usersB = await ctx.db.query("bookings").order("desc").take(1000);
+    const guestRows = await Promise.all(guests.map((g) => toGuestRow(ctx, g)));
+    const userRows = await Promise.all(usersB.map((b) => toUserRow(ctx, b)));
     return [...guestRows, ...userRows].sort(
       (a, b) => b.createdAt - a.createdAt,
     );
   },
 });
 
+/**
+ * Paginated admin bookings inbox for ONE source table (guest requests or
+ * member bookings), newest first, optional indexed status filter. The admin
+ * UI pages both kinds and merges them client-side in creation order.
+ */
+export const listBookingsPage = query({
+  args: {
+    sessionToken: v.string(),
+    kind: bookingKindValidator,
+    status: v.optional(bookingStatusValidator),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, { sessionToken, kind, status, paginationOpts }) => {
+    await requireAdminFromSession(ctx, sessionToken);
+    if (kind === "guest") {
+      const result = status
+        ? await ctx.db
+            .query("guestBookings")
+            .withIndex("by_status", (q) => q.eq("status", status))
+            .order("desc")
+            .paginate(paginationOpts)
+        : await ctx.db.query("guestBookings").order("desc").paginate(paginationOpts);
+      return {
+        ...result,
+        page: await Promise.all(result.page.map((g) => toGuestRow(ctx, g))),
+      };
+    }
+    const result = status
+      ? await ctx.db
+          .query("bookings")
+          .withIndex("by_status", (q) => q.eq("status", status))
+          .order("desc")
+          .paginate(paginationOpts)
+      : await ctx.db.query("bookings").order("desc").paginate(paginationOpts);
+    return {
+      ...result,
+      page: await Promise.all(result.page.map((b) => toUserRow(ctx, b))),
+    };
+  },
+});
+
 export const updateBookingStatus = mutation({
   args: {
     sessionToken: v.string(),
-    kind: v.union(v.literal("guest"), v.literal("user")),
+    kind: bookingKindValidator,
     id: v.string(),
-    status: v.union(
-      v.literal("pending"),
-      v.literal("confirmed"),
-      v.literal("cancelled"),
-    ),
+    status: bookingStatusValidator,
   },
   handler: async (ctx, { sessionToken, kind, id, status }) => {
     const admin = await requireAdminFromSession(ctx, sessionToken);
     if (kind === "guest") {
-      await ctx.db.patch(id as Id<"guestBookings">, { status });
+      const docId = ctx.db.normalizeId("guestBookings", id);
+      if (!docId || !(await ctx.db.get(docId))) throw new Error("Booking not found");
+      await ctx.db.patch(docId, { status });
     } else {
-      await ctx.db.patch(id as Id<"bookings">, { status });
+      const docId = ctx.db.normalizeId("bookings", id);
+      if (!docId || !(await ctx.db.get(docId))) throw new Error("Booking not found");
+      await ctx.db.patch(docId, { status });
     }
     await ctx.db.insert("adminLogs", {
       action: "update_booking_status",
       performedBy: admin._id,
       timestamp: Date.now(),
       details: `${kind}:${id}:${status}`,
+    });
+  },
+});
+
+/** Set the internal admin note on a booking (status untouched). "" clears it. */
+export const setBookingAdminNote = mutation({
+  args: {
+    sessionToken: v.string(),
+    kind: bookingKindValidator,
+    id: v.string(),
+    adminNote: v.string(),
+  },
+  handler: async (ctx, { sessionToken, kind, id, adminNote }) => {
+    const admin = await requireAdminFromSession(ctx, sessionToken);
+    const patch = {
+      adminNote: adminNote.trim() || undefined,
+      adminNoteUpdatedAt: Date.now(),
+    };
+    if (kind === "guest") {
+      const docId = ctx.db.normalizeId("guestBookings", id);
+      if (!docId || !(await ctx.db.get(docId))) throw new Error("Booking not found");
+      await ctx.db.patch(docId, patch);
+    } else {
+      const docId = ctx.db.normalizeId("bookings", id);
+      if (!docId || !(await ctx.db.get(docId))) throw new Error("Booking not found");
+      await ctx.db.patch(docId, patch);
+    }
+    await ctx.db.insert("adminLogs", {
+      action: "update_booking_note",
+      performedBy: admin._id,
+      timestamp: Date.now(),
+      details: `${kind}:${id}`,
     });
   },
 });

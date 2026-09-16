@@ -4,17 +4,29 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
 import {
+  FieldError,
   FieldLabel,
   FieldHint,
+  FormAlert,
   TextInput,
   TextAreaField,
+  fieldErrorId,
+  fieldErrorProps,
 } from "@/components/ui/FormField";
 import type { TourCustomisationMessageInput } from "@/lib/tourCustomisationWhatsApp";
+import {
+  focusFirstError,
+  shortRef,
+  thankYouHref,
+  type FieldErrorMap,
+} from "@/lib/formValidation";
+
+type MemberField = "adults" | "children" | "start" | "end";
 
 export function TourMemberBooking({
   tourId,
@@ -34,8 +46,13 @@ export function TourMemberBooking({
   plain?: boolean;
   /** True when the tour has a public price — labels the CTA "Book now". */
   bookable?: boolean;
+  /**
+   * Called after the booking is saved. `ref` is a short booking reference to
+   * show on the confirmation page.
+   */
   onCustomisationSubmitted?: (
     input: TourCustomisationMessageInput,
+    ref?: string,
   ) => void | Promise<void>;
 }) {
   const router = useRouter();
@@ -50,23 +67,51 @@ export function TourMemberBooking({
   const [specialNeeds, setSpecialNeeds] = useState("");
   const [notes, setNotes] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrorMap<MemberField>>({});
   const [loading, setLoading] = useState(false);
+  const submittingRef = useRef(false);
 
   if (sessionToken === undefined || sessionToken === null) return null;
 
   const token = sessionToken;
   const peopleCount = Math.max(0, adults) + Math.max(0, children);
 
+  function clearFieldError(field: MemberField) {
+    setFieldErrors((x) => ({ ...x, [field]: undefined }));
+  }
+
+  function validate() {
+    const next: FieldErrorMap<MemberField> = {};
+    if (adults < 1) next.adults = "Enter at least one adult traveler.";
+    if (children < 0) next.children = "Children can't be negative.";
+    if (preferredStart && preferredStart < minDate) {
+      next.start = "Past dates can't be selected.";
+    }
+    if (preferredEnd && preferredEnd < minDate) {
+      next.end = "Past dates can't be selected.";
+    } else if (preferredStart && preferredEnd && preferredEnd < preferredStart) {
+      next.end = "End date must be on or after the start date.";
+    }
+    setFieldErrors(next);
+    focusFirstError([
+      next.adults && "mb-adults",
+      next.children && "mb-children",
+      next.start && "mb-start",
+      next.end && "mb-end",
+    ]);
+    return Object.keys(next).length === 0;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (peopleCount < 1 || adults < 1) {
-      setErr("Enter at least one adult traveler.");
-      return;
-    }
-    setLoading(true);
+    if (submittingRef.current) return;
     setErr(null);
+    if (!validate()) return;
+    submittingRef.current = true;
+    setLoading(true);
+    let bookingId: string;
     try {
-      await createBooking({
+      bookingId = await createBooking({
         sessionToken: token,
         tourId,
         peopleCount,
@@ -78,29 +123,31 @@ export function TourMemberBooking({
         children: children > 0 ? children : undefined,
         specialNeeds: specialNeeds.trim() || undefined,
       });
-      const messageInput: TourCustomisationMessageInput = {
-        tourTitle,
-        name: memberName,
-        phone: memberPhone?.trim() || "—",
-        email: memberEmail,
-        preferredStart: preferredStart.trim() || undefined,
-        preferredEnd: preferredEnd.trim() || undefined,
-        peopleCount,
-        notes: notes.trim() || undefined,
-        departureCity: departureCity.trim() || undefined,
-        adults: adults > 0 ? adults : undefined,
-        children: children > 0 ? children : undefined,
-      };
-      setNotes("");
-      if (onCustomisationSubmitted) {
-        await onCustomisationSubmitted(messageInput);
-      } else {
-        router.push("/dashboard/bookings");
-      }
     } catch (er) {
       setErr(toUserFacingErrorMessage(er));
-    } finally {
+      submittingRef.current = false;
       setLoading(false);
+      return;
+    }
+    const ref = shortRef(bookingId);
+    const messageInput: TourCustomisationMessageInput = {
+      tourTitle,
+      name: memberName,
+      phone: memberPhone?.trim() || "—",
+      email: memberEmail,
+      preferredStart: preferredStart.trim() || undefined,
+      preferredEnd: preferredEnd.trim() || undefined,
+      peopleCount,
+      notes: notes.trim() || undefined,
+      departureCity: departureCity.trim() || undefined,
+      adults: adults > 0 ? adults : undefined,
+      children: children > 0 ? children : undefined,
+    };
+    // Saved: stay in the pending state while we hand off / redirect.
+    if (onCustomisationSubmitted) {
+      await onCustomisationSubmitted(messageInput, ref);
+    } else {
+      router.push(thankYouHref("booking", ref));
     }
   }
 
@@ -118,7 +165,7 @@ export function TourMemberBooking({
           ? "Pick your dates and group size to request this tour at the listed price."
           : "Share your dates and group size — we'll tailor a quote for you."}
       </p>
-      <form onSubmit={onSubmit} className="mt-4 space-y-3">
+      <form onSubmit={onSubmit} noValidate className="mt-4 space-y-3">
         <div className="grid grid-cols-2 gap-2">
           <div>
             <FieldLabel htmlFor="mb-adults" required>
@@ -129,10 +176,13 @@ export function TourMemberBooking({
               type="number"
               min={1}
               value={adults}
-              onChange={(e) =>
-                setAdults(Number.parseInt(e.target.value, 10) || 0)
-              }
+              onChange={(e) => {
+                setAdults(Number.parseInt(e.target.value, 10) || 0);
+                clearFieldError("adults");
+              }}
+              {...fieldErrorProps("mb-adults", fieldErrors.adults)}
             />
+            <FieldError id={fieldErrorId("mb-adults")}>{fieldErrors.adults}</FieldError>
           </div>
           <div>
             <FieldLabel htmlFor="mb-children">Children</FieldLabel>
@@ -141,10 +191,13 @@ export function TourMemberBooking({
               type="number"
               min={0}
               value={children}
-              onChange={(e) =>
-                setChildren(Number.parseInt(e.target.value, 10) || 0)
-              }
+              onChange={(e) => {
+                setChildren(Number.parseInt(e.target.value, 10) || 0);
+                clearFieldError("children");
+              }}
+              {...fieldErrorProps("mb-children", fieldErrors.children)}
             />
+            <FieldError id={fieldErrorId("mb-children")}>{fieldErrors.children}</FieldError>
           </div>
         </div>
         <p className="text-xs text-slate-500">Total: {peopleCount} travelers</p>
@@ -156,18 +209,28 @@ export function TourMemberBooking({
               type="date"
               min={minDate}
               value={preferredStart}
-              onChange={(e) => setPreferredStart(e.target.value)}
+              onChange={(e) => {
+                setPreferredStart(e.target.value);
+                clearFieldError("start");
+              }}
+              {...fieldErrorProps("mb-start", fieldErrors.start)}
             />
+            <FieldError id={fieldErrorId("mb-start")}>{fieldErrors.start}</FieldError>
           </div>
           <div>
             <FieldLabel htmlFor="mb-end">End date</FieldLabel>
             <TextInput
               id="mb-end"
               type="date"
-              min={minDate}
+              min={preferredStart || minDate}
               value={preferredEnd}
-              onChange={(e) => setPreferredEnd(e.target.value)}
+              onChange={(e) => {
+                setPreferredEnd(e.target.value);
+                clearFieldError("end");
+              }}
+              {...fieldErrorProps("mb-end", fieldErrors.end)}
             />
+            <FieldError id={fieldErrorId("mb-end")}>{fieldErrors.end}</FieldError>
           </div>
         </div>
         <div>
@@ -198,10 +261,11 @@ export function TourMemberBooking({
           />
           <FieldHint>Optional requests for the team.</FieldHint>
         </div>
-        {err ? <p className="text-sm text-red-600">{err}</p> : null}
+        <FormAlert>{err}</FormAlert>
         <button
           type="submit"
           disabled={loading}
+          aria-busy={loading}
           className="w-full rounded-xl bg-brand-primary py-2.5 text-sm font-semibold text-white hover:bg-brand-primary-dark disabled:opacity-50"
         >
           {loading ? "Sending…" : bookable ? "Book now" : "Customise your tour"}

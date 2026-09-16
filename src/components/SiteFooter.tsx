@@ -8,6 +8,7 @@ import {
   ArrowRight,
   ShieldCheck,
   FileText,
+  Compass,
 } from "lucide-react";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 
@@ -46,8 +47,9 @@ type Props = {
   governmentLicenseNo2?: string;
 };
 
+// min-h-10 + tight list spacing keeps a ~44px tap row without looking sparse.
 const linkClass =
-  "inline-flex items-center gap-2 text-white/65 transition hover:text-white";
+  "inline-flex min-h-10 items-center gap-2 text-white/65 transition hover:text-white";
 
 export function SiteFooter({
   whatsappUrl,
@@ -62,9 +64,9 @@ export function SiteFooter({
 
   return (
     <footer className="relative mt-auto bg-brand-primary text-white">
-      <PageContainer className="py-14 md:py-16">
+      <PageContainer className="py-10 md:py-16">
         {/* CTA band */}
-        <div className="mb-14 flex flex-col items-start justify-between gap-6 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 p-8 ring-1 ring-white/10 md:flex-row md:items-center md:p-10">
+        <div className="mb-10 flex flex-col items-start justify-between gap-6 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 p-6 ring-1 ring-white/10 sm:p-8 md:mb-14 md:flex-row md:items-center md:p-10">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
               Ready to explore Pakistan?
@@ -90,9 +92,9 @@ export function SiteFooter({
           </div>
         </div>
 
-        <div className="grid gap-12 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:gap-12 lg:grid-cols-4">
           <div>
-            <Link href="/" className="text-xl font-semibold tracking-tight">
+            <Link href="/" className="inline-flex min-h-11 items-center text-xl font-semibold tracking-tight">
               JunketTours
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-white/65">
@@ -111,15 +113,15 @@ export function SiteFooter({
             <p className="text-xs font-bold uppercase tracking-wider text-brand-sun">
               Explore
             </p>
-            <ul className="mt-4 space-y-2.5 text-sm">
+            <ul className="mt-3 space-y-0.5 text-sm">
               <li><Link href="/tours" className={linkClass}><MapPin className="h-4 w-4 shrink-0 opacity-70" />Tours</Link></li>
               <li><Link href="/guides" className={linkClass}><MapPin className="h-4 w-4 shrink-0 opacity-70" />Province guides</Link></li>
               <li><Link href="/destinations" className={linkClass}><MapPin className="h-4 w-4 shrink-0 opacity-70" />City destinations</Link></li>
               <li><Link href="/blog" className={linkClass}><BookOpen className="h-4 w-4 shrink-0 opacity-70" />Travel guides</Link></li>
               <li><Link href="/ai-planner" className={linkClass}><Sparkles className="h-4 w-4 shrink-0 opacity-70" />AI Planner</Link></li>
-              <li><Link href="/about" className={linkClass}>About &amp; FAQs</Link></li>
+              <li><Link href="/about" className={linkClass}><Compass className="h-4 w-4 shrink-0 opacity-70" />About &amp; FAQs</Link></li>
               <li><Link href="/contact" className={linkClass}><PhoneCall className="h-4 w-4 shrink-0 opacity-70" />Contact us</Link></li>
-              <li><SiteFooterVisaLink /></li>
+              <li><SiteFooterVisaLink className={linkClass} /></li>
               <li><Link href="/pakistan-tourist-visa-guide" className={linkClass}><FileText className="h-4 w-4 shrink-0 opacity-70" />Visa guide</Link></li>
               <li><Link href="/is-pakistan-safe-for-tourists" className={linkClass}><ShieldCheck className="h-4 w-4 shrink-0 opacity-70" />Is Pakistan safe?</Link></li>
             </ul>
@@ -129,7 +131,7 @@ export function SiteFooter({
             <p className="text-xs font-bold uppercase tracking-wider text-brand-sun">
               Contact
             </p>
-            <ul className="mt-4 space-y-3 text-sm">
+            <ul className="mt-3 space-y-1.5 text-sm">
               {phoneDisplay ? (
                 <li>
                   <a href={`tel:${phoneDisplay.replace(/\s/g, "")}`} className={linkClass}>
@@ -150,7 +152,7 @@ export function SiteFooter({
                     href={whatsappUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full bg-[#25D366] px-4 py-2 text-sm font-semibold text-white transition hover:brightness-110"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-full bg-[#25D366] px-5 text-sm font-semibold text-white transition hover:brightness-110"
                   >
                     <WhatsAppBrandIcon className="h-5 w-5 shrink-0" />
                     Chat on WhatsApp
@@ -170,7 +172,7 @@ export function SiteFooter({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/15 transition hover:bg-white/20"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/15 transition hover:bg-white/20"
               >
                 <InstagramIcon className="h-5 w-5" />
               </a>
@@ -179,7 +181,7 @@ export function SiteFooter({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Facebook"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/15 transition hover:bg-white/20"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/15 transition hover:bg-white/20"
               >
                 <FacebookIcon className="h-5 w-5" />
               </a>
@@ -188,7 +190,7 @@ export function SiteFooter({
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="TikTok"
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/15 transition hover:bg-white/20"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white ring-1 ring-white/15 transition hover:bg-white/20"
               >
                 <TikTokIcon className="h-5 w-5" />
               </a>
@@ -209,11 +211,11 @@ export function SiteFooter({
           </div>
         </div>
 
-        <div className="mt-14 border-t border-white/10 pt-8 text-xs text-white/50">
-          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 sm:justify-start">
-            <Link href="/privacy-policy" className="hover:text-white/80">Privacy Policy</Link>
-            <Link href="/terms-of-service" className="hover:text-white/80">Terms of Service</Link>
-            <Link href="/cancellation-policy" className="hover:text-white/80">Cancellation Policy</Link>
+        <div className="mt-10 border-t border-white/10 pt-6 text-xs text-white/60 md:mt-14 md:pt-8">
+          <div className="flex flex-wrap items-center justify-center gap-x-5 sm:justify-start">
+            <Link href="/privacy-policy" className="inline-flex min-h-11 items-center hover:text-white/80">Privacy Policy</Link>
+            <Link href="/terms-of-service" className="inline-flex min-h-11 items-center hover:text-white/80">Terms of Service</Link>
+            <Link href="/cancellation-policy" className="inline-flex min-h-11 items-center hover:text-white/80">Cancellation Policy</Link>
           </div>
           <div className="mt-4 flex flex-col items-center justify-between gap-3 text-center sm:flex-row sm:text-left">
             <p>© {new Date().getFullYear()} JunketTours. Heritage &amp; culture tours across Pakistan.</p>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { EmblaRow } from "@/components/ui/EmblaRow";
 import { ButtonLink } from "@/components/ui/Button";
+import { PageContainer } from "@/components/ui/PageContainer";
 
 export type GuideItem = {
   href: string;
@@ -16,8 +17,8 @@ export function TravelGuidesCarousel({ items }: { items: GuideItem[] }) {
 
   return (
     <section className="border-t border-border py-10 md:py-14">
-      <div className="mx-auto max-w-content px-6 md:px-12 lg:px-20">
-        <div className="flex flex-wrap items-end justify-between gap-6">
+      <PageContainer>
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
           <div>
             <h2 className="font-display text-3xl font-semibold text-foreground md:text-4xl">
               Travel guides
@@ -29,13 +30,13 @@ export function TravelGuidesCarousel({ items }: { items: GuideItem[] }) {
           <ButtonLink
             href="/blog"
             variant="ghost"
-            className="shrink-0 py-2 text-foreground hover:bg-havezic-background-light"
+            className="-ml-3 shrink-0 px-3 text-foreground hover:bg-havezic-background-light sm:ml-0"
           >
             View all →
           </ButtonLink>
         </div>
         <div className="mt-8">
-          <EmblaRow slideClassName="min-w-0 flex-[0_0_90%] sm:flex-[0_0_55%] lg:flex-[0_0_36%] xl:flex-[0_0_32%]">
+          <EmblaRow itemLabel="guide" slideClassName="min-w-0 flex-[0_0_90%] sm:flex-[0_0_55%] lg:flex-[0_0_36%] xl:flex-[0_0_32%]">
             {items.map((a, i) => (
               <Link
                 key={`${a.href}-${a.title}-${i}`}
@@ -46,7 +47,7 @@ export function TravelGuidesCarousel({ items }: { items: GuideItem[] }) {
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={a.image}
-                    alt=""
+                    alt={a.title}
                     className="h-full w-full object-cover transition duration-600 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-brand-primary/80 to-transparent opacity-60" />
@@ -66,7 +67,7 @@ export function TravelGuidesCarousel({ items }: { items: GuideItem[] }) {
             ))}
           </EmblaRow>
         </div>
-      </div>
+      </PageContainer>
     </section>
   );
 }

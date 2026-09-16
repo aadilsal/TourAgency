@@ -144,7 +144,7 @@ export function ProvinceJourney() {
                         </span>
                         {isActive ? (
                           <span
-                            className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-2 py-0.5 text-[10px] font-bold text-slate-900 shadow"
+                            className="absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-full bg-white/90 px-2 py-0.5 text-xs font-bold text-slate-900 shadow"
                           >
                             {p.name}
                           </span>
@@ -161,10 +161,11 @@ export function ProvinceJourney() {
                 <img
                   src={activeProvince.heroImage}
                   alt=""
+                  aria-hidden
                   className="h-11 w-11 shrink-0 rounded-lg object-cover md:h-12 md:w-12"
                 />
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-600">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-600">
                     {activeProvince.scrollyEyebrow}
                   </p>
                   <p className="truncate text-sm font-semibold text-slate-900">

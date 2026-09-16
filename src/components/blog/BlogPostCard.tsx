@@ -26,7 +26,7 @@ export function BlogPostCard({ post }: { post: BlogPostCardData }) {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={img}
-            alt=""
+            alt={post.title}
             className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-900/50 to-transparent opacity-60" />

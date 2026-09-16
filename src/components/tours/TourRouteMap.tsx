@@ -144,7 +144,8 @@ export function TourRouteMap({ location, title, itinerary }: Props) {
           <span className="font-medium text-brand-ink">{end.name}</span>
         </p>
       </div>
-      <div className="relative aspect-[16/10] min-h-[240px] w-full bg-gradient-to-b from-sky-50 to-emerald-50/60">
+      {/* No min-height on phones: aspect-ratio + min-h forces a min-width (240 x 1.6 = 384px) wider than the screen. */}
+      <div className="relative aspect-[16/10] w-full bg-gradient-to-b from-sky-50 to-emerald-50/60 sm:min-h-[240px]">
         <svg
           viewBox={viewBox}
           preserveAspectRatio="xMidYMid meet"
@@ -231,7 +232,7 @@ export function TourRouteMap({ location, title, itinerary }: Props) {
           </g>
         </svg>
 
-        <p className="pointer-events-none absolute bottom-2 right-3 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-medium text-slate-500 backdrop-blur-sm">
+        <p className="pointer-events-none absolute bottom-2 right-3 rounded-full bg-white/80 px-2 py-0.5 text-xs font-medium text-slate-500 backdrop-blur-sm">
           Illustrative route · not to scale
         </p>
       </div>

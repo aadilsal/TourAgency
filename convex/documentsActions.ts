@@ -94,16 +94,30 @@ export const exportItineraryDocx: ReturnType<typeof action> = action({
 
     const filename = `${String(itin.title || "itinerary").replace(/\s+/g, "-").toLowerCase()}.docx`;
 
+    const dateLabel =
+      itin.startDate || itin.endDate
+        ? [itin.startDate, itin.endDate].filter(Boolean).join(" → ")
+        : "—";
     const meta = new Paragraph({
       children: [
         new TextRun({ text: `Client: ${itin.clientName || "—"}`, break: 1 }),
-        new TextRun({ text: `Dates: ${itin.startDate} → ${itin.endDate}`, break: 1 }),
+        new TextRun({ text: `Dates: ${dateLabel}`, break: 1 }),
         new TextRun({ text: `Days: ${itin.days}`, break: 1 }),
       ],
     });
 
     const dayParas: Paragraph[] = [];
-    for (const d of itin.dayPlans ?? []) {
+    // Builder (simple layout) itineraries store days as at-a-glance rows.
+    for (const d of itin.atGlanceDays ?? []) {
+      dayParas.push(
+        new Paragraph({ text: `Day ${d.dayNumber}: ${d.title}`, heading: HeadingLevel.HEADING_2 }),
+      );
+      for (const line of (d.detail ?? "").split("\n").filter((l) => l.trim())) {
+        dayParas.push(new Paragraph({ text: line }));
+      }
+      if (d.overnight?.trim()) dayParas.push(new Paragraph({ text: `Overnight: ${d.overnight.trim()}` }));
+    }
+    for (const d of itin.atGlanceDays?.length ? [] : (itin.dayPlans ?? [])) {
       dayParas.push(
         new Paragraph({ text: `Day ${d.dayNumber}: ${d.title}`, heading: HeadingLevel.HEADING_2 }),
       );
@@ -136,7 +150,19 @@ export const exportItineraryDocx: ReturnType<typeof action> = action({
       }
     }
 
-    const packages = (itin.packages ?? []) as ItineraryPackage[];
+    // Builder tiers take precedence over legacy wizard packages.
+    const packages = (
+      itin.packageTiers?.length
+        ? itin.packageTiers.map((t) => ({
+            name: t.name,
+            pricePkr: t.pricePkr,
+            vehicle: t.vehicle,
+            stays: t.stays?.length
+              ? t.stays
+              : (t.hotels ?? []).map((h, i) => ({ location: `Stop ${i + 1}`, hotel: h.hotel, nights: h.nights })),
+          }))
+        : (itin.packages ?? [])
+    ) as ItineraryPackage[];
     const packageRows: TableRow[] = [
       new TableRow({
         children: [

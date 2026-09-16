@@ -1,19 +1,12 @@
 import type { Metadata } from "next";
-import { getSiteUrl } from "@/lib/site";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Pakistan tourist visa invitation letter",
+export const metadata: Metadata = buildMetadata({
+  title: "Pakistan Visa Invitation Letter (LOI)",
   description:
-    "Request an official invitation letter for your Pakistan tourist visa application — submit passport details and our licensed team prepares it for you.",
-  alternates: { canonical: "/visa-invitation" },
-  openGraph: {
-    title: "Pakistan tourist visa invitation letter | JunketTours",
-    description:
-      "Request an official invitation letter for your Pakistan tourist visa application.",
-    url: `${getSiteUrl()}/visa-invitation`,
-    type: "website",
-  },
-};
+    "Request an official letter of invitation for your Pakistan tourist e-Visa. Submit passport details online and our licensed Lahore team prepares it for you.",
+  path: "/visa-invitation",
+});
 
 export default function VisaInvitationLayout({ children }: { children: React.ReactNode }) {
   return children;

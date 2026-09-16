@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { Star } from "lucide-react";
 import { api } from "@convex/_generated/api";
@@ -9,6 +9,29 @@ import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import {
+  FieldError,
+  FormAlert,
+  fieldErrorId,
+  nativeFieldErrorProps,
+} from "@/components/ui/FormField";
+import {
+  FORM_MESSAGES,
+  focusFirstError,
+  isValidEmail,
+  type FieldErrorMap,
+} from "@/lib/formValidation";
+
+type ReviewField = "name" | "email" | "body";
+
+function reviewInputClass(hasError: boolean) {
+  return cn(
+    "mt-1.5 w-full rounded-xl border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2",
+    hasError
+      ? "border-red-500 focus:ring-red-200"
+      : "border-border focus:ring-havezic-primary/35",
+  );
+}
 
 function Stars({ value, className }: { value: number; className?: string }) {
   return (
@@ -58,20 +81,44 @@ export function TourReviews({ tourId }: { tourId: string }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrorMap<ReviewField>>({});
+  const submittingRef = useRef(false);
+
+  function clearFieldError(field: ReviewField) {
+    setFieldErrors((x) => ({ ...x, [field]: undefined }));
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submittingRef.current) return;
     setMsg(null);
+    const next: FieldErrorMap<ReviewField> = {};
+    if (name.trim().length < 2) next.name = FORM_MESSAGES.nameRequired;
+    if (email.trim() && !isValidEmail(email)) next.email = FORM_MESSAGES.emailInvalid;
+    if (!body.trim()) next.body = "Please write your review.";
+    else if (body.trim().length < 10) {
+      next.body = "Please write a little more (at least 10 characters).";
+    }
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) {
+      focusFirstError([
+        next.name && "review-name",
+        next.email && "review-email",
+        next.body && "review-body",
+      ]);
+      return;
+    }
+    submittingRef.current = true;
     setBusy(true);
     try {
       await submit({
         tourId: tourId as Id<"tours">,
-        authorName: name,
+        authorName: name.trim(),
         authorEmail: email.trim() || undefined,
         rating,
         title: title.trim() || undefined,
         travelDate: travelDate.trim() || undefined,
-        body,
+        body: body.trim(),
         sessionToken: typeof sessionToken === "string" ? sessionToken : undefined,
       });
       setDone(true);
@@ -85,6 +132,7 @@ export function TourReviews({ tourId }: { tourId: string }) {
     } catch (err) {
       setMsg(toUserFacingErrorMessage(err));
     } finally {
+      submittingRef.current = false;
       setBusy(false);
     }
   }
@@ -115,7 +163,15 @@ export function TourReviews({ tourId }: { tourId: string }) {
             </p>
           )}
         </div>
-        <Button type="button" variant="secondary" onClick={() => setOpen((v) => !v)}>
+        <Button
+          type="button"
+          variant="secondary"
+          aria-expanded={open}
+          onClick={() => {
+            setOpen((v) => !v);
+            setDone(false);
+          }}
+        >
           {open ? "Cancel" : "Write a review"}
         </Button>
       </div>
@@ -151,7 +207,10 @@ export function TourReviews({ tourId }: { tourId: string }) {
       ) : null}
 
       {done ? (
-        <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+        <div
+          role="status"
+          className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800"
+        >
           Thanks! Your review has been submitted and will appear once approved.
         </div>
       ) : null}
@@ -159,19 +218,21 @@ export function TourReviews({ tourId }: { tourId: string }) {
       {open ? (
         <form
           onSubmit={onSubmit}
+          noValidate
           className="mt-5 space-y-4 rounded-2xl border border-border bg-panel-elevated p-5"
         >
-          {msg ? (
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              {msg}
-            </div>
-          ) : null}
-
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <p
+              id="review-rating-label"
+              className="text-xs font-semibold uppercase tracking-wide text-muted"
+            >
               Your rating
-            </label>
-            <div className="mt-1.5 flex items-center gap-1">
+            </p>
+            <div
+              className="mt-1.5 flex items-center gap-1"
+              role="group"
+              aria-labelledby="review-rating-label"
+            >
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
                   key={n}
@@ -180,6 +241,7 @@ export function TourReviews({ tourId }: { tourId: string }) {
                   onMouseLeave={() => setHover(0)}
                   onClick={() => setRating(n)}
                   aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                  aria-pressed={rating === n}
                   className="p-0.5"
                 >
                   <Star
@@ -197,34 +259,58 @@ export function TourReviews({ tourId }: { tourId: string }) {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted">
-                Name
+              <label
+                htmlFor="review-name"
+                className="text-xs font-semibold uppercase tracking-wide text-muted"
+              >
+                Name <span className="text-brand-cta">*</span>
               </label>
               <input
+                id="review-name"
                 required
+                autoComplete="name"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-havezic-primary/35"
+                onChange={(e) => {
+                  setName(e.target.value);
+                  clearFieldError("name");
+                }}
+                className={reviewInputClass(Boolean(fieldErrors.name))}
                 placeholder="Your name"
+                {...nativeFieldErrorProps("review-name", fieldErrors.name)}
               />
+              <FieldError id={fieldErrorId("review-name")}>{fieldErrors.name}</FieldError>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+              <label
+                htmlFor="review-email"
+                className="text-xs font-semibold uppercase tracking-wide text-muted"
+              >
                 Email (optional)
               </label>
               <input
+                id="review-email"
                 type="email"
+                autoComplete="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-havezic-primary/35"
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  clearFieldError("email");
+                }}
+                className={reviewInputClass(Boolean(fieldErrors.email))}
                 placeholder="you@example.com"
+                {...nativeFieldErrorProps("review-email", fieldErrors.email)}
               />
+              <FieldError id={fieldErrorId("review-email")}>{fieldErrors.email}</FieldError>
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+              <label
+                htmlFor="review-title"
+                className="text-xs font-semibold uppercase tracking-wide text-muted"
+              >
                 Title (optional)
               </label>
               <input
+                id="review-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-havezic-primary/35"
@@ -232,10 +318,14 @@ export function TourReviews({ tourId }: { tourId: string }) {
               />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+              <label
+                htmlFor="review-travel-date"
+                className="text-xs font-semibold uppercase tracking-wide text-muted"
+              >
                 Travelled (optional)
               </label>
               <input
+                id="review-travel-date"
                 value={travelDate}
                 onChange={(e) => setTravelDate(e.target.value)}
                 className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-havezic-primary/35"
@@ -245,21 +335,32 @@ export function TourReviews({ tourId }: { tourId: string }) {
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted">
-              Your review
+            <label
+              htmlFor="review-body"
+              className="text-xs font-semibold uppercase tracking-wide text-muted"
+            >
+              Your review <span className="text-brand-cta">*</span>
             </label>
             <textarea
+              id="review-body"
               required
               rows={4}
               value={body}
-              onChange={(e) => setBody(e.target.value)}
-              className="mt-1.5 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-havezic-primary/35"
+              onChange={(e) => {
+                setBody(e.target.value);
+                clearFieldError("body");
+              }}
+              className={reviewInputClass(Boolean(fieldErrors.body))}
               placeholder="Tell other travellers what you loved…"
+              {...nativeFieldErrorProps("review-body", fieldErrors.body)}
             />
+            <FieldError id={fieldErrorId("review-body")}>{fieldErrors.body}</FieldError>
           </div>
 
-          <Button type="submit" disabled={busy}>
-            {busy ? "Submitting…" : "Submit review"}
+          <FormAlert>{msg}</FormAlert>
+
+          <Button type="submit" disabled={busy} aria-busy={busy}>
+            {busy ? "Sending…" : "Submit review"}
           </Button>
         </form>
       ) : null}

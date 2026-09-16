@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Menu,
   X,
@@ -26,6 +26,9 @@ import { SiteSearch } from "./SiteSearch";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/cn";
+import { useBodyScrollLock } from "@/components/ui/useBodyScrollLock";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
+import type { LucideIcon } from "lucide-react";
 
 type DestinationIndexRow = {
   slug: string;
@@ -365,6 +368,7 @@ function DestinationsMegaDropdown({
                               <Image
                                 src={p.heroUrl}
                                 alt=""
+                                aria-hidden
                                 fill
                                 sizes="48px"
                                 className="object-cover"
@@ -410,6 +414,7 @@ function DestinationsMegaDropdown({
                               <Image
                                 src={d.heroUrl}
                                 alt=""
+                                aria-hidden
                                 fill
                                 sizes="120px"
                                 className="object-cover transition duration-300 group-hover:scale-105"
@@ -422,7 +427,7 @@ function DestinationsMegaDropdown({
                               <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted">
                                 {d.line}
                               </p>
-                              <p className="mt-1.5 text-[11px] font-semibold uppercase tracking-wide text-havezic-primary">
+                              <p className="mt-1.5 text-xs font-semibold uppercase tracking-wide text-havezic-primary">
                                 {d.tourCount}{" "}
                                 {d.tourCount === 1 ? "tour" : "tours"}
                               </p>
@@ -490,14 +495,14 @@ function MobileDestinationsAccordion({
       <button
         type="button"
         className={cn(
-          "flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm font-semibold text-white",
+          "flex min-h-12 w-full items-center justify-between gap-2 px-3 text-left text-base font-semibold text-white",
           active && "text-havezic-primary",
         )}
         aria-expanded={expanded}
         onClick={onToggle}
       >
         <span className="flex items-center gap-2">
-          <MapPin className="h-4 w-4 text-havezic-primary/90" aria-hidden />
+          <MapPin className="h-5 w-5 text-brand-sun" aria-hidden />
           Destinations
         </span>
         <ChevronDown
@@ -517,37 +522,41 @@ function MobileDestinationsAccordion({
             transition={{ duration: 0.2 }}
             className="overflow-hidden border-t border-white/10"
           >
-            <div className="flex max-h-[55vh] flex-col gap-1 overflow-y-auto px-2 pb-2 pt-1">
-              <p className="px-3 pt-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
+            <div className="flex flex-col gap-0.5 px-2 pb-2 pt-1">
+              <p className="px-3 pt-2 text-xs font-bold uppercase tracking-[0.2em] text-white/60">
                 Provinces
               </p>
               <Link
                 href="/guides"
-                className="rounded-lg px-3 py-2 text-sm font-semibold text-white/95 hover:bg-white/10"
+                className="flex min-h-11 items-center rounded-lg px-3 text-base font-semibold text-white/95 hover:bg-white/10"
                 onClick={onPick}
               >
                 All province guides
               </Link>
               {loading ? (
-                <p className="px-3 py-2 text-xs text-white/60">Loading…</p>
+                <div className="space-y-1 px-3 py-1" aria-busy="true" aria-label="Loading provinces">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="h-9 animate-pulse rounded-lg bg-white/10" />
+                  ))}
+                </div>
               ) : (
                 provinceItems.map((p) => (
                   <Link
                     key={p.slug}
                     href={`/guides/${p.slug}`}
-                    className="rounded-lg px-3 py-2 text-sm text-white/90 hover:bg-white/10"
+                    className="flex min-h-11 items-center rounded-lg px-3 text-base text-white/90 hover:bg-white/10"
                     onClick={onPick}
                   >
                     {p.name}
                   </Link>
                 ))
               )}
-              <p className="mt-2 px-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/50">
+              <p className="mt-2 px-3 text-xs font-bold uppercase tracking-[0.2em] text-white/60">
                 Cities
               </p>
               <Link
                 href="/destinations"
-                className="rounded-lg px-3 py-2 text-sm font-semibold text-white/95 hover:bg-white/10"
+                className="flex min-h-11 items-center rounded-lg px-3 text-base font-semibold text-white/95 hover:bg-white/10"
                 onClick={onPick}
               >
                 All city destinations
@@ -557,7 +566,7 @@ function MobileDestinationsAccordion({
                     <Link
                       key={d.slug}
                       href={`/destinations/${d.slug}`}
-                      className="rounded-lg px-3 py-2 text-sm text-white/90 hover:bg-white/10"
+                      className="flex min-h-11 items-center rounded-lg px-3 text-base text-white/90 hover:bg-white/10"
                       onClick={onPick}
                     >
                       {d.name}
@@ -569,6 +578,169 @@ function MobileDestinationsAccordion({
         ) : null}
       </AnimatePresence>
     </div>
+  );
+}
+
+const mobileRowClass =
+  "group flex min-h-12 items-center gap-3 rounded-xl px-3 text-base font-semibold text-white transition hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-havezic-primary";
+
+/**
+ * Full-height mobile navigation sheet: 48px rows, body scroll lock, focus
+ * trap + Escape. The parent closes it on route change / resize past md.
+ */
+function MobileNavSheet({
+  open,
+  onClose,
+  pathname,
+  destinations,
+  provinces,
+  mobileDestOpen,
+  setMobileDestOpen,
+  links,
+  session,
+}: {
+  open: boolean;
+  onClose: () => void;
+  pathname: string | null;
+  destinations: DestinationIndexRow[] | undefined;
+  provinces: ProvinceIndexRow[] | undefined;
+  mobileDestOpen: boolean;
+  setMobileDestOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  links: { href: string; label: string; icon: LucideIcon }[];
+  session: SessionInfo;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useBodyScrollLock(open);
+  useFocusTrap(panelRef, open, onClose);
+
+  const isActive = (href: string) =>
+    pathname === href || Boolean(pathname?.startsWith(href + "/"));
+
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          key="mobile-nav"
+          ref={panelRef}
+          id="mobile-nav-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Site menu"
+          initial={{ opacity: 0, y: -12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 z-[90] flex flex-col bg-brand-primary text-white md:hidden"
+          style={{
+            paddingTop: "env(safe-area-inset-top)",
+            paddingBottom: "env(safe-area-inset-bottom)",
+          }}
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-white/15 px-4 py-3">
+            <Link href="/" className="flex min-h-11 items-center gap-3" onClick={onClose}>
+              <span className="relative h-10 w-10 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/20">
+                <Image
+                  src="/images-removebg-preview.png"
+                  alt=""
+                  fill
+                  sizes="40px"
+                  className="object-contain p-1.5"
+                />
+              </span>
+              <span className="text-lg font-semibold">Junket Tours</span>
+            </Link>
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white transition hover:border-white/35"
+              aria-label="Close menu"
+            >
+              <X className="h-6 w-6" aria-hidden />
+            </button>
+          </div>
+
+          <nav
+            aria-label="Mobile primary"
+            className="flex-1 overflow-y-auto overscroll-contain px-3 pb-6 pt-3"
+            data-lenis-prevent
+          >
+            <SiteSearch variant="inline" className="px-1 pb-3" />
+            <div className="flex flex-col gap-1">
+              <Link
+                href="/tours"
+                className={cn(mobileRowClass, isActive("/tours") && "bg-white/10 text-havezic-primary")}
+                aria-current={isActive("/tours") ? "page" : undefined}
+                onClick={onClose}
+              >
+                <Compass className="h-5 w-5 text-brand-sun" aria-hidden />
+                Tours
+              </Link>
+              <MobileDestinationsAccordion
+                pathname={pathname}
+                destinations={destinations}
+                provinces={provinces}
+                expanded={mobileDestOpen}
+                onToggle={() => setMobileDestOpen((o) => !o)}
+                onPick={onClose}
+              />
+              {links.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className={cn(mobileRowClass, isActive(href) && "bg-white/10 text-havezic-primary")}
+                  aria-current={isActive(href) ? "page" : undefined}
+                  onClick={onClose}
+                >
+                  <Icon className="h-5 w-5 text-brand-sun" aria-hidden />
+                  {label}
+                </Link>
+              ))}
+              <Link
+                href="/ai-planner"
+                className={cn(mobileRowClass, "text-amber-400")}
+                onClick={onClose}
+              >
+                <Sparkles className="h-5 w-5" aria-hidden />
+                AI Planner
+              </Link>
+            </div>
+
+            <div className="mt-4 border-t border-white/15 pt-4">
+              {session ? (
+                <>
+                  <p className="px-3 text-xs font-semibold uppercase tracking-wide text-white/60">
+                    Account
+                  </p>
+                  {session.email ? (
+                    <p className="mt-1 truncate px-3 text-sm text-white/75">{session.email}</p>
+                  ) : null}
+                  <div className="mt-2 flex flex-col gap-1">
+                    <Link href="/dashboard" className={mobileRowClass} onClick={onClose}>
+                      <LayoutDashboard className="h-5 w-5 text-brand-sun" aria-hidden />
+                      Dashboard
+                    </Link>
+                    {session.role === "admin" || session.role === "super_admin" ? (
+                      <Link href="/admin" className={mobileRowClass} onClick={onClose}>
+                        <Shield className="h-5 w-5 text-brand-sun" aria-hidden />
+                        Admin
+                      </Link>
+                    ) : null}
+                    <div className="flex min-h-12 items-center px-3">
+                      <LogoutButton className="text-base font-semibold text-white/80 hover:text-havezic-primary" />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <Link href="/login" className={mobileRowClass} onClick={onClose}>
+                  <LogIn className="h-5 w-5 text-brand-sun" aria-hidden />
+                  Log in
+                </Link>
+              )}
+            </div>
+          </nav>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -597,6 +769,24 @@ export function SiteHeaderNav({
 
   useEffect(() => {
     if (!open) setMobileDestOpen(false);
+  }, [open]);
+
+  const closeMenu = useCallback(() => setOpen(false), []);
+
+  // Close the mobile sheet whenever the route changes (incl. back/forward).
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // Close if the viewport grows past the mobile breakpoint while open.
+  useEffect(() => {
+    if (!open) return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const onChange = () => {
+      if (mq.matches) setOpen(false);
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
   }, [open]);
 
   useEffect(() => {
@@ -665,7 +855,7 @@ export function SiteHeaderNav({
             <span className="relative h-10 w-10 sm:h-12 sm:w-12 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/20">
               <Image
                 src="/images-removebg-preview.png"
-                alt=""
+                alt="JunketTours"
                 fill
                 className="object-contain p-1.5"
                 priority
@@ -675,7 +865,7 @@ export function SiteHeaderNav({
               <span className="block text-lg font-semibold text-white">
                 Junket Tours
               </span>
-              <span className="block text-[11px] font-semibold uppercase tracking-[0.24em] text-white/65">
+              <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-white/65">
                 Pakistan, province by province
               </span>
             </span>
@@ -748,6 +938,7 @@ export function SiteHeaderNav({
               type="button"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/20 bg-white/5 text-white shadow-sm transition hover:border-white/35 md:hidden"
               aria-expanded={open}
+              aria-controls="mobile-nav-sheet"
               aria-label={open ? "Close menu" : "Open menu"}
               onClick={() => setOpen((o) => !o)}
             >
@@ -756,79 +947,17 @@ export function SiteHeaderNav({
           </div>
         </div>
 
-        <AnimatePresence>
-          {open ? (
-            <motion.nav
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="overflow-hidden md:hidden"
-              aria-label="Mobile primary"
-            >
-              <div className="mt-3 flex flex-col gap-1 border-t border-white/20 pt-3 pb-1">
-                <SiteSearch variant="inline" className="px-1 pb-2" />
-                <Link
-                  href="/tours"
-                  className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
-                  onClick={() => setOpen(false)}
-                >
-                  <Compass className="h-4 w-4 text-brand-sun transition-colors group-hover:text-brand-forest" />
-                  Tours
-                </Link>
-                <MobileDestinationsAccordion
-                  pathname={pathname}
-                  destinations={indexDestinations}
-                  provinces={provinceNavItems}
-                  expanded={mobileDestOpen}
-                  onToggle={() => setMobileDestOpen((o) => !o)}
-                  onPick={() => {
-                    setOpen(false);
-                    setMobileDestOpen(false);
-                  }}
-                />
-                {links.map(({ href, label, icon: Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
-                    onClick={() => setOpen(false)}
-                  >
-                    <Icon className="h-4 w-4 text-brand-sun transition-colors group-hover:text-brand-forest" />
-                    {label}
-                  </Link>
-                ))}
-                <Link
-                  href="/ai-planner"
-                  className="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold text-amber-400 hover:bg-white/5"
-                  onClick={() => setOpen(false)}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  AI Planner
-                </Link>
-                {liveSession ? (
-                  <div className="mt-2 border-t border-white/15 pt-3">
-                    <p className="px-3 text-xs font-semibold uppercase tracking-wide text-white/50">
-                      Account
-                    </p>
-                    <div className="mt-2 px-3">
-                      <AccountDropdown session={liveSession} align="full" />
-                    </div>
-                  </div>
-                ) : (
-                  <Link
-                    href="/login"
-                    className="group flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold text-white hover:bg-white/10"
-                    onClick={() => setOpen(false)}
-                  >
-                    <LogIn className="h-4 w-4 text-brand-sun transition-colors group-hover:text-brand-forest" />
-                    Log in
-                  </Link>
-                )}
-              </div>
-            </motion.nav>
-          ) : null}
-        </AnimatePresence>
+        <MobileNavSheet
+          open={open}
+          onClose={closeMenu}
+          pathname={pathname}
+          destinations={indexDestinations}
+          provinces={provinceNavItems}
+          mobileDestOpen={mobileDestOpen}
+          setMobileDestOpen={setMobileDestOpen}
+          links={links}
+          session={liveSession}
+        />
       </PageContainer>
     </header>
   );

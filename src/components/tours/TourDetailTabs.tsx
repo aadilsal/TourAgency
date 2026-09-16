@@ -55,8 +55,9 @@ export function TourDetailTabs({
   return (
     <nav
       className={cn(
-        "flex flex-wrap items-center gap-2",
-        "rounded-2xl border border-border bg-background/70 p-2 backdrop-blur-sm",
+        // One swipeable row on phones (wrapping doubled the sticky bar's height).
+        "flex items-center gap-2 overflow-x-auto overscroll-x-contain [scrollbar-width:none] sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden",
+        "rounded-2xl border border-border bg-background/90 p-1.5 backdrop-blur-sm sm:p-2",
         className,
       )}
       aria-label="Tour sections"
@@ -68,7 +69,7 @@ export function TourDetailTabs({
             key={t.id}
             href={`#${t.id}`}
             className={cn(
-              "inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold transition",
+              "inline-flex min-h-11 shrink-0 items-center justify-center whitespace-nowrap rounded-full px-4 text-sm font-semibold transition",
               active
                 ? "bg-brand-cta text-white shadow-sm"
                 : "bg-transparent text-muted hover:bg-panel-elevated hover:text-foreground",

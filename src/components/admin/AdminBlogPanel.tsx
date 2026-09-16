@@ -1,6 +1,8 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useSafePaginatedQuery } from "@/hooks/useSafePaginatedQuery";
+import { QueryErrorBanner } from "@/components/admin/shared/EditorStatus";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import Link from "next/link";
@@ -14,6 +16,10 @@ import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
 import { asBoolean, asString } from "@/lib/bulkUpload/coerce";
 import { importInBatches } from "@/lib/bulkUpload/importInBatches";
+import { useEditorForm } from "@/hooks/useEditorForm";
+import { useLocalDraft } from "@/hooks/useLocalDraft";
+import { confirmDiscard } from "@/hooks/useUnsavedChangesGuard";
+import { DraftRestoreBanner } from "@/components/admin/shared/EditorStatus";
 
 type Post = {
   _id: Id<"blogPosts">;
@@ -26,13 +32,37 @@ type Post = {
   createdAt: number;
 };
 
+type PostForm = {
+  title: string;
+  slug: string;
+  content: string;
+  metaTitle: string;
+  metaDescription: string;
+  published: boolean;
+};
+
+const EMPTY_POST: PostForm = {
+  title: "",
+  slug: "",
+  content: "",
+  metaTitle: "",
+  metaDescription: "",
+  published: false,
+};
+
+const PAGE_SIZE = 50;
+
+function slugFromTitle(title: string) {
+  return title.trim().toLowerCase().replace(/\s+/g, "-");
+}
+
 export function AdminBlogPanel() {
   const sessionToken = useConvexSessionToken();
-  const posts = useQuery(
-    api.blog.getPosts,
-    sessionToken
-      ? { includeDrafts: true, sessionToken }
-      : { includeDrafts: false },
+  const canQuery = typeof sessionToken === "string";
+  const { results, status, loadMore, error: listError } = useSafePaginatedQuery(
+    api.blog.listAdminPage,
+    canQuery ? { sessionToken } : "skip",
+    { initialNumItems: PAGE_SIZE },
   );
   const createPost = useMutation(api.blog.createPost);
   const deletePost = useMutation(api.blog.deletePost);
@@ -42,38 +72,45 @@ export function AdminBlogPanel() {
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<Id<"blogPosts"> | null>(null);
-  const [title, setTitle] = useState("");
-  const [slug, setSlug] = useState("");
-  const [content, setContent] = useState("");
-  const [metaTitle, setMetaTitle] = useState("");
-  const [metaDescription, setMetaDescription] = useState("");
-  const [published, setPublished] = useState(false);
+  const form = useEditorForm<PostForm>(EMPTY_POST);
+  const { values, setField, dirty } = form;
   const [err, setErr] = useState<string | null>(null);
+  const [listErr, setListErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
 
+  // Crash-proof backup of the long-form editor while it holds unsaved edits.
+  const draft = useLocalDraft<PostForm>(
+    editorOpen ? `draft:blog:${editingId ?? "new"}` : null,
+    values,
+    editorOpen && dirty,
+  );
+
   function openNew() {
     setEditingId(null);
-    setTitle("");
-    setSlug("");
-    setContent("");
-    setMetaTitle("");
-    setMetaDescription("");
-    setPublished(false);
+    form.reset(EMPTY_POST);
     setErr(null);
     setEditorOpen(true);
   }
 
   function openEdit(p: Post) {
     setEditingId(p._id);
-    setTitle(p.title);
-    setSlug(p.slug);
-    setContent(p.content);
-    setMetaTitle(p.metaTitle ?? "");
-    setMetaDescription(p.metaDescription ?? "");
-    setPublished(p.published);
+    form.reset({
+      title: p.title,
+      slug: p.slug,
+      content: p.content,
+      metaTitle: p.metaTitle ?? "",
+      metaDescription: p.metaDescription ?? "",
+      published: p.published,
+    });
     setErr(null);
     setEditorOpen(true);
+  }
+
+  /** Called after the Modal has already confirmed a dirty discard. */
+  function closeEditor() {
+    if (dirty) draft.clear();
+    setEditorOpen(false);
   }
 
   useEffect(() => {
@@ -90,41 +127,42 @@ export function AdminBlogPanel() {
 
   /** These used to be fire-and-forget: failures now surface in the panel. */
   async function togglePublished(postId: Id<"blogPosts">, published: boolean) {
-    setErr(null);
+    setListErr(null);
     if (typeof sessionToken !== "string") {
-      setErr("Session expired — refresh and sign in again.");
+      setListErr("Session expired — refresh and sign in again.");
       return;
     }
     try {
       await updatePost({ sessionToken, postId, published });
     } catch (e) {
-      setErr(toUserFacingErrorMessage(e));
+      setListErr(toUserFacingErrorMessage(e));
     }
   }
 
   async function removePost(postId: Id<"blogPosts">) {
-    setErr(null);
+    setListErr(null);
     if (typeof sessionToken !== "string") {
-      setErr("Session expired — refresh and sign in again.");
+      setListErr("Session expired — refresh and sign in again.");
       return;
     }
     try {
       await deletePost({ sessionToken, postId });
     } catch (e) {
-      setErr(toUserFacingErrorMessage(e));
+      setListErr(toUserFacingErrorMessage(e));
     }
   }
 
   async function runSeedPosts() {
-    setErr(null);
+    setListErr(null);
     if (typeof sessionToken !== "string") {
-      setErr("Session expired — refresh and sign in again.");
+      setListErr("Session expired — refresh and sign in again.");
       return;
     }
     try {
-      await seedPosts({ sessionToken });
+      const r = await seedPosts({ sessionToken });
+      if (r.skipped) setListErr("Sample posts are only added when the blog is empty.");
     } catch (e) {
-      setErr(toUserFacingErrorMessage(e));
+      setListErr(toUserFacingErrorMessage(e));
     }
   }
 
@@ -132,7 +170,12 @@ export function AdminBlogPanel() {
     e.preventDefault();
     setErr(null);
     if (typeof sessionToken !== "string") {
-      setErr("Session expired — refresh and sign in again.");
+      setErr("Session expired — your edits are backed up on this device. Sign in again, then save.");
+      return;
+    }
+    const slug = values.slug.trim() || slugFromTitle(values.title);
+    if (!slug) {
+      setErr("Add a title or slug.");
       return;
     }
     setSaving(true);
@@ -141,24 +184,27 @@ export function AdminBlogPanel() {
         await updatePost({
           sessionToken,
           postId: editingId,
-          title,
-          slug: slug || title.toLowerCase().replace(/\s+/g, "-"),
-          content,
-          metaTitle: metaTitle.trim() || undefined,
-          metaDescription: metaDescription.trim() || undefined,
-          published,
+          title: values.title,
+          slug,
+          content: values.content,
+          // Blank = clear (null). Previously a blank meta field could never be removed.
+          metaTitle: values.metaTitle.trim() || null,
+          metaDescription: values.metaDescription.trim() || null,
+          published: values.published,
         });
       } else {
         await createPost({
           sessionToken,
-          title,
-          slug: slug || title.toLowerCase().replace(/\s+/g, "-"),
-          content,
-          metaTitle: metaTitle.trim() || undefined,
-          metaDescription: metaDescription.trim() || undefined,
-          published,
+          title: values.title,
+          slug,
+          content: values.content,
+          metaTitle: values.metaTitle.trim() || undefined,
+          metaDescription: values.metaDescription.trim() || undefined,
+          published: values.published,
         });
       }
+      draft.clear();
+      form.markSaved();
       setEditorOpen(false);
     } catch (er) {
       setErr(toUserFacingErrorMessage(er));
@@ -167,14 +213,23 @@ export function AdminBlogPanel() {
     }
   }
 
-  if (posts === undefined) {
+  if (!canQuery) {
+    return (
+      <p className="text-sm text-brand-muted">
+        {sessionToken === undefined ? "Loading…" : "You need an admin session."}
+      </p>
+    );
+  }
+
+  if (status === "LoadingFirstPage") {
     return <p className="text-sm text-brand-muted">Loading…</p>;
   }
 
-  const list = posts as Post[];
+  const list = results as Post[];
 
   return (
     <div className="space-y-6">
+      <QueryErrorBanner error={listError} />
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="primary" onClick={openNew}>
           <Plus className="h-4 w-4" aria-hidden />
@@ -190,6 +245,12 @@ export function AdminBlogPanel() {
           Editor supports long-form content; Cmd/Ctrl+Enter saves from the modal.
         </p>
       </div>
+
+      {listErr ? (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
+          {listErr}
+        </p>
+      ) : null}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
         <table className="min-w-[640px] w-full text-left text-sm">
@@ -272,7 +333,7 @@ export function AdminBlogPanel() {
                       type="button"
                       className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
                       onClick={() => {
-                        if (confirm("Delete this post?")) {
+                        if (confirm(`Delete "${p.title}"? This cannot be undone.`)) {
                           void removePost(p._id);
                         }
                       }}
@@ -291,14 +352,38 @@ export function AdminBlogPanel() {
         ) : null}
       </div>
 
+      {status !== "Exhausted" ? (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={status !== "CanLoadMore"}
+            onClick={() => loadMore(PAGE_SIZE)}
+          >
+            {status === "LoadingMore" ? "Loading…" : "Load more posts"}
+          </Button>
+        </div>
+      ) : null}
+
       <Modal
         open={editorOpen}
-        onClose={() => setEditorOpen(false)}
+        onClose={closeEditor}
+        confirmClose={dirty}
         title={editingId ? "Edit post" : "New post"}
         description="Write in the large editor below. Toggle publish when ready."
         panelClassName="max-w-3xl"
       >
         <form onSubmit={onSave} className="space-y-3">
+          {draft.restorable && !dirty ? (
+            <DraftRestoreBanner
+              savedAt={draft.restorable.savedAt}
+              onRestore={() => {
+                form.setValues(draft.restorable!.data);
+                draft.dismiss();
+              }}
+              onDiscard={draft.clear}
+            />
+          ) : null}
           {err ? (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
               {err}
@@ -310,8 +395,8 @@ export function AdminBlogPanel() {
               <input
                 required
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                value={values.title}
+                onChange={(e) => setField("title", e.target.value)}
               />
             </label>
             <label className="block text-xs font-semibold text-slate-600">
@@ -319,8 +404,8 @@ export function AdminBlogPanel() {
               <input
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 placeholder="auto from title"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value)}
+                value={values.slug}
+                onChange={(e) => setField("slug", e.target.value)}
               />
             </label>
           </div>
@@ -330,8 +415,8 @@ export function AdminBlogPanel() {
               required
               rows={14}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-sm leading-relaxed"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
+              value={values.content}
+              onChange={(e) => setField("content", e.target.value)}
             />
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -339,16 +424,16 @@ export function AdminBlogPanel() {
               Meta title (SEO)
               <input
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={metaTitle}
-                onChange={(e) => setMetaTitle(e.target.value)}
+                value={values.metaTitle}
+                onChange={(e) => setField("metaTitle", e.target.value)}
               />
             </label>
             <label className="block text-xs font-semibold text-slate-600">
               Meta description
               <input
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={metaDescription}
-                onChange={(e) => setMetaDescription(e.target.value)}
+                value={values.metaDescription}
+                onChange={(e) => setField("metaDescription", e.target.value)}
               />
             </label>
           </div>
@@ -365,16 +450,16 @@ export function AdminBlogPanel() {
               type="button"
               className={cn(
                 "relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                published ? "bg-emerald-500" : "bg-slate-300",
+                values.published ? "bg-emerald-500" : "bg-slate-300",
               )}
               role="switch"
-              aria-checked={published}
-              onClick={() => setPublished(!published)}
+              aria-checked={values.published}
+              onClick={() => setField("published", !values.published)}
             >
               <span
                 className={cn(
                   "pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow transition",
-                  published ? "translate-x-6" : "translate-x-0.5",
+                  values.published ? "translate-x-6" : "translate-x-0.5",
                 )}
               />
             </button>
@@ -386,7 +471,9 @@ export function AdminBlogPanel() {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setEditorOpen(false)}
+              onClick={() => {
+                if (confirmDiscard(dirty)) closeEditor();
+              }}
             >
               Cancel
             </Button>
@@ -398,7 +485,7 @@ export function AdminBlogPanel() {
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
         title="Bulk upload blog posts"
-        description="Upload a .json or .xlsx file. Rows are upserted by slug."
+        description="Upload a .json or .xlsx file. Rows are upserted by slug. Blank meta cells keep the existing SEO text."
         templateHint={
           <div className="space-y-1">
             <p className="font-semibold">Columns / keys</p>

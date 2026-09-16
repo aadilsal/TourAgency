@@ -3,7 +3,12 @@
 import useEmblaCarousel from "embla-carousel-react";
 import { useCallback, useEffect, useState, Children } from "react";
 import { useReducedMotion } from "framer-motion";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
+
+/** 44px square arrow buttons (WCAG 2.5.8 / Apple HIG touch target). */
+const arrowBase =
+  "inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-white text-foreground shadow-sm transition hover:bg-havezic-background-light focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-havezic-primary disabled:cursor-not-allowed disabled:opacity-40";
 
 type Props = {
   children: React.ReactNode;
@@ -16,6 +21,8 @@ type Props = {
   loop?: boolean;
   arrowsClassName?: string;
   arrowButtonClassName?: string;
+  /** Used in arrow labels, e.g. "Next slide" / "Next tour". */
+  itemLabel?: string;
 };
 
 export function EmblaRow({
@@ -28,6 +35,7 @@ export function EmblaRow({
   loop = false,
   arrowsClassName,
   arrowButtonClassName,
+  itemLabel = "slide",
 }: Props) {
   const reduce = useReducedMotion();
   const [emblaRef, emblaApi] = useEmblaCarousel({
@@ -104,27 +112,21 @@ export function EmblaRow({
         <div className={cn("mt-6 flex justify-end gap-2", arrowsClassName)}>
           <button
             type="button"
-            aria-label="Previous"
+            aria-label={`Previous ${itemLabel}`}
             disabled={prevDisabled}
             onClick={scrollPrev}
-            className={cn(
-              "rounded-xl border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-havezic-background-light disabled:opacity-40",
-              arrowButtonClassName,
-            )}
+            className={cn(arrowBase, arrowButtonClassName)}
           >
-            ←
+            <ChevronLeft className="h-5 w-5" aria-hidden />
           </button>
           <button
             type="button"
-            aria-label="Next"
+            aria-label={`Next ${itemLabel}`}
             disabled={nextDisabled}
             onClick={scrollNext}
-            className={cn(
-              "rounded-xl border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground shadow-sm transition hover:bg-havezic-background-light disabled:opacity-40",
-              arrowButtonClassName,
-            )}
+            className={cn(arrowBase, arrowButtonClassName)}
           >
-            →
+            <ChevronRight className="h-5 w-5" aria-hidden />
           </button>
         </div>
       ) : null}

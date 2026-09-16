@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useMutation, usePaginatedQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { useSafePaginatedQuery } from "@/hooks/useSafePaginatedQuery";
+import { QueryErrorBanner } from "@/components/admin/shared/EditorStatus";
+import {
+  useAdminListSearch,
+  useDebouncedValue,
+} from "@/components/admin/itinerary/useAdminListSearch";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { ButtonLink } from "@/components/ui/Button";
@@ -15,6 +21,7 @@ import { PopoverMenu } from "@/components/ui/PopoverMenu";
 
 type Row = {
   _id: Id<"invoices">;
+  invoiceNumber?: string;
   clientName: string;
   itineraryId?: Id<"itineraries">;
   invoiceDate: string;
@@ -45,24 +52,31 @@ export function AdminInvoicesTable() {
   const markPaid = useMutation(api.invoices.markPaid);
   const markDraft = useMutation(api.invoices.markDraft);
 
-  const { results, status, loadMore } = usePaginatedQuery(
+  const { results, status, loadMore, error: listError } = useSafePaginatedQuery(
     api.invoices.listForAdmin,
     canQuery ? { sessionToken } : "skip",
     { initialNumItems: 50 },
   );
 
-  const list = useMemo(() => {
-    const all = (results ?? []) as Row[];
-    const needle = q.trim().toLowerCase();
-    const filtered =
-      needle.length === 0
-        ? all
-        : all.filter((r) => {
-            const hay = `${r.clientName}\n${r.currency}\n${r.status}\n${r.invoiceDate}`.toLowerCase();
-            return hay.includes(needle);
-          });
-    return filtered;
-  }, [results, q]);
+  const searchTerm = useDebouncedValue(q.trim(), 300);
+  const serverResults = useQuery(
+    api.invoices.searchForAdmin,
+    canQuery && searchTerm ? { sessionToken, search: searchTerm } : "skip",
+  ) as Row[] | undefined;
+  const loaded = useMemo(() => (results ?? []) as Row[], [results]);
+  const { rows: list, searching, pending: searchPending } = useAdminListSearch({
+    loaded,
+    serverResults,
+    term: searchTerm,
+    haystack: (r) =>
+      `${r.invoiceNumber ?? ""}\n${r.clientName}\n${r.currency}\n${r.status}\n${r.invoiceDate}`,
+  });
+
+  const emptyLabel = searching
+    ? searchPending
+      ? "Searching all invoices…"
+      : `No invoices match “${searchTerm}”.`
+    : "No invoices yet.";
 
   if (!canQuery) {
     return (
@@ -80,6 +94,7 @@ export function AdminInvoicesTable() {
 
   return (
     <div className="space-y-4">
+      <QueryErrorBanner error={listError} />
       {msg ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           {msg}
@@ -88,7 +103,7 @@ export function AdminInvoicesTable() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="w-full max-w-md">
           <TextInput
-            placeholder="Search client, status, date…"
+            placeholder="Search all invoices by client or invoice number…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -102,7 +117,7 @@ export function AdminInvoicesTable() {
       <div className="grid gap-3 md:hidden">
         {list.length === 0 ? (
           <Card className="p-5">
-            <p className="text-sm text-muted">No invoices yet.</p>
+            <p className="text-sm text-muted">{emptyLabel}</p>
           </Card>
         ) : (
           list.map((r) => (
@@ -113,6 +128,7 @@ export function AdminInvoicesTable() {
                     {r.clientName || "—"}
                   </p>
                   <p className="mt-1 text-xs text-muted">
+                    {r.invoiceNumber ? `${r.invoiceNumber} · ` : ""}
                     {r.invoiceDate} · {r.currency}
                     {r.itineraryId ? " · Linked itinerary" : ""}
                   </p>
@@ -213,6 +229,9 @@ export function AdminInvoicesTable() {
               <tr key={r._id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3 font-semibold text-foreground">
                   {r.clientName || "—"}
+                  {r.invoiceNumber ? (
+                    <span className="mt-0.5 block text-xs font-normal text-muted">{r.invoiceNumber}</span>
+                  ) : null}
                   {r.itineraryId ? (
                     <Link
                       href={`/admin/itineraries/${r.itineraryId}`}
@@ -301,7 +320,7 @@ export function AdminInvoicesTable() {
             ))}
           </tbody>
         </table>
-        {list.length === 0 ? <p className="p-6 text-sm text-muted">No invoices yet.</p> : null}
+        {list.length === 0 ? <p className="p-6 text-sm text-muted">{emptyLabel}</p> : null}
       </Card>
 
       <div className="flex justify-center">

@@ -1,3 +1,4 @@
+import type { PerHeadPrice } from "@/lib/tourPricing";
 import { getConvexServer } from "@/lib/convex-server";
 import { api } from "@convex/_generated/api";
 import {
@@ -53,6 +54,9 @@ export type ProvinceGuidePageData = {
     title: string;
     description: string;
     price: number;
+    pricePkr?: number;
+    priceUsd?: number;
+    perHeadPrices?: PerHeadPrice[];
     durationDays: number;
     location: string;
     images: string[];
@@ -158,6 +162,9 @@ export async function loadProvinceGuidePageData(
       title: string;
       description: string;
       price: number;
+      pricePkr?: number;
+      priceUsd?: number;
+      perHeadPrices?: PerHeadPrice[];
       durationDays: number;
       location: string;
       images: string[];
@@ -170,6 +177,9 @@ export async function loadProvinceGuidePageData(
         title: t.title,
         description: t.description,
         price: t.price,
+        pricePkr: t.pricePkr,
+        priceUsd: t.priceUsd,
+        perHeadPrices: t.perHeadPrices ?? [],
         durationDays: t.durationDays,
         location: t.location,
         images: t.images,

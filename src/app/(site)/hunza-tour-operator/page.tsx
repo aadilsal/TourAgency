@@ -4,21 +4,15 @@ import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
-import { getSiteUrl } from "@/lib/site";
+import { buildMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Hunza tour operator",
+export const metadata: Metadata = buildMetadata({
+  title: "Hunza Tour Operator: Itineraries & Costs",
   description:
-    "Choose a Hunza tour operator with clear itineraries, transparent costs, and responsive support. Book Hunza tours with JunketTours or request a custom plan.",
-  alternates: { canonical: "/hunza-tour-operator" },
-  openGraph: {
-    title: "Hunza tour operator | JunketTours",
-    description:
-      "How to choose a Hunza tour operator (itinerary, pricing, hotels, routing) + how JunketTours helps you book Hunza trips confidently.",
-    url: `${getSiteUrl()}/hunza-tour-operator`,
-    type: "article",
-  },
-};
+    "Choose a Hunza tour operator with clear itineraries, transparent costs and responsive support. Book a Hunza Valley tour with JunketTours or request a custom plan.",
+  path: "/hunza-tour-operator",
+  type: "article",
+});
 
 const faqs = [
   {

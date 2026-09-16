@@ -4,7 +4,12 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { COUNTRIES } from "@/lib/countries";
-import { FieldLabel, FieldError } from "@/components/ui/FormField";
+import {
+  FieldLabel,
+  FieldError,
+  fieldErrorId,
+  nativeFieldErrorProps,
+} from "@/components/ui/FormField";
 
 type Props = {
   id?: string;
@@ -104,8 +109,10 @@ export function CountrySelect({
       </FieldLabel>
       <div
         className={cn(
-          "relative mt-1 flex w-full items-center rounded-xl border border-slate-200/90 bg-white/95 shadow-sm transition-[box-shadow,border-color] focus-within:border-brand-accent/50 focus-within:ring-2 focus-within:ring-brand-accent/20",
-          error && "border-red-300 focus-within:ring-red-200",
+          "relative mt-1 flex w-full items-center rounded-xl border bg-white/95 shadow-sm transition-[box-shadow,border-color] focus-within:ring-2",
+          error
+            ? "border-red-500 focus-within:border-red-500 focus-within:ring-red-200"
+            : "border-slate-200/90 focus-within:border-brand-accent/50 focus-within:ring-brand-accent/20",
           disabled && "opacity-60",
         )}
       >
@@ -117,6 +124,7 @@ export function CountrySelect({
           aria-expanded={open}
           aria-controls={listboxId}
           aria-autocomplete="list"
+          {...nativeFieldErrorProps(inputId, error)}
           aria-activedescendant={
             open && filtered[activeIndex]
               ? `${inputId}-opt-${filtered[activeIndex].code}`
@@ -182,7 +190,7 @@ export function CountrySelect({
           No countries found
         </div>
       ) : null}
-      <FieldError>{error}</FieldError>
+      <FieldError id={fieldErrorId(inputId)}>{error}</FieldError>
     </div>
   );
 }

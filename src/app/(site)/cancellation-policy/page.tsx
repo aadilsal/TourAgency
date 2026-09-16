@@ -1,16 +1,18 @@
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+import { BUSINESS } from "@/config/business";
 import Link from "next/link";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Cancellation & Refund Policy",
   description:
-    "How trip cancellations, changes, and refunds work when you book a tour with JunketTours.",
-  alternates: { canonical: "/cancellation-policy" },
-};
+    "How cancellations, date changes and refunds work for JunketTours trips in Pakistan — refund tiers, non-refundable items and how to request a refund.",
+  path: "/cancellation-policy",
+});
 
 export default function CancellationPolicyPage() {
   return (
@@ -43,12 +45,15 @@ export default function CancellationPolicyPage() {
             <h2 className="text-lg font-bold text-foreground">If you need to cancel</h2>
             <ul className="mt-3 list-inside list-disc space-y-2 text-sm leading-relaxed text-muted">
               <li><span className="font-semibold text-foreground">30+ days before departure:</span> full refund of amounts paid, less any bank transfer charges.</li>
-              <li><span className="font-semibold text-foreground">15–29 days before departure:</span> 50% of amounts paid is refunded.</li>
-              <li><span className="font-semibold text-foreground">Less than 14 days before departure, or no-show:</span> non-refundable, as hotels, transport, and guides are typically already booked and paid on your behalf.</li>
+              <li><span className="font-semibold text-foreground">14–29 days before departure:</span> 50% of amounts paid is refunded.</li>
+              <li><span className="font-semibold text-foreground">13 days or less before departure, or no-show:</span> non-refundable, as hotels, transport, and guides are typically already booked and paid on your behalf.</li>
             </ul>
             <p className="mt-3 text-sm leading-relaxed text-muted">
               These tiers are our general default — your invoice or booking confirmation
               always states the exact terms for your trip, and those written terms apply.
+              Refunds are made in the currency you paid in. We strongly recommend travel
+              insurance with cancellation cover, as it can reimburse non-refundable costs
+              (for example if illness prevents you travelling).
             </p>
           </Card>
 
@@ -74,7 +79,7 @@ export default function CancellationPolicyPage() {
           <Card className="p-6 md:p-8">
             <h2 className="text-lg font-bold text-foreground">How to request a cancellation or refund</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted">
-              Message us on WhatsApp or email using the details on our{" "}
+              Email {BUSINESS.email}, message us on WhatsApp ({BUSINESS.phoneDisplay}), or use the details on our{" "}
               <Link href="/contact" className="font-semibold text-havezic-primary hover:underline">
                 contact page
               </Link>

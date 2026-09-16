@@ -129,6 +129,32 @@ export const updateProfile = mutation({
   },
 });
 
+/**
+ * Sliding session renewal. Called by the browser while someone is actively
+ * using the site so a fixed 14-day expiry can never log an admin out in the
+ * middle of editing. Renews at most once per hour to avoid write churn.
+ */
+export const renewSession = mutation({
+  args: { token: v.string() },
+  handler: async (ctx, { token }) => {
+    const tokenHash = await hashSessionToken(token);
+    const session = await ctx.db
+      .query("sessions")
+      .withIndex("by_token_hash", (q) => q.eq("tokenHash", tokenHash))
+      .unique();
+    const now = Date.now();
+    if (!session || session.expiresAt < now) return null;
+    const user = await ctx.db.get(session.userId);
+    if (!user) return null;
+    const RENEW_EVERY_MS = 1000 * 60 * 60;
+    if (session.expiresAt < now + SESSION_MS - RENEW_EVERY_MS) {
+      await ctx.db.patch(session._id, { expiresAt: now + SESSION_MS });
+      return { expiresAt: now + SESSION_MS, role: user.role };
+    }
+    return { expiresAt: session.expiresAt, role: user.role };
+  },
+});
+
 export const sessionTtlMs = query({
   args: {},
   handler: async () => SESSION_MS,

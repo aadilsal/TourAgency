@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import { mutation, query } from "./_generated/server.js";
 import { requireUserFromSession } from "./lib/authHelpers.js";
 import type { Doc, Id } from "./_generated/dataModel.js";
@@ -12,6 +13,9 @@ function assertAdminFromSession(
 }
 
 const DEFAULT_CATEGORY = "General Travel FAQs";
+
+/** Upper bound for full-table reads in mutations; exceeding it fails loudly instead of silently skipping rows. */
+const MAX_FAQS = 5000;
 
 function normalizeCategory(category: string | undefined) {
   const c = (category ?? "").trim();
@@ -54,6 +58,20 @@ export const listAdmin = query({
   },
 });
 
+/** Admin list in display (sort) order, paginated so nothing silently drops off. */
+export const listAdminPage = query({
+  args: { sessionToken: v.string(), paginationOpts: paginationOptsValidator },
+  handler: async (ctx, { sessionToken, paginationOpts }) => {
+    const user = await requireUserFromSession(ctx, sessionToken);
+    assertAdminFromSession(user);
+    return await ctx.db
+      .query("faqs")
+      .withIndex("by_sort_order")
+      .order("asc")
+      .paginate(paginationOpts);
+  },
+});
+
 export const upsert = mutation({
   args: {
     sessionToken: v.string(),
@@ -68,13 +86,18 @@ export const upsert = mutation({
     const user = await requireUserFromSession(ctx, sessionToken);
     assertAdminFromSession(user);
     const now = Date.now();
+    if (!args.question.trim()) throw new Error("Question can't be empty");
+    if (!args.answer.trim()) throw new Error("Answer can't be empty");
 
     const patch: Partial<Omit<Doc<"faqs">, "_id" | "_creationTime">> = {
       question: args.question.trim(),
       answer: args.answer.trim(),
-      category: normalizeCategory(args.category),
       updatedAt: now,
     };
+    // An omitted category leaves the existing one alone on update.
+    if (args.category !== undefined || !faqId) {
+      patch.category = normalizeCategory(args.category);
+    }
 
     if (args.sortOrder !== undefined) patch.sortOrder = args.sortOrder;
     if (args.isActive !== undefined) patch.isActive = args.isActive;
@@ -294,7 +317,11 @@ export const bulkUpsert = mutation({
       .query("faqs")
       .withIndex("by_sort_order", (q) => q)
       .order("asc")
-      .take(500);
+      .take(MAX_FAQS + 1);
+    if (existing.length > MAX_FAQS) {
+      // Matching against a partial list would create duplicates instead of updating.
+      throw new Error(`Too many FAQs (> ${MAX_FAQS}) to match safely; import aborted.`);
+    }
     const keyToId = new Map<string, Id<"faqs">>();
     for (const r of existing) {
       keyToId.set(`${r.category}::${r.question}`.toLowerCase(), r._id);
@@ -317,14 +344,17 @@ export const bulkUpsert = mutation({
 
         const targetId = row.faqId ?? keyToId.get(key);
         if (targetId) {
-          await ctx.db.patch(targetId, {
+          // Only write keys that carry a value: patching `undefined` onto the
+          // required sortOrder/isActive fields used to fail every update silently.
+          const patch: Partial<Omit<Doc<"faqs">, "_id" | "_creationTime">> = {
             question,
             answer,
-            category,
-            sortOrder: row.sortOrder ?? undefined,
-            isActive: row.isActive ?? undefined,
             updatedAt: now + i,
-          });
+          };
+          if (row.category?.trim()) patch.category = category;
+          if (row.sortOrder !== undefined) patch.sortOrder = row.sortOrder;
+          if (row.isActive !== undefined) patch.isActive = row.isActive;
+          await ctx.db.patch(targetId, patch);
           updated++;
           continue;
         }

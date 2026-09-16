@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
-import type { Id } from "./_generated/dataModel.js";
+import type { Doc, Id } from "./_generated/dataModel.js";
 import { requireUserFromSession } from "./lib/authHelpers.js";
 
 function assertAdminFromSession(
@@ -12,6 +12,18 @@ function assertAdminFromSession(
 }
 
 const KEY = "default";
+const MAX_PARTNERS = 20;
+
+type Partner = Doc<"aboutPageSettings">["partners"][number];
+
+function newPartnerId(): string {
+  return `p_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Gives every partner a stable id (backfill-on-write for legacy rows). */
+function withPartnerIds(partners: Partner[]): Partner[] {
+  return partners.map((p) => (p.id ? p : { ...p, id: newPartnerId() }));
+}
 
 function trimLines(text: string): string[] {
   return text
@@ -203,22 +215,35 @@ export const addPartner = mutation({
       throw new Error("About page settings not initialized yet. Save content first.");
     }
 
-    const next = [
-      ...row.partners,
-      {
-        name: name.trim() || "Partner",
-        logoStorageId,
-        logoExternalUrl: logoExternalUrl?.trim() || undefined,
-      },
-    ].slice(0, 20);
+    if (row.partners.length >= MAX_PARTNERS) {
+      // Previously the new partner was silently dropped by `.slice(0, 20)`.
+      throw new Error(`You can show at most ${MAX_PARTNERS} partners. Remove one first.`);
+    }
+    const externalUrl = logoExternalUrl?.trim();
+    const partner: Partner = {
+      id: newPartnerId(),
+      name: name.trim() || "Partner",
+      ...(logoStorageId ? { logoStorageId } : {}),
+      ...(externalUrl ? { logoExternalUrl: externalUrl } : {}),
+    };
+    const next = [...withPartnerIds(row.partners), partner];
 
     await ctx.db.patch(row._id, { partners: next, updatedAt: Date.now() });
+    return partner.id;
   },
 });
 
 export const removePartner = mutation({
-  args: { sessionToken: v.string(), index: v.number() },
-  handler: async (ctx, { sessionToken, index }) => {
+  args: {
+    sessionToken: v.string(),
+    /** Preferred: the partner's stable id. */
+    partnerId: v.optional(v.string()),
+    /** Legacy positional removal (older clients). */
+    index: v.optional(v.number()),
+    /** With `index`: only remove if the partner at that position still has this name. */
+    expectedName: v.optional(v.string()),
+  },
+  handler: async (ctx, { sessionToken, partnerId, index, expectedName }) => {
     const user = await requireUserFromSession(ctx, sessionToken);
     assertAdminFromSession(user);
 
@@ -227,9 +252,22 @@ export const removePartner = mutation({
       .withIndex("by_key", (q) => q.eq("key", KEY))
       .unique();
     if (!row) return;
-    const i = Math.floor(index);
-    if (i < 0 || i >= row.partners.length) return;
-    const next = row.partners.filter((_, idx) => idx !== i);
+
+    let target = -1;
+    if (partnerId) {
+      target = row.partners.findIndex((p) => p.id === partnerId);
+      if (target < 0) return; // already removed
+    } else if (index !== undefined) {
+      const i = Math.floor(index);
+      if (i < 0 || i >= row.partners.length) return;
+      if (expectedName !== undefined && row.partners[i]!.name !== expectedName) {
+        throw new Error("The partner list changed. Refresh the page and try again.");
+      }
+      target = i;
+    } else {
+      throw new Error("partnerId or index is required");
+    }
+    const next = withPartnerIds(row.partners.filter((_, idx) => idx !== target));
     await ctx.db.patch(row._id, { partners: next, updatedAt: Date.now() });
   },
 });

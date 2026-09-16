@@ -4,8 +4,9 @@ import { DashboardLayoutClient } from "@/components/DashboardLayoutClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Dashboard",
-  robots: { index: false, follow: false },
+  title: "My Dashboard",
+  description: "Manage your JunketTours bookings, trip requests and profile.",
+  robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
 };
 
 export default async function DashboardLayout({

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import {
@@ -16,7 +16,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
-import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { StatusSelect } from "@/components/admin/shared/StatusSelect";
 
 type Props = {
   role: "admin" | "super_admin";
@@ -40,13 +40,7 @@ function formatWhen(ts: number) {
   }
 }
 
-function statusBadgeClass(status: string) {
-  if (status === "confirmed")
-    return "bg-emerald-100 text-emerald-800 ring-emerald-200";
-  if (status === "pending") return "bg-amber-100 text-amber-900 ring-amber-200";
-  if (status === "cancelled") return "bg-rose-100 text-rose-800 ring-rose-200";
-  return "bg-slate-100 text-slate-700 ring-slate-200";
-}
+const BOOKING_STATUSES = ["pending", "confirmed", "cancelled"] as const;
 
 export function AdminDashboardClient({ role }: Props) {
   const sessionToken = useConvexSessionToken();
@@ -61,24 +55,17 @@ export function AdminDashboardClient({ role }: Props) {
       : "skip",
   );
   const updateStatus = useMutation(api.bookings.updateBookingStatus);
-  const [statusError, setStatusError] = useState<string | null>(null);
 
-  /** Surfaces failures: a dropped status change used to fail silently. */
+  /** Throws on failure so StatusSelect reverts and shows the error inline. */
   async function setBookingStatus(
     kind: "user" | "guest",
     id: string,
-    status: "pending" | "confirmed" | "cancelled",
+    status: (typeof BOOKING_STATUSES)[number],
   ) {
-    setStatusError(null);
     if (typeof sessionToken !== "string") {
-      setStatusError("Session expired — refresh and sign in again.");
-      return;
+      throw new Error("Session expired — refresh and sign in again.");
     }
-    try {
-      await updateStatus({ sessionToken, kind, id, status });
-    } catch (e) {
-      setStatusError(toUserFacingErrorMessage(e));
-    }
+    await updateStatus({ sessionToken, kind, id, status });
   }
 
   const kpis = snap?.kpis;
@@ -100,11 +87,6 @@ export function AdminDashboardClient({ role }: Props) {
 
   return (
     <div className="space-y-8">
-      {statusError ? (
-        <div className="rounded-xl border border-red-500/40 bg-red-500/10 p-3 text-sm font-medium text-red-700">
-          {statusError}
-        </div>
-      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">{snap.windowLabel}</p>
         <div className="flex flex-wrap gap-2">
@@ -116,6 +98,11 @@ export function AdminDashboardClient({ role }: Props) {
           <Link href="/admin/contact">
             <Button type="button" variant="secondary" className="!px-3 !py-2 !text-xs">
               View leads
+            </Button>
+          </Link>
+          <Link href="/admin/custom-itineraries">
+            <Button type="button" variant="secondary" className="!px-3 !py-2 !text-xs">
+              Trip requests
             </Button>
           </Link>
           <Link href="/admin/visa-invitations">
@@ -247,30 +234,12 @@ export function AdminDashboardClient({ role }: Props) {
                     {b.kind === "guest" ? "Guest" : "Member"}
                   </span>
 
-                  <select
-                    className={cn(
-                      "cursor-pointer appearance-none rounded-full border-0 bg-[length:0.75rem] bg-[right_0.65rem_center] bg-no-repeat py-2 pl-3 pr-7 text-xs font-bold capitalize shadow-sm ring-2 ring-inset focus:outline-none focus:ring-2 focus:ring-brand-primary/35",
-                      statusBadgeClass(b.status),
-                    )}
-                    style={{
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23334155'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
-                    }}
+                  <StatusSelect
                     value={b.status}
-                    aria-label={`Set status for ${b.name}`}
-                    onChange={(e) => {
-                      void setBookingStatus(
-                        b.kind,
-                        b.id,
-                        e.target.value as "pending" | "confirmed" | "cancelled",
-                      );
-                    }}
-                  >
-                    {["pending", "confirmed", "cancelled"].map((s) => (
-                      <option key={s} value={s} className="bg-white text-slate-900">
-                        {s}
-                      </option>
-                    ))}
-                  </select>
+                    options={BOOKING_STATUSES}
+                    label={`Set status for ${b.name}`}
+                    onChange={(next) => setBookingStatus(b.kind, b.id, next)}
+                  />
                 </li>
               ))}
             </ul>
@@ -314,7 +283,7 @@ export function AdminDashboardClient({ role }: Props) {
           <Card className="p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-bold text-foreground">Custom plans</p>
+                <p className="text-sm font-bold text-foreground">Trip requests</p>
                 <p className="mt-1 text-xs text-muted">
                   Pending: {kpis?.pendingCustomPlans ?? 0}
                 </p>

@@ -5,6 +5,11 @@ const landingSlugs = [
   "skardu-tour-by-air-vs-road",
   "swat-tour-from-lahore",
   "naran-kaghan-tour-from-lahore",
+  "lahore-heritage-tour-package",
+  "taxila-day-trip-from-islamabad",
+  "multan-heritage-tour",
+  "pakistan-cultural-tour-packages",
+  "swat-buddhist-heritage-trail",
 ];
 
 /** @type {import('next').NextConfig} */
@@ -27,7 +32,38 @@ const nextConfig = {
     }
     return config;
   },
+  async headers() {
+    // Baseline security headers (no CSP yet — GA4, Google Maps embeds, Convex
+    // websockets and Vercel Analytics would all need careful allow-listing;
+    // roll one out in Report-Only mode first).
+    const securityHeaders = [
+      { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      // The site embeds Google Maps (outbound iframes) but is never framed by
+      // other origins; SAMEORIGIN still allows admin self-previews.
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()",
+      },
+    ];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      {
+        // Marketing images rarely change but keep stable filenames, so cache
+        // for a day and serve stale while revalidating for up to a week.
+        source: "/images/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" },
+        ],
+      },
+    ];
+  },
   images: {
+    // AVIF first (≈20–30% smaller than WebP), WebP fallback.
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60 * 24,
     // NOTE: hostname "**" allows next/image to load images from ANY host. This is
     // deliberately permissive so a legacy/admin-entered external image URL can
     // never hard-crash a page again ("hostname not configured"). New images are

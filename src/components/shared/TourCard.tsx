@@ -5,6 +5,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import type { CurrencyCode } from "@/lib/money";
 import {
   formatTourPrice,
+  formatTourPriceSummary,
   getPerHeadOptions,
   tourHasPrice,
   type PerHeadPrice,
@@ -53,7 +54,7 @@ export function TourCard({ tour, badge, className, currency = "USD" }: Props) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={tour.images[0]}
-            alt=""
+            alt={tour.title}
             className="h-full w-full object-cover"
             loading="lazy"
             decoding="async"
@@ -120,7 +121,14 @@ export function TourCard({ tour, badge, className, currency = "USD" }: Props) {
 }
 
 /** Compact card for destination / related tour strips */
-export function TourCardCompact({ tour }: { tour: TourCardData }) {
+export function TourCardCompact({
+  tour,
+  currency = "USD",
+}: {
+  tour: TourCardData;
+  currency?: CurrencyCode;
+}) {
+  const priceLabel = formatTourPriceSummary(tour, currency);
   return (
     <Link
       href={`/tours/${tour.slug}`}
@@ -131,7 +139,7 @@ export function TourCardCompact({ tour }: { tour: TourCardData }) {
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={tour.images[0]}
-            alt=""
+            alt={tour.title}
             className="h-full w-full object-cover transition duration-500 hover:scale-105"
             loading="lazy"
             decoding="async"
@@ -147,6 +155,9 @@ export function TourCardCompact({ tour }: { tour: TourCardData }) {
         <p className="font-semibold text-foreground">{tour.title}</p>
         <p className="mt-1 text-sm font-medium text-havezic-primary">
           {tour.durationDays}d · {tour.location}
+        </p>
+        <p className="mt-2 text-sm font-bold text-foreground">
+          {priceLabel ?? <span className="font-medium text-muted">Price on request</span>}
         </p>
       </div>
     </Link>

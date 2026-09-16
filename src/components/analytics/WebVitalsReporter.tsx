@@ -1,12 +1,7 @@
 "use client";
 
 import { useReportWebVitals } from "next/web-vitals";
-
-type GtagFn = (
-  command: "event",
-  eventName: string,
-  params: Record<string, unknown>,
-) => void;
+import { trackEvent } from "@/lib/analytics";
 
 function sendToAnalytics(metric: {
   id: string;
@@ -17,13 +12,10 @@ function sendToAnalytics(metric: {
   delta: number;
   navigationType: string;
 }) {
-  const gtag = (globalThis as unknown as { gtag?: GtagFn }).gtag;
-  if (!gtag) return;
-
   // GA4 expects integers. Web-vitals recommends scaling CLS by 1000.
   const value = metric.name === "CLS" ? Math.round(metric.value * 1000) : Math.round(metric.value);
 
-  gtag("event", "web_vitals", {
+  trackEvent("web_vitals", {
     event_category: "Web Vitals",
     event_label: metric.name,
     value,

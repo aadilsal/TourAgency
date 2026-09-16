@@ -6,6 +6,16 @@ import { HomeLandingBelowFold } from "@/components/landing/HomeLandingBelowFold"
 import { HomeHero } from "@/components/landing/havezic/HomeHero";
 import type { FeaturedTour } from "@/components/landing/FeaturedToursCarousel";
 import { Suspense } from "react";
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Pakistan Heritage & Culture Tours | JunketTours",
+  absoluteTitle: true,
+  description:
+    "Licensed Lahore tour operator for travellers worldwide. Private heritage, culture & northern-valley tours with English-speaking guides, visa support & USD prices.",
+  path: "/",
+});
 
 // Render fresh on every request so admin edits reflect instantly (no ISR lag).
 export const revalidate = 0;

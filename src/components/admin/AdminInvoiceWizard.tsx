@@ -1,10 +1,21 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
+import type { FunctionArgs } from "convex/server";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
+import { useAutosave } from "@/hooks/useAutosave";
+import { useLocalDraft } from "@/hooks/useLocalDraft";
+import { useSafeQuery } from "@/hooks/useSafeQuery";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import {
+  DraftRestoreBanner,
+  QueryErrorBanner,
+  SaveStatusPill,
+} from "@/components/admin/shared/EditorStatus";
 import { WizardLayout } from "@/components/admin/WizardLayout";
 import {
   FieldHint,
@@ -20,11 +31,17 @@ import { toAbsoluteUrl } from "@/lib/absoluteUrl";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import { InvoicePdf, type InvoicePdfModel } from "@/documents/invoice/InvoicePdf";
+import type { PackageTier } from "@/lib/itineraryPackageMatrix";
+import { normalizePackageTier } from "@/components/admin/itinerary/itineraryModel";
 
 type Currency = "PKR" | "USD";
 type PaymentMethod = "bank" | "easypaisa" | "jazzcash";
+type InvoiceItem = { name: string; description?: string; quantity: number; price: number };
+type InvoicePatch = Omit<FunctionArgs<typeof api.invoices.patchDraft>, "sessionToken" | "invoiceId">;
 
 const DEFAULT_LOGO_URL = "/images-removebg-preview.png";
+const STEPS = ["Basic", "Items", "Pricing", "Payment", "Notes", "Export"];
+const blankItem = (name = ""): InvoiceItem => ({ name, description: "", quantity: 1, price: 0 });
 
 type InvoiceDoc = {
   _id: Id<"invoices">;
@@ -34,12 +51,7 @@ type InvoiceDoc = {
   invoiceDate: string;
   currency: Currency;
   status: "draft" | "paid";
-  items: Array<{
-    name: string;
-    description?: string;
-    quantity: number;
-    price: number;
-  }>;
+  items: InvoiceItem[];
   /** Percentage 0–100 */
   discount: number;
   /** Percentage 0–100 */
@@ -52,8 +64,29 @@ type InvoiceDoc = {
   cancellationPolicy?: string;
 };
 
+/** Editable fields — also the shape of the local crash backup. */
+type InvoiceForm = {
+  clientName: string;
+  invoiceDate: string;
+  currency: Currency;
+  items: InvoiceItem[];
+  discount: number;
+  tax: number;
+  advanceAmount: number;
+  tripSummary: string;
+  paymentMethod: PaymentMethod;
+  paymentDetails: string;
+  terms: string;
+  cancellationPolicy: string;
+};
+
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
+}
+
+function num(v: string) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
 }
 
 function money(currency: Currency, n: number) {
@@ -62,31 +95,79 @@ function money(currency: Currency, n: number) {
 }
 
 function paymentTemplate(method: PaymentMethod) {
-  if (method === "easypaisa") {
+  if (method === "easypaisa" || method === "jazzcash") {
     return [
-      "Easypaisa payment details",
+      `${method === "easypaisa" ? "Easypaisa" : "JazzCash"} payment details`,
       "",
       "Account title: Junket Tours",
       "Account number: __________",
       "Instructions: Share screenshot after payment.",
     ].join("\n");
   }
-  if (method === "jazzcash") {
-    return [
-      "JazzCash payment details",
-      "",
-      "Account title: Junket Tours",
-      "Account number: __________",
-      "Instructions: Share screenshot after payment.",
-    ].join("\n");
-  }
-  // Bank account details (Bank Alfalah / Junket Tours) are printed on every
-  // invoice automatically, so the template only carries optional instructions.
+  // Bank account details are printed on every invoice automatically, so the
+  // template only carries optional instructions.
   return "Please share the payment receipt after completing the transfer.";
 }
 
+function formFromDoc(doc: InvoiceDoc): InvoiceForm {
+  return {
+    clientName: doc.clientName ?? "",
+    invoiceDate: doc.invoiceDate ?? new Date().toISOString().slice(0, 10),
+    currency: doc.currency ?? "PKR",
+    items: doc.items?.length ? doc.items : [blankItem("Trip package")],
+    discount: Number(doc.discount ?? 0),
+    tax: Number(doc.tax ?? 0),
+    advanceAmount: Number(doc.advanceAmount ?? 0),
+    tripSummary: doc.tripSummary ?? "",
+    paymentMethod: doc.paymentMethod ?? "bank",
+    paymentDetails: doc.paymentDetails ?? "",
+    terms: doc.terms ?? "",
+    cancellationPolicy: doc.cancellationPolicy ?? "",
+  };
+}
+
+type LinkedItinerary = {
+  packageTiers?: PackageTier[];
+  packages?: Array<{
+    name: string;
+    pricePkr?: number;
+    vehicle?: string;
+    note?: string;
+    stays?: Array<{ location: string; hotel: string; nights: number }>;
+  }>;
+};
+
+/** Line items from a linked itinerary (builder tiers first, legacy packages as fallback). */
+function itemsFromItinerary(itin: LinkedItinerary | null | undefined): InvoiceItem[] {
+  const tiers = itin?.packageTiers?.length
+    ? itin.packageTiers.map((t) => normalizePackageTier(t))
+    : (itin?.packages ?? []).map((p) => ({ ...p, stays: p.stays ?? [] }));
+  return tiers
+    .filter((p) => (p.name ?? "").trim())
+    .map((p) => {
+      const stays = p.stays
+        .filter((s) => s.hotel.trim() || s.location.trim())
+        .map((s) => `${s.location}: ${s.hotel} (${s.nights}N)`);
+      const description = [p.vehicle?.trim() || "", stays.join("\n"), p.note?.trim() || ""]
+        .filter(Boolean)
+        .join("\n");
+      return {
+        name: p.name,
+        description,
+        quantity: 1,
+        price: typeof p.pricePkr === "number" ? p.pricePkr : 0,
+      };
+    });
+}
+
 export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: string }) {
-  const sessionToken = useConvexSessionToken();
+  const router = useRouter();
+  const liveToken = useConvexSessionToken();
+  // Keep the wizard mounted if the session lapses mid-edit (saves fail visibly).
+  const lastTokenRef = useRef<string | null>(null);
+  if (typeof liveToken === "string") lastTokenRef.current = liveToken;
+  const sessionToken = typeof liveToken === "string" ? liveToken : lastTokenRef.current;
+  const sessionLost = liveToken === null && lastTokenRef.current !== null;
   const canMutate = typeof sessionToken === "string";
   const minDate = useMemo(() => todayYmdLocal(), []);
 
@@ -96,64 +177,69 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
   const exportDocx = useAction(api.documentsActions.exportInvoiceDocx);
 
   const [step, setStep] = useState(1);
-  const steps = ["Basic", "Items", "Pricing", "Payment", "Notes", "Export"];
-
   const [invoiceId, setInvoiceId] = useState<Id<"invoices"> | null>(
     invoiceIdProp ? (invoiceIdProp as Id<"invoices">) : null,
   );
-  const [clientName, setClientName] = useState("");
-  const [invoiceDate, setInvoiceDate] = useState(() =>
-    new Date().toISOString().slice(0, 10),
-  );
-  const [currency, setCurrency] = useState<Currency>("PKR");
 
-  const [items, setItems] = useState<InvoiceDoc["items"]>([
-    { name: "Trip package", description: "", quantity: 1, price: 0 },
-  ]);
-  const [discount, setDiscount] = useState(0);
-  const [tax, setTax] = useState(0);
-  const [advanceAmount, setAdvanceAmount] = useState(0);
-  const [tripSummary, setTripSummary] = useState("");
+  const [form, setForm] = useState<InvoiceForm>(() => ({
+    clientName: "",
+    invoiceDate: new Date().toISOString().slice(0, 10),
+    currency: "PKR",
+    items: [blankItem("Trip package")],
+    discount: 0,
+    tax: 0,
+    advanceAmount: 0,
+    tripSummary: "",
+    paymentMethod: "bank",
+    paymentDetails: "",
+    terms: "",
+    cancellationPolicy: "",
+  }));
+  const {
+    clientName,
+    invoiceDate,
+    currency,
+    items,
+    discount,
+    tax,
+    advanceAmount,
+    tripSummary,
+    paymentMethod,
+    paymentDetails,
+    terms,
+    cancellationPolicy,
+  } = form;
+  const formRef = useRef(form);
+  formRef.current = form;
 
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("bank");
-  const [paymentDetails, setPaymentDetails] = useState("");
-
-  const [terms, setTerms] = useState("");
-  const [cancellationPolicy, setCancellationPolicy] = useState("");
-
-  const [savingState, setSavingState] = useState<
-    "idle" | "saving" | "saved" | "error"
-  >("idle");
   const [msg, setMsg] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [docxLoading, setDocxLoading] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [finishing, setFinishing] = useState(false);
 
   const companyLogoUrl = useQuery(api.media.getSiteAssetUrl, { key: "logo" });
   const publicSettings = useQuery(api.siteSettings.getPublicSiteSettings, {});
   const fallbackLogoAbs = useMemo(() => toAbsoluteUrl(DEFAULT_LOGO_URL), []);
-  const officeAddress = publicSettings?.officeAddress?.trim() || undefined;
-  const whatsappPhone = publicSettings?.whatsappPhone?.trim() || undefined;
-  const contactEmail = publicSettings?.contactEmail?.trim() || undefined;
-  const website = (publicSettings as { website?: string } | undefined)?.website?.trim() || undefined;
-  const governmentLicenseNo =
-    (publicSettings as { governmentLicenseNo?: string } | undefined)?.governmentLicenseNo?.trim() ||
-    undefined;
-  const governmentLicenseNo2 =
-    (publicSettings as { governmentLicenseNo2?: string } | undefined)?.governmentLicenseNo2?.trim() ||
-    undefined;
-  const bankDetails = (
-    publicSettings as
-      | {
-          bankDetails?: {
-            bankName?: string;
-            accountTitle?: string;
-            accountNumber?: string;
-            iban?: string;
-            instruction?: string;
-          };
-        }
-      | undefined
-  )?.bankDetails;
+  const settings = publicSettings as
+    | {
+        officeAddress?: string;
+        whatsappPhone?: string;
+        contactEmail?: string;
+        website?: string;
+        governmentLicenseNo?: string;
+        governmentLicenseNo2?: string;
+        bankDetails?: {
+          bankName?: string;
+          accountTitle?: string;
+          accountNumber?: string;
+          iban?: string;
+          instruction?: string;
+        };
+      }
+    | undefined;
+  const officeAddress = settings?.officeAddress?.trim() || undefined;
+  const bankDetails = settings?.bankDetails;
 
   /** Same rows the PDF/Word exports print, so the Payment step shows exactly
    *  what the client will see — the admin never has to retype them. */
@@ -173,103 +259,83 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
     [bankDetails],
   );
 
-  const invoiceDoc = useQuery(
+  const invoiceQuery = useSafeQuery(
     api.invoices.getForAdmin,
-    invoiceId && typeof sessionToken === "string"
-      ? { sessionToken, invoiceId }
-      : "skip",
-  ) as InvoiceDoc | null | undefined;
+    invoiceId && canMutate ? { sessionToken, invoiceId } : "skip",
+  );
+  const invoiceDoc = invoiceQuery.data as InvoiceDoc | null | undefined;
 
-  const linkedItinerary = useQuery(
+  const linkedItinerary = useSafeQuery(
     api.itineraries.getForAdmin,
-    invoiceDoc?.itineraryId && typeof sessionToken === "string"
+    invoiceDoc?.itineraryId && canMutate
       ? { sessionToken, itineraryId: invoiceDoc.itineraryId }
       : "skip",
-  ) as
-    | {
-        packages?: Array<{
-          name: string;
-          pricePkr?: number;
-          vehicle?: string;
-          note?: string;
-          stays?: Array<{ location: string; hotel: string; nights: number }>;
-        }>;
-      }
-    | null
-    | undefined;
+  ).data as LinkedItinerary | null | undefined;
+  const importableItems = useMemo(() => itemsFromItinerary(linkedItinerary), [linkedItinerary]);
 
-  const didHydrateFromDoc = useRef(false);
+  /** Id whose saved values are in the form. Nothing is saved before this. */
+  const [hydratedId, setHydratedId] = useState<string | null>(null);
+  const isHydrated = Boolean(invoiceId) && hydratedId === String(invoiceId);
+
   useEffect(() => {
-    if (didHydrateFromDoc.current) return;
-    if (!invoiceDoc) return;
-    // Hydrate local editor state once for editing existing invoices.
-    setClientName(invoiceDoc.clientName ?? "");
-    setInvoiceDate(invoiceDoc.invoiceDate ?? new Date().toISOString().slice(0, 10));
-    setCurrency((invoiceDoc.currency as Currency) ?? "PKR");
-    const nextItems = ((invoiceDoc.items as InvoiceDoc["items"]) ?? []).length
-      ? ((invoiceDoc.items as InvoiceDoc["items"]) ?? [])
-      : [{ name: "Trip package", description: "", quantity: 1, price: 0 }];
-    setItems(nextItems);
-    setDiscount(Number(invoiceDoc.discount ?? 0));
-    setTax(Number(invoiceDoc.tax ?? 0));
-    setAdvanceAmount(Number(invoiceDoc.advanceAmount ?? 0));
-    setTripSummary(invoiceDoc.tripSummary ?? "");
-    setPaymentMethod((invoiceDoc.paymentMethod as PaymentMethod) ?? "bank");
-    setPaymentDetails(invoiceDoc.paymentDetails ?? "");
-    setTerms(invoiceDoc.terms ?? "");
-    setCancellationPolicy(invoiceDoc.cancellationPolicy ?? "");
-    setSavingState("saved");
-    didHydrateFromDoc.current = true;
-  }, [invoiceDoc]);
+    if (!invoiceDoc || !invoiceId || hydratedId === String(invoiceId)) return;
+    setForm(formFromDoc(invoiceDoc));
+    setHydratedId(String(invoiceId));
+  }, [invoiceDoc, invoiceId, hydratedId]);
 
-  const subtotal = useMemo(() => {
-    return items.reduce((sum, i) => sum + (i.quantity || 0) * (i.price || 0), 0);
-  }, [items]);
+  const autosave = useAutosave<InvoicePatch>({
+    enabled: canMutate && isHydrated,
+    save: async (patch) => {
+      if (!sessionToken || !invoiceId) throw new Error("Not authenticated");
+      await patchDraft({ sessionToken, invoiceId, ...patch });
+    },
+  });
+  const { queue: queueSave, flush: flushSave } = autosave;
 
-  const discountPct = useMemo(() => clamp(discount || 0, 0, 100), [discount]);
-  const taxPct = useMemo(() => clamp(tax || 0, 0, 100), [tax]);
-  const discountAmount = useMemo(() => (subtotal * discountPct) / 100, [subtotal, discountPct]);
-  const taxableBase = useMemo(() => Math.max(0, subtotal - discountAmount), [subtotal, discountAmount]);
-  const taxAmount = useMemo(() => (taxableBase * taxPct) / 100, [taxableBase, taxPct]);
-  const total = useMemo(() => {
-    return Math.max(0, taxableBase + taxAmount);
-  }, [taxableBase, taxAmount]);
-  const remainingBalance = useMemo(() => {
-    return Math.max(0, total - Math.max(0, advanceAmount || 0));
-  }, [total, advanceAmount]);
-
-  const saveTimer = useRef<number | null>(null);
-  const lastPatchJson = useRef<string>("");
-
-  function queuePatch(
-    partial: Omit<Parameters<typeof patchDraft>[0], "sessionToken" | "invoiceId"> | null,
-  ) {
-    if (!canMutate || !invoiceId || !partial) return;
-    const payload = { sessionToken, invoiceId, ...partial } as const;
-    const json = JSON.stringify(payload);
-    if (json === lastPatchJson.current) return;
-    lastPatchJson.current = json;
-    if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    setSavingState("saving");
-    saveTimer.current = window.setTimeout(() => {
-      void (async () => {
-        try {
-          await patchDraft(payload);
-          setSavingState("saved");
-          setMsg(null);
-        } catch (e) {
-          setSavingState("error");
-          setMsg(toUserFacingErrorMessage(e));
-        }
-      })();
-    }, 350);
+  /** Updates the form and queues exactly the changed fields for saving. */
+  function update(patch: Partial<InvoiceForm>, save: InvoicePatch = patch) {
+    setForm((f) => ({ ...f, ...patch }));
+    if (invoiceId) queueSave(save);
   }
 
+  function updateItems(next: InvoiceItem[]) {
+    const safe = next.length ? next : [blankItem()];
+    update({ items: safe });
+  }
+
+  // Local crash backup (per invoice) while edits are unsaved.
+  const dirty = isHydrated ? autosave.hasPending : !invoiceId && clientName.trim().length > 0;
+  const localDraft = useLocalDraft<InvoiceForm>(
+    invoiceId && !isHydrated ? null : `draft:invoice:${invoiceId ?? "new"}`,
+    form,
+    dirty,
+  );
+  const { restorable, clear: clearBackup, dismiss: dismissBackup } = localDraft;
+
   useEffect(() => {
-    return () => {
-      if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    };
-  }, []);
+    if (!restorable || !isHydrated) return;
+    if (JSON.stringify(restorable.data) === JSON.stringify(form)) clearBackup();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restorable, isHydrated]);
+
+  useEffect(() => {
+    if (!invoiceId || restorable) return;
+    if (autosave.status === "saved" && !autosave.hasPending) clearBackup();
+  }, [autosave.hasPending, autosave.status, clearBackup, invoiceId, restorable]);
+
+  useUnsavedChangesGuard(dirty || creating);
+
+  const subtotal = useMemo(
+    () => items.reduce((sum, i) => sum + (i.quantity || 0) * (i.price || 0), 0),
+    [items],
+  );
+  const discountPct = clamp(discount || 0, 0, 100);
+  const taxPct = clamp(tax || 0, 0, 100);
+  const discountAmount = (subtotal * discountPct) / 100;
+  const taxableBase = Math.max(0, subtotal - discountAmount);
+  const taxAmount = (taxableBase * taxPct) / 100;
+  const total = Math.max(0, taxableBase + taxAmount);
+  const remainingBalance = Math.max(0, total - Math.max(0, advanceAmount || 0));
 
   const pdfModel: InvoicePdfModel | null = useMemo(() => {
     if (!clientName.trim()) return null;
@@ -280,12 +346,12 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
       companyLogoUrl: toAbsoluteUrl(companyLogoUrl) ?? fallbackLogoAbs,
       companyName: "JunketTours",
       companyAddress: officeAddress,
-      licenceNumber: governmentLicenseNo,
-      licenceNumber2: governmentLicenseNo2,
+      licenceNumber: settings?.governmentLicenseNo?.trim() || undefined,
+      licenceNumber2: settings?.governmentLicenseNo2?.trim() || undefined,
       contact: {
-        phone: whatsappPhone,
-        email: contactEmail,
-        website,
+        phone: settings?.whatsappPhone?.trim() || undefined,
+        email: settings?.contactEmail?.trim() || undefined,
+        website: settings?.website?.trim() || undefined,
         officeAddress,
       },
       client: { name: clientName },
@@ -314,11 +380,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
     companyLogoUrl,
     fallbackLogoAbs,
     officeAddress,
-    whatsappPhone,
-    contactEmail,
-    website,
-    governmentLicenseNo,
-    governmentLicenseNo2,
+    settings,
     items,
     discountPct,
     taxPct,
@@ -331,24 +393,49 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
   ]);
 
   async function onCreateDraft() {
-    if (!canMutate) return;
+    if (!sessionToken || creating || invoiceId) return;
     if (!clientName.trim()) {
       setMsg("Enter client name to continue.");
       return;
     }
     setMsg(null);
+    setCreating(true);
+    const sent = { ...form };
     try {
       const id = await createDraft({
         sessionToken,
-        clientName,
-        invoiceDate,
-        currency,
-        advanceAmount: Math.max(0, advanceAmount || 0),
-        tripSummary: tripSummary.trim() || undefined,
+        clientName: sent.clientName,
+        invoiceDate: sent.invoiceDate,
+        currency: sent.currency,
+        advanceAmount: Math.max(0, sent.advanceAmount || 0),
+        tripSummary: sent.tripSummary.trim() || undefined,
       });
+      clearBackup();
       setInvoiceId(id);
+      setHydratedId(String(id));
+      // Anything typed while the draft was being created is saved right away.
+      const cur = formRef.current;
+      const changed: InvoicePatch = {};
+      if (cur.clientName !== sent.clientName) changed.clientName = cur.clientName;
+      if (cur.invoiceDate !== sent.invoiceDate) changed.invoiceDate = cur.invoiceDate;
+      if (cur.currency !== sent.currency) changed.currency = cur.currency;
+      if (Object.keys(changed).length) queueSave(changed);
+      // Refreshing now reopens this invoice instead of creating another one.
+      window.history.replaceState(null, "", `/admin/invoices/${id}`);
       setStep(2);
-      setSavingState("saved");
+    } catch (e) {
+      setMsg(toUserFacingErrorMessage(e));
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  /** Runs `action` only after every pending edit has been saved. */
+  async function afterSave(action: () => Promise<void>) {
+    setMsg(null);
+    try {
+      await flushSave();
+      await action();
     } catch (e) {
       setMsg(toUserFacingErrorMessage(e));
     }
@@ -356,37 +443,55 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
 
   function next() {
     if (step === 1) {
-      if (invoiceId) {
-        setStep(2);
-      } else {
-        void onCreateDraft();
-      }
+      if (invoiceId) setStep(2);
+      else void onCreateDraft();
       return;
     }
-    if (step === steps.length) {
-      window.dispatchEvent(new Event("jt:routing:start"));
-      window.location.href = "/admin/invoices";
+    if (step === STEPS.length) {
+      setFinishing(true);
+      void afterSave(async () => {
+        router.push("/admin/invoices");
+      }).finally(() => setFinishing(false));
       return;
     }
-    setStep((s) => clamp(s + 1, 1, 6));
-  }
-
-  function back() {
-    setStep((s) => clamp(s - 1, 1, 6));
+    setStep((s) => clamp(s + 1, 1, STEPS.length));
   }
 
   if (!canMutate) {
     return (
       <p className="text-sm text-amber-800">
-        {sessionToken === undefined
-          ? "Loading your session…"
-          : "You need an admin session to create invoices."}
+        {liveToken === undefined ? "Loading your session…" : "You need an admin session to create invoices."}
       </p>
+    );
+  }
+
+  if (invoiceId && !isHydrated) {
+    if (invoiceDoc === null) return <p className="text-sm text-muted">Invoice not found.</p>;
+    return (
+      <div className="space-y-3">
+        <QueryErrorBanner error={invoiceQuery.error} />
+        <p className="text-sm text-muted">Loading invoice…</p>
+      </div>
     );
   }
 
   return (
     <>
+      <QueryErrorBanner error={sessionLost ? new Error("Not authenticated") : invoiceQuery.error} />
+
+      {restorable ? (
+        <DraftRestoreBanner
+          savedAt={restorable.savedAt}
+          onRestore={() => {
+            const data = restorable.data;
+            setForm(data);
+            if (invoiceId) queueSave(data);
+            dismissBackup();
+          }}
+          onDiscard={clearBackup}
+        />
+      ) : null}
+
       {msg ? (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           {msg}
@@ -394,19 +499,26 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
       ) : null}
 
       <WizardLayout
-        title="Invoice"
-        steps={steps}
+        title={invoiceDoc?.invoiceNumber ? `Invoice ${invoiceDoc.invoiceNumber}` : "Invoice"}
+        steps={STEPS}
         currentStep={step}
-        onBack={step === 1 ? undefined : back}
+        onBack={step === 1 ? undefined : () => setStep((s) => clamp(s - 1, 1, STEPS.length))}
         onNext={next}
-        nextLabel={step === steps.length ? "Final" : "Next"}
+        nextLabel={step === 1 && creating ? "Creating…" : step === STEPS.length ? (finishing ? "Saving…" : "Final") : "Next"}
         backDisabled={step === 1}
-        nextDisabled={step === 1 ? !clientName.trim() : false}
-        savingState={invoiceId ? savingState : "idle"}
+        nextDisabled={step === 1 ? !clientName.trim() || creating : finishing}
         rightActions={
-          <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
-            Preview PDF
-          </Button>
+          <>
+            {invoiceId ? <SaveStatusPill status={autosave.status} error={autosave.error} /> : null}
+            {autosave.status === "error" ? (
+              <Button type="button" variant="secondary" onClick={() => void flushSave().catch(() => undefined)}>
+                Retry save
+              </Button>
+            ) : null}
+            <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
+              Preview PDF
+            </Button>
+          </>
         }
       >
         {step === 1 ? (
@@ -416,11 +528,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               <TextInput
                 required
                 value={clientName}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setClientName(v);
-                  queuePatch({ clientName: v });
-                }}
+                onChange={(e) => update({ clientName: e.target.value })}
                 placeholder="Ahmed Ali"
               />
             </div>
@@ -431,24 +539,16 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                 <TextInput
                   required
                   type="date"
-                  min={minDate}
+                  min={invoiceId ? undefined : minDate}
                   value={invoiceDate}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setInvoiceDate(v);
-                    queuePatch({ invoiceDate: v });
-                  }}
+                  onChange={(e) => update({ invoiceDate: e.target.value })}
                 />
               </div>
               <div>
                 <FieldLabel required>Currency</FieldLabel>
                 <SelectField
                   value={currency}
-                  onChange={(e) => {
-                    const v = e.target.value as Currency;
-                    setCurrency(v);
-                    queuePatch({ currency: v });
-                  }}
+                  onChange={(e) => update({ currency: e.target.value as Currency })}
                 >
                   <option value="PKR">PKR</option>
                   <option value="USD">USD</option>
@@ -461,7 +561,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-foreground">Line items</p>
               <div className="flex items-center gap-2">
-                {linkedItinerary?.packages?.length ? (
+                {importableItems.length ? (
                   <Button
                     type="button"
                     variant="secondary"
@@ -469,44 +569,13 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                       const ok = window.confirm(
                         "Import packages from the linked itinerary? This will replace your current items.",
                       );
-                      if (!ok) return;
-                      const next = (linkedItinerary.packages ?? [])
-                        .filter((p) => (p.name ?? "").trim())
-                        .map((p) => {
-                          const stays = (p.stays ?? [])
-                            .map((s) => `${s.location}: ${s.hotel} (${s.nights}N)`)
-                            .filter((x) => x.trim());
-                          const descParts = [
-                            p.vehicle?.trim() || "",
-                            stays.length ? stays.join("\n") : "",
-                            p.note?.trim() || "",
-                          ].filter(Boolean);
-                          return {
-                            name: p.name,
-                            description: descParts.length ? descParts.join("\n") : "",
-                            quantity: 1,
-                            price: typeof p.pricePkr === "number" ? p.pricePkr : 0,
-                          };
-                        });
-                      const safe = next.length
-                        ? next
-                        : [{ name: "Trip package", description: "", quantity: 1, price: 0 }];
-                      setItems(safe);
-                      queuePatch({ items: safe });
+                      if (ok) updateItems(importableItems);
                     }}
                   >
                     Import packages
                   </Button>
                 ) : null}
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    const next = [...items, { name: "", description: "", quantity: 1, price: 0 }];
-                    setItems(next);
-                    queuePatch({ items: next });
-                  }}
-                >
+                <Button type="button" variant="secondary" onClick={() => updateItems([...items, blankItem()])}>
                   + Add item
                 </Button>
               </div>
@@ -514,9 +583,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
 
             {items.length ? (
               <div className="rounded-2xl border border-border bg-panel-elevated p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-muted">
-                  Package preview
-                </p>
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">Package preview</p>
                 <div className="mt-2 grid gap-2 text-sm sm:grid-cols-4">
                   <div className="min-w-0 sm:col-span-2">
                     <p className="text-xs text-muted">Item</p>
@@ -526,13 +593,11 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                   </div>
                   <div>
                     <p className="text-xs text-muted">Qty</p>
-                    <p className="font-semibold text-foreground tabular-nums">
-                      {items[0]?.quantity ?? 1}
-                    </p>
+                    <p className="font-semibold tabular-nums text-foreground">{items[0]?.quantity ?? 1}</p>
                   </div>
                   <div>
                     <p className="text-xs text-muted">Price</p>
-                    <p className="font-semibold text-foreground tabular-nums">
+                    <p className="font-semibold tabular-nums text-foreground">
                       {money(currency, items[0]?.price ?? 0)}
                     </p>
                   </div>
@@ -541,107 +606,74 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
             ) : null}
 
             <div className="space-y-3">
-              {items.map((it, idx) => (
-                <div key={idx} className="rounded-2xl border border-border bg-panel-elevated p-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <FieldLabel>Item name</FieldLabel>
-                      <TextInput
-                        value={it.name}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setItems((prev) => {
-                            const next = prev.map((x, i) => (i === idx ? { ...x, name: v } : x));
-                            queuePatch({ items: next });
-                            return next;
-                          });
-                        }}
-                        placeholder={idx === 0 ? "Trip package" : "Add-on / Service"}
+              {items.map((it, idx) => {
+                const setItem = (patch: Partial<InvoiceItem>) =>
+                  updateItems(items.map((x, i) => (i === idx ? { ...x, ...patch } : x)));
+                return (
+                  <div key={idx} className="rounded-2xl border border-border bg-panel-elevated p-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <FieldLabel>Item name</FieldLabel>
+                        <TextInput
+                          value={it.name}
+                          onChange={(e) => setItem({ name: e.target.value })}
+                          placeholder={idx === 0 ? "Trip package" : "Add-on / Service"}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <FieldLabel>Qty</FieldLabel>
+                          <TextInput
+                            type="number"
+                            min={0}
+                            value={it.quantity}
+                            onChange={(e) => setItem({ quantity: num(e.target.value) })}
+                          />
+                        </div>
+                        <div>
+                          <FieldLabel>Price</FieldLabel>
+                          <TextInput
+                            type="number"
+                            min={0}
+                            value={it.price}
+                            onChange={(e) => setItem({ price: num(e.target.value) })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <FieldLabel>Description (optional)</FieldLabel>
+                      <TextAreaField
+                        rows={3}
+                        value={it.description ?? ""}
+                        onChange={(e) => setItem({ description: e.target.value })}
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <FieldLabel>Qty</FieldLabel>
-                        <TextInput
-                          type="number"
-                          min={0}
-                          value={it.quantity}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setItems((prev) => {
-                              const next = prev.map((x, i) =>
-                                i === idx ? { ...x, quantity: v } : x,
-                              );
-                              queuePatch({ items: next });
-                              return next;
-                            });
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <FieldLabel>Price</FieldLabel>
-                        <TextInput
-                          type="number"
-                          min={0}
-                          value={it.price}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setItems((prev) => {
-                              const next = prev.map((x, i) =>
-                                i === idx ? { ...x, price: v } : x,
-                              );
-                              queuePatch({ items: next });
-                              return next;
-                            });
-                          }}
-                        />
-                      </div>
+
+                    <div className="mt-3 flex items-center justify-between">
+                      <p className="text-xs text-muted">
+                        Line total:{" "}
+                        <span className="font-semibold text-foreground">
+                          {money(currency, (it.quantity || 0) * (it.price || 0))}
+                        </span>
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="rounded-lg px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
+                        onClick={() => {
+                          const hasContent = it.name.trim() || it.description?.trim() || it.price;
+                          if (hasContent && !window.confirm(`Remove "${it.name || "this item"}"?`)) return;
+                          updateItems(items.filter((_, i) => i !== idx));
+                        }}
+                      >
+                        Remove
+                      </Button>
                     </div>
                   </div>
-
-                  <div className="mt-3">
-                    <FieldLabel>Description (optional)</FieldLabel>
-                    <TextAreaField
-                      rows={3}
-                      value={it.description ?? ""}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setItems((prev) => {
-                          const next = prev.map((x, i) =>
-                            i === idx ? { ...x, description: v } : x,
-                          );
-                          queuePatch({ items: next });
-                          return next;
-                        });
-                      }}
-                    />
-                  </div>
-
-                  <div className="mt-3 flex items-center justify-between">
-                    <p className="text-xs text-muted">
-                      Line total:{" "}
-                      <span className="font-semibold text-foreground">
-                        {money(currency, (it.quantity || 0) * (it.price || 0))}
-                      </span>
-                    </p>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="rounded-lg px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
-                      onClick={() => {
-                        setItems((prev) => {
-                          const next = prev.filter((_, i) => i !== idx);
-                          const safe = next.length ? next : [{ name: "", description: "", quantity: 1, price: 0 }];
-                          queuePatch({ items: safe });
-                          return safe;
-                        });
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <div className="rounded-2xl border border-border bg-panel-elevated p-4">
@@ -649,11 +681,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               <TextAreaField
                 rows={5}
                 value={tripSummary}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setTripSummary(v);
-                  queuePatch({ tripSummary: v });
-                }}
+                onChange={(e) => update({ tripSummary: e.target.value })}
                 placeholder="Short summary of the trip: destinations, dates, inclusions, vehicle, hotels…"
               />
             </div>
@@ -670,9 +698,8 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                   step="0.01"
                   value={discountPct}
                   onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setDiscount(v);
-                    queuePatch({ discount: clamp(v, 0, 100) });
+                    const v = clamp(num(e.target.value), 0, 100);
+                    update({ discount: v });
                   }}
                 />
               </div>
@@ -685,9 +712,8 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                   step="0.01"
                   value={taxPct}
                   onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setTax(v);
-                    queuePatch({ tax: clamp(v, 0, 100) });
+                    const v = clamp(num(e.target.value), 0, 100);
+                    update({ tax: v });
                   }}
                 />
               </div>
@@ -698,21 +724,15 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               <div className="mt-2 space-y-1 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-muted">Subtotal</span>
-                  <span className="font-semibold text-foreground">
-                    {money(currency, subtotal)}
-                  </span>
+                  <span className="font-semibold text-foreground">{money(currency, subtotal)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted">Discount ({discountPct}%)</span>
-                  <span className="font-semibold text-foreground">
-                    {money(currency, discountAmount)}
-                  </span>
+                  <span className="font-semibold text-foreground">{money(currency, discountAmount)}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted">Tax ({taxPct}%)</span>
-                  <span className="font-semibold text-foreground">
-                    {money(currency, taxAmount)}
-                  </span>
+                  <span className="font-semibold text-foreground">{money(currency, taxAmount)}</span>
                 </div>
                 <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
                   <span className="text-sm font-semibold text-foreground">Trip total</span>
@@ -727,20 +747,13 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                     min={0}
                     step="0.01"
                     value={advanceAmount}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      const safe = Number.isFinite(v) ? Math.max(0, v) : 0;
-                      setAdvanceAmount(safe);
-                      queuePatch({ advanceAmount: safe });
-                    }}
+                    onChange={(e) => update({ advanceAmount: Math.max(0, num(e.target.value)) })}
                     placeholder="0"
                   />
                   <FieldHint>Deposit or payment already received from the customer.</FieldHint>
                 </div>
                 <div className="mt-4 rounded-xl border-2 border-havezic-primary/40 bg-havezic-primary/5 px-4 py-3">
-                  <p className="text-xs font-bold uppercase tracking-wide text-havezic-primary">
-                    Amount due
-                  </p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-havezic-primary">Amount due</p>
                   <p className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">
                     {invoiceDoc?.status === "paid" || remainingBalance <= 0.00001
                       ? "Paid"
@@ -759,11 +772,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               <FieldLabel required>Payment method</FieldLabel>
               <SelectField
                 value={paymentMethod}
-                onChange={(e) => {
-                  const v = e.target.value as PaymentMethod;
-                  setPaymentMethod(v);
-                  queuePatch({ paymentMethod: v });
-                }}
+                onChange={(e) => update({ paymentMethod: e.target.value as PaymentMethod })}
               >
                 <option value="bank">Bank transfer</option>
                 <option value="easypaisa">Easypaisa</option>
@@ -787,13 +796,13 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                   </dl>
                 ) : (
                   <p className="mt-2 text-sm text-amber-700">
-                    No bank details saved yet — add them in Admin → Settings and they will appear
-                    here and on every invoice.
+                    No bank details saved yet — add them in Admin → Settings and they will appear here and
+                    on every invoice.
                   </p>
                 )}
                 <p className="mt-2 text-xs text-slate-500">
-                  Managed in <span className="font-semibold">Admin → Settings</span>. No need to
-                  retype them below — use the box only for extra instructions.
+                  Managed in <span className="font-semibold">Admin → Settings</span>. No need to retype
+                  them below — use the box only for extra instructions.
                 </p>
               </div>
             ) : null}
@@ -801,67 +810,44 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
             <div>
               <FieldLabel required>Payment details</FieldLabel>
               <div className="mt-2 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    const t = paymentTemplate(paymentMethod);
-                    setPaymentDetails(t);
-                    queuePatch({ paymentDetails: t });
-                  }}
-                >
-                  Use template
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    const t = paymentTemplate("bank");
-                    setPaymentMethod("bank");
-                    setPaymentDetails(t);
-                    queuePatch({ paymentMethod: "bank", paymentDetails: t });
-                  }}
-                >
-                  Bank
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    const t = paymentTemplate("easypaisa");
-                    setPaymentMethod("easypaisa");
-                    setPaymentDetails(t);
-                    queuePatch({ paymentMethod: "easypaisa", paymentDetails: t });
-                  }}
-                >
-                  Easypaisa
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    const t = paymentTemplate("jazzcash");
-                    setPaymentMethod("jazzcash");
-                    setPaymentDetails(t);
-                    queuePatch({ paymentMethod: "jazzcash", paymentDetails: t });
-                  }}
-                >
-                  JazzCash
-                </Button>
+                {(
+                  [
+                    ["template", "Use template"],
+                    ["bank", "Bank"],
+                    ["easypaisa", "Easypaisa"],
+                    ["jazzcash", "JazzCash"],
+                  ] as const
+                ).map(([key, label]) => (
+                  <Button
+                    key={key}
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      const method = key === "template" ? paymentMethod : key;
+                      const t = paymentTemplate(method);
+                      if (
+                        paymentDetails.trim() &&
+                        paymentDetails.trim() !== t &&
+                        !window.confirm("Replace the current payment details with the template?")
+                      ) {
+                        return;
+                      }
+                      update({ paymentMethod: method, paymentDetails: t });
+                    }}
+                  >
+                    {label}
+                  </Button>
+                ))}
               </div>
               <TextAreaField
                 rows={6}
                 value={paymentDetails}
-                onChange={(e) => {
-                  setPaymentDetails(e.target.value);
-                  queuePatch({ paymentDetails: e.target.value });
-                }}
+                onChange={(e) => update({ paymentDetails: e.target.value })}
                 placeholder="Account title, IBAN, number, instructions…"
               />
               {paymentMethod === "bank" ? (
                 <FieldHint>
-                  The bank details above are added automatically — this box is for extra
-                  instructions only.
+                  The bank details above are added automatically — this box is for extra instructions only.
                 </FieldHint>
               ) : null}
             </div>
@@ -870,24 +856,14 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
           <div className="space-y-4">
             <div>
               <FieldLabel>Terms & conditions</FieldLabel>
-              <TextAreaField
-                rows={5}
-                value={terms}
-                onChange={(e) => {
-                  setTerms(e.target.value);
-                  queuePatch({ terms: e.target.value });
-                }}
-              />
+              <TextAreaField rows={5} value={terms} onChange={(e) => update({ terms: e.target.value })} />
             </div>
             <div>
               <FieldLabel>Cancellation policy</FieldLabel>
               <TextAreaField
                 rows={5}
                 value={cancellationPolicy}
-                onChange={(e) => {
-                  setCancellationPolicy(e.target.value);
-                  queuePatch({ cancellationPolicy: e.target.value });
-                }}
+                onChange={(e) => update({ cancellationPolicy: e.target.value })}
               />
               <FieldHint>Keep it short and clear for clients.</FieldHint>
             </div>
@@ -901,10 +877,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                 Preview
               </Button>
               {pdfModel ? (
-                <PDFDownloadLink
-                  document={<InvoicePdf model={pdfModel} />}
-                  fileName={`invoice-${invoiceDate}.pdf`}
-                >
+                <PDFDownloadLink document={<InvoicePdf model={pdfModel} />} fileName={`invoice-${invoiceDate}.pdf`}>
                   {({ loading }) => (
                     <Button type="button" disabled={loading}>
                       {loading ? "Preparing…" : "Download PDF"}
@@ -917,20 +890,13 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                 variant="secondary"
                 disabled={!invoiceId || docxLoading}
                 onClick={() => {
-                  if (!invoiceId) return;
-                  if (!canMutate) return;
-                  setMsg(null);
+                  if (!invoiceId || !sessionToken) return;
                   setDocxLoading(true);
-                  void (async () => {
-                    try {
-                      const res = await exportDocx({ sessionToken, invoiceId });
-                      window.open(res.url, "_blank", "noopener,noreferrer");
-                    } catch (e) {
-                      setMsg(toUserFacingErrorMessage(e));
-                    } finally {
-                      setDocxLoading(false);
-                    }
-                  })();
+                  // The Word file is built from the saved record — save first.
+                  void afterSave(async () => {
+                    const res = await exportDocx({ sessionToken, invoiceId });
+                    window.open(res.url, "_blank", "noopener,noreferrer");
+                  }).finally(() => setDocxLoading(false));
                 }}
               >
                 {docxLoading ? "Preparing…" : "Download Word"}
@@ -938,20 +904,16 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               <Button
                 type="button"
                 variant="secondary"
-                disabled={!invoiceId}
+                disabled={!invoiceId || invoiceDoc?.status === "paid"}
                 onClick={() => {
-                  if (!invoiceId) return;
-                  void (async () => {
-                    try {
-                      await markPaid({ sessionToken, invoiceId });
-                      setMsg("Marked as paid.");
-                    } catch (e) {
-                      setMsg(toUserFacingErrorMessage(e));
-                    }
-                  })();
+                  if (!invoiceId || !sessionToken) return;
+                  void afterSave(async () => {
+                    await markPaid({ sessionToken, invoiceId });
+                    setMsg("Marked as paid.");
+                  });
                 }}
               >
-                Mark as paid
+                {invoiceDoc?.status === "paid" ? "Paid" : "Mark as paid"}
               </Button>
             </div>
           </div>
@@ -986,10 +948,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               Close
             </Button>
             {pdfModel ? (
-              <PDFDownloadLink
-                document={<InvoicePdf model={pdfModel} />}
-                fileName={`invoice-${invoiceDate}.pdf`}
-              >
+              <PDFDownloadLink document={<InvoicePdf model={pdfModel} />} fileName={`invoice-${invoiceDate}.pdf`}>
                 {({ loading }) => (
                   <Button type="button" disabled={loading} className="bg-brand-primary text-white">
                     {loading ? "Preparing…" : "Download PDF"}
@@ -1003,4 +962,3 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
     </>
   );
 }
-

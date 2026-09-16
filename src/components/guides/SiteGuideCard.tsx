@@ -47,14 +47,14 @@ export function SiteGuideCard({
           <div className="flex flex-wrap items-center gap-2">
             <span
               className={cn(
-                "rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide",
+                "rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide",
                 TYPE_STYLES[type],
               )}
             >
               {TYPE_LABELS[type]}
             </span>
             {unesco ? (
-              <span className="rounded-full bg-blue-500/15 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-blue-800 dark:text-blue-200">
+              <span className="rounded-full bg-blue-500/15 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-blue-800 dark:text-blue-200">
                 UNESCO
               </span>
             ) : null}

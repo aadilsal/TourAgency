@@ -1,16 +1,16 @@
-import { AdminCustomItinerariesPanel } from "@/components/admin/AdminCustomItinerariesPanel";
+import { AdminAiPlannerRequestsPanel } from "@/components/admin/AdminAiPlannerRequestsPanel";
 
 export default function AdminCustomItinerariesPage() {
   return (
-    <div>
-      <h1 className="text-3xl font-bold text-brand-ink">Custom itineraries</h1>
-      <p className="mt-2 text-sm text-brand-muted">
-        AI-flagged custom routes submitted by guests. Approve to pursue pricing
-        or reject with an internal note.
+    <main>
+      <h1 className="text-2xl font-semibold text-brand-ink">Trip requests</h1>
+      <p className="mt-1 text-sm text-brand-muted">
+        Custom trip requests from the AI planner. Review the transcript, draft the
+        final itinerary or quote, then approve or reject with a note to the client.
       </p>
-      <div className="mt-10">
-        <AdminCustomItinerariesPanel />
+      <div className="mt-8">
+        <AdminAiPlannerRequestsPanel />
       </div>
-    </div>
+    </main>
   );
 }

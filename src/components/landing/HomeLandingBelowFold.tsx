@@ -196,7 +196,7 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
               {
                 icon: Zap,
                 title: "Where trust meets travel",
-                text: "Get insights from reviews and rely on top-notch support — we&apos;re here at every step.",
+                text: "Get insights from reviews and rely on top-notch support — we’re here at every step.",
               },
               {
                 icon: BadgePercent,

@@ -417,11 +417,6 @@ async function main() {
       () => anon.mutation(api.seed.seedSampleTours, { sessionToken: FORGED }),
     );
     await rejects(
-      "migrations.backfillTourUsdPrices",
-      () => anon.mutation(api.migrations.backfillTourUsdPrices, {} as never),
-      () => anon.mutation(api.migrations.backfillTourUsdPrices, { sessionToken: FORGED }),
-    );
-    await rejects(
       "admin.promoteUser (super-admin only)",
       () => anon.mutation(api.admin.promoteUser, { userId: superAdminId } as never),
       () =>

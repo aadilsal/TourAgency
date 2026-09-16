@@ -7,29 +7,62 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
+import type { FunctionArgs } from "convex/server";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
+import { useAutosave } from "@/hooks/useAutosave";
+import { useLocalDraft } from "@/hooks/useLocalDraft";
+import { useSafeQuery } from "@/hooks/useSafeQuery";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
+import {
+  DraftRestoreBanner,
+  QueryErrorBanner,
+  SaveStatusPill,
+} from "@/components/admin/shared/EditorStatus";
 import { FieldHint, FieldLabel, SelectField, TextAreaField, TextInput } from "@/components/ui/FormField";
-import { Button, ButtonLink } from "@/components/ui/Button";
-import { isoDateRangeLabel } from "@/lib/dates";
+import { Button } from "@/components/ui/Button";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
 import { toAbsoluteUrl } from "@/lib/absoluteUrl";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { cn } from "@/lib/cn";
-import { PDFDownloadLink, PDFViewer, pdf } from "@react-pdf/renderer";
+import { PDFViewer, pdf } from "@react-pdf/renderer";
 import { ItineraryPdf, type ItineraryPdfModel } from "@/documents/itinerary/ItineraryPdf";
-import { tiersToPackagesForPdf } from "@/lib/itineraryPackageMatrix";
-import type { PackageStay, PackageTier } from "@/lib/itineraryPackageMatrix";
+import {
+  DEFAULT_COMPLIANCE_LINE,
+  DEFAULT_HEADLINE,
+  DEFAULT_LOGO_URL,
+  DEFAULT_VARIANT_LABEL,
+  MAX_DAYS,
+  addDaysToYmd,
+  blankPackageTier,
+  buildSimpleItineraryModel,
+  clamp,
+  daysBetween,
+  editablePackageTiersToPatchPayload,
+  itineraryFileName,
+  legacyDayPlansToAtGlance,
+  legacyPackagesToTiers,
+  linesToList,
+  normalizePackageTier,
+  parseYmdLocal,
+  pickMapFallbackImage,
+  syncAtGlanceToDayCount,
+  type AtGlanceDay,
+  type EditablePackageTier,
+  type ItineraryDocumentSettings,
+  type ItineraryRecord,
+  type Theme,
+} from "@/components/admin/itinerary/itineraryModel";
+import { AtGlanceDaysEditor } from "@/components/admin/itinerary/AtGlanceDaysEditor";
+import { PackageTiersEditor } from "@/components/admin/itinerary/PackageTiersEditor";
+import { LegacyItineraryContentPanel } from "@/components/admin/itinerary/LegacyItineraryContentPanel";
 
-type Theme = "luxury" | "minimal" | "adventure";
+type ItineraryPatch = Omit<
+  FunctionArgs<typeof api.itineraries.patchDraft>,
+  "sessionToken" | "itineraryId"
+>;
 
-type AtGlanceDay = {
-  dayNumber: number;
-  title: string;
-  detail: string;
-  overnight?: string;
-};
-
-type SimpleBuilderDraftSnapshot = {
+/** Everything the form edits — also the shape of the local crash backup. */
+type BuilderSnapshot = {
   title: string;
   clientName: string;
   startDate: string;
@@ -47,305 +80,94 @@ type SimpleBuilderDraftSnapshot = {
   notIncludedInput: string;
 };
 
-function isDefaultDayTitle(title: string, dayNumber: number) {
-  const normalized = title.trim().toLowerCase().replace(/\s+/g, "");
-  return normalized === `day${dayNumber}`;
+/** Pre-2026-09 backup keys (raw snapshot, no timestamp). Read once, then removed. */
+function legacyBackupKey(itineraryId: string | null) {
+  return `jt:admin:itinerary-simple-builder:${itineraryId ?? "unsaved"}`;
 }
 
-const DEFAULT_LOGO_URL = "/images-removebg-preview.png";
-
-const MAP_FALLBACK_IMAGES = [
-  "hunza.jpg",
-  "gilgit.jpg",
-  "Khunerjab.jpg",
-  "islamabad.jpg",
-  "lahore.jpg",
-  "karachi.jpg",
-] as const;
-
-function pickMapFallbackImage(input: string) {
-  const v = input.toLowerCase();
-  if (v.includes("hunza")) return "hunza.jpg";
-  if (v.includes("gilgit")) return "gilgit.jpg";
-  if (v.includes("khunjerab") || v.includes("khunerjab")) return "Khunerjab.jpg";
-  if (v.includes("islamabad")) return "islamabad.jpg";
-  if (v.includes("lahore")) return "lahore.jpg";
-  if (v.includes("karachi")) return "karachi.jpg";
-  return MAP_FALLBACK_IMAGES[0];
+function backupKey(itineraryId: string | null) {
+  return `draft:itinerary:${itineraryId ?? "new"}`;
 }
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
-
-/** Textarea value -> list of non-empty trimmed lines. */
-function linesToList(input: string): string[] {
-  return input
-    .split("\n")
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-/**
- * How much real content a snapshot holds. Used to compare the browser backup
- * against what the server has, so a blank/poorer form can never overwrite a
- * richer local backup — that backup may be the only surviving copy.
- */
-function snapshotContentScore(
-  snapshot: Partial<SimpleBuilderDraftSnapshot> | null | undefined,
-): number {
-  if (!snapshot) return 0;
-  let score = 0;
-  for (const d of snapshot.atGlanceDays ?? []) {
-    if ((d?.title ?? "").trim()) score++;
-    if ((d?.detail ?? "").trim()) score++;
-    if ((d?.overnight ?? "").trim()) score++;
-  }
-  score += linesToList(snapshot.includedInput ?? "").length;
-  score += linesToList(snapshot.notIncludedInput ?? "").length;
-  for (const t of snapshot.packageTiers ?? []) {
-    if (typeof t?.pricePkr === "number") score++;
-    if ((t?.vehicle ?? "").trim()) score++;
-    for (const stay of t?.stays ?? []) {
-      if ((stay?.hotel ?? "").trim()) score++;
-    }
-  }
-  return score;
-}
-
-function getSimpleBuilderStorageKey(itineraryId: string | null) {
-  return itineraryId
-    ? `jt:admin:itinerary-simple-builder:${itineraryId}`
-    : "jt:admin:itinerary-simple-builder:unsaved";
-}
-
-function parseSimpleBuilderSnapshot(raw: string | null) {
-  if (!raw) return null;
+function readLegacyBackup(itineraryId: string | null): Partial<BuilderSnapshot> | null {
   try {
-    return JSON.parse(raw) as Partial<SimpleBuilderDraftSnapshot>;
+    const raw = window.localStorage.getItem(legacyBackupKey(itineraryId));
+    return raw ? (JSON.parse(raw) as Partial<BuilderSnapshot>) : null;
   } catch {
     return null;
   }
 }
 
-function parseYmdLocal(ymd: string) {
-  if (!ymd) return null;
-  const d = new Date(`${ymd}T00:00:00`);
-  if (!Number.isFinite(d.getTime())) return null;
-  return d;
-}
-
-function formatYmdLocal(d: Date) {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function addDaysToYmd(ymd: string, offsetDays: number) {
-  const d = parseYmdLocal(ymd);
-  if (!d) return null;
-  d.setDate(d.getDate() + offsetDays);
-  return formatYmdLocal(d);
-}
-
-function syncAtGlanceToDayCount(
-  prev: AtGlanceDay[],
-  newDays: number,
-): AtGlanceDay[] {
-  const safe = clamp(newDays, 1, 60);
-  const next = prev.slice(0, safe);
-  while (next.length < safe) {
-    next.push({ dayNumber: next.length + 1, title: "", detail: "" });
+function removeLegacyBackup(itineraryId: string | null) {
+  try {
+    window.localStorage.removeItem(legacyBackupKey(itineraryId));
+  } catch {
+    /* ignore */
   }
-  return next.map((row, i) => {
-    const dayNumber = i + 1;
-    return {
-      ...row,
-      dayNumber,
-      title: isDefaultDayTitle(row.title, row.dayNumber) ? "" : row.title,
-    };
-  });
 }
 
-type ExistingItinerary = {
-  _id: Id<"itineraries">;
-  headline?: string;
-  variantLabel?: string;
-  coverSubtitle?: string;
-  complianceLine?: string;
-  licenceNumber?: string;
-  pickupDropoff?: string;
-  title: string;
-  clientName: string;
-  startDate?: string;
-  endDate?: string;
-  days: number;
-  theme: Theme;
-  layoutVariant?: "simple" | "advanced";
-  atGlanceDays?: AtGlanceDay[];
-  packageStayRows?: Array<{ location: string }>;
-  packageTiers?: PackageTier[];
-  coverImageStorageId?: Id<"_storage">;
-  included?: string[];
-  notIncluded?: string[];
-  // Legacy fields (pre-simple-builder).
-  dayPlans?: Array<{
-    dayNumber: number;
-    title: string;
-    highlights?: string[];
-    overnight?: string;
-    morning: Array<{ title: string; description: string }>;
-    afternoon: Array<{ title: string; description: string }>;
-    evening: Array<{ title: string; description: string }>;
-  }>;
-  packages?: Array<{
-    name: string;
-    pricePkr?: number;
-    vehicle?: string;
-    note?: string;
-    stays?: Array<{ location: string; hotel: string; nights: number }>;
-  }>;
-};
-
-type EditablePackageTier = Omit<PackageTier, "stays" | "hotels"> & {
-  stays: PackageStay[];
-};
-
-function normalizeTierStay(stay: Partial<PackageStay>, fallbackLocation: string): PackageStay {
+/** Fields in a snapshot that would change the saved record. */
+function snapshotToPatch(s: BuilderSnapshot): Required<
+  Pick<
+    ItineraryPatch,
+    | "headline"
+    | "variantLabel"
+    | "coverSubtitle"
+    | "complianceLine"
+    | "pickupDropoff"
+    | "title"
+    | "clientName"
+    | "days"
+    | "theme"
+    | "atGlanceDays"
+    | "packageTiers"
+    | "included"
+    | "notIncluded"
+  >
+> & { startDate: string | null; endDate: string | null } {
   return {
-    location: String(stay.location ?? fallbackLocation).trim() || fallbackLocation,
-    hotel: String(stay.hotel ?? "").trim(),
-    nights: Math.max(1, Math.floor(Number(stay.nights) || 1)),
+    headline: s.headline,
+    variantLabel: s.variantLabel,
+    coverSubtitle: s.coverSubtitle,
+    complianceLine: s.complianceLine,
+    pickupDropoff: s.pickupDropoff,
+    title: s.title,
+    clientName: s.clientName,
+    // `null` clears a date on the server; `undefined` would leave the old one.
+    startDate: s.startDate.trim() || null,
+    endDate: s.endDate.trim() || null,
+    days: clamp(s.dayCount, 1, MAX_DAYS),
+    theme: s.theme,
+    atGlanceDays: s.atGlanceDays,
+    packageTiers: editablePackageTiersToPatchPayload(s.packageTiers),
+    included: linesToList(s.includedInput),
+    notIncluded: linesToList(s.notIncludedInput),
   };
 }
 
-function normalizePackageTier(
-  tier: NonNullable<ExistingItinerary["packageTiers"]>[number],
-  fallbackRows?: Array<{ location: string }>,
-): EditablePackageTier {
-  const fallbackRowsSafe = fallbackRows ?? [];
-  const explicitStays = (tier.stays ?? []).map((stay, idx) =>
-    normalizeTierStay(stay, fallbackRowsSafe[idx]?.location ?? `Stop ${idx + 1}`),
-  );
-
-  const stays =
-    explicitStays.length > 0
-      ? explicitStays
-      : ((tier as { hotels?: Array<{ hotel: string; nights: number }> }).hotels ?? []).map((hotel, idx) =>
-          normalizeTierStay(
-            { hotel: hotel.hotel, nights: hotel.nights },
-            fallbackRowsSafe[idx]?.location ?? `Stop ${idx + 1}`,
-          ),
-        );
-
-  return {
-    name: String(tier.name ?? "").trim(),
-    pricePkr: typeof tier.pricePkr === "number" ? tier.pricePkr : undefined,
-    vehicle:
-      typeof tier.vehicle === "string" && tier.vehicle.trim()
-        ? tier.vehicle.trim()
-        : undefined,
-    note: typeof tier.note === "string" && tier.note.trim() ? tier.note.trim() : undefined,
-    stays: stays.length > 0 ? stays : [{ location: "", hotel: "", nights: 1 }],
-  };
+function serializeFields(patch: Record<string, unknown>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(patch)) out[k] = JSON.stringify(v ?? null);
+  return out;
 }
 
-function editablePackageTiersToPatchPayload(
-  tiers: EditablePackageTier[],
-): Array<PackageTier & { hotels: NonNullable<PackageTier["hotels"]> }> {
-  return tiers.map((tier) => ({
-    name: String(tier.name ?? "").trim(),
-    pricePkr: typeof tier.pricePkr === "number" ? tier.pricePkr : undefined,
-    vehicle:
-      typeof tier.vehicle === "string" && tier.vehicle.trim()
-        ? tier.vehicle.trim()
-        : undefined,
-    note: typeof tier.note === "string" && tier.note.trim() ? tier.note.trim() : undefined,
-    stays: tier.stays.map((stay, idx) => ({
-      location: String(stay.location ?? `Stop ${idx + 1}`).trim() || `Stop ${idx + 1}`,
-      hotel: String(stay.hotel ?? "").trim(),
-      nights: Math.max(1, Math.floor(Number(stay.nights) || 1)),
-    })),
-    hotels: tier.stays.map((stay) => ({
-      hotel: String(stay.hotel ?? "").trim(),
-      nights: Math.max(1, Math.floor(Number(stay.nights) || 1)),
-    })),
-  }));
-}
-
-function legacyDayPlansToAtGlance(
-  dayPlans: NonNullable<ExistingItinerary["dayPlans"]>,
-): AtGlanceDay[] {
-  const sorted = [...dayPlans].sort((a, b) => a.dayNumber - b.dayNumber);
-  return sorted.map((d, idx) => {
-    const highlights = (d.highlights ?? []).map((s) => s.trim()).filter(Boolean);
-    const slotTitles = [
-      ...d.morning.map((s) => s.title),
-      ...d.afternoon.map((s) => s.title),
-      ...d.evening.map((s) => s.title),
-    ]
-      .map((s) => (s ?? "").trim())
-      .filter(Boolean);
-
-    const detail =
-      highlights.length > 0
-        ? highlights.join(" · ")
-        : slotTitles.length > 0
-          ? slotTitles.join(" · ")
-          : "";
-
-    return {
-      dayNumber: idx + 1,
-      title: String(d.title ?? "").trim(),
-      detail,
-      overnight:
-        typeof d.overnight === "string" && d.overnight.trim()
-          ? d.overnight.trim()
-          : undefined,
-    };
-  });
-}
-
-function legacyPackagesToMatrix(
-  packages: NonNullable<ExistingItinerary["packages"]>,
-): { rows: Array<{ location: string }>; tiers: EditablePackageTier[] } {
-  const locations: string[] = [];
-  const ensureLocation = (locRaw: string) => {
-    const loc = (locRaw ?? "").trim();
-    if (!loc) return -1;
-    const existingIdx = locations.findIndex(
-      (x) => x.toLowerCase() === loc.toLowerCase(),
-    );
-    if (existingIdx >= 0) return existingIdx;
-    locations.push(loc);
-    return locations.length - 1;
-  };
-
-  for (const p of packages) {
-    for (const s of p.stays ?? []) ensureLocation(s.location);
+/** How much real content a snapshot holds (only used to vet old-format backups). */
+function snapshotContentScore(s: Partial<BuilderSnapshot> | null | undefined): number {
+  if (!s) return 0;
+  let score = 0;
+  for (const d of s.atGlanceDays ?? []) {
+    if ((d?.title ?? "").trim()) score++;
+    if ((d?.detail ?? "").trim()) score++;
+    if ((d?.overnight ?? "").trim()) score++;
   }
-
-  const rows = locations.map((location) => ({ location }));
-  const tiers: EditablePackageTier[] = packages.map((p) => ({
-    name: String(p.name ?? "").trim() || "Package",
-    pricePkr: typeof p.pricePkr === "number" ? p.pricePkr : undefined,
-    vehicle:
-      typeof p.vehicle === "string" && p.vehicle.trim()
-        ? p.vehicle.trim()
-        : undefined,
-    note: typeof p.note === "string" && p.note.trim() ? p.note.trim() : undefined,
-    stays: (p.stays ?? []).map((s, idx) => ({
-      location:
-        String(s.location ?? rows[idx]?.location ?? `Stop ${idx + 1}`).trim() ||
-        rows[idx]?.location ||
-        `Stop ${idx + 1}`,
-      hotel: String(s.hotel ?? "").trim(),
-      nights: Math.max(1, Math.floor(Number(s.nights) || 1)),
-    })),
-  }));
-
-  return { rows, tiers };
+  score += linesToList(s.includedInput ?? "").length;
+  score += linesToList(s.notIncludedInput ?? "").length;
+  for (const t of s.packageTiers ?? []) {
+    if (typeof t?.pricePkr === "number") score++;
+    if ((t?.vehicle ?? "").trim()) score++;
+    for (const stay of t?.stays ?? []) if ((stay?.hotel ?? "").trim()) score++;
+  }
+  return score;
 }
 
 export function AdminItinerarySimpleBuilder({
@@ -365,15 +187,22 @@ export function AdminItinerarySimpleBuilder({
   sourceGuestBookingId?: string;
 }) {
   const router = useRouter();
-  const sessionToken = useConvexSessionToken();
+  const liveToken = useConvexSessionToken();
+  // Keep the form mounted if the session lapses mid-edit: saves fail visibly
+  // and the local backup keeps the edits instead of the form unmounting.
+  const lastTokenRef = useRef<string | null>(null);
+  if (typeof liveToken === "string") lastTokenRef.current = liveToken;
+  const sessionToken = typeof liveToken === "string" ? liveToken : lastTokenRef.current;
+  const sessionLost = liveToken === null && lastTokenRef.current !== null;
   const canMutate = typeof sessionToken === "string";
+
   const minDate = useMemo(() => todayYmdLocal(), []);
   const defaultLogoUrlAbs = useMemo(() => toAbsoluteUrl(DEFAULT_LOGO_URL), []);
 
   const createDraft = useMutation(api.itineraries.createDraft);
-  const draftItineraryDays = useAction(api.ai.draftItineraryDays);
   const patchDraft = useMutation(api.itineraries.patchDraft);
   const markFinal = useMutation(api.itineraries.markFinal);
+  const draftItineraryDays = useAction(api.ai.draftItineraryDays);
   const generateUploadUrl = useMutation(api.media.generateItineraryImageUploadUrl);
   const addItineraryImageAsset = useMutation(api.media.addItineraryImageAsset);
 
@@ -381,474 +210,69 @@ export function AdminItinerarySimpleBuilder({
     itineraryIdProp ? (itineraryIdProp as Id<"itineraries">) : null,
   );
 
-  const existing = useQuery(
+  const existingQuery = useSafeQuery(
     api.itineraries.getForAdmin,
     canMutate && itineraryId ? { sessionToken, itineraryId } : "skip",
-  ) as ExistingItinerary | null | undefined;
+  );
+  const existing = existingQuery.data as ItineraryRecord | null | undefined;
 
-  const adminSettings = useQuery(
+  const settingsQuery = useSafeQuery(
     api.siteSettings.getAdminSiteSettings,
     canMutate ? { sessionToken } : "skip",
   );
+  const adminSettings = settingsQuery.data as ItineraryDocumentSettings | undefined;
 
+  // ── Form state ────────────────────────────────────────────────────────────
   const [title, setTitle] = useState(initialTitle ?? "");
   const [clientName, setClientName] = useState(initialClientName ?? "");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [dayCount, setDayCount] = useState(5);
   const [theme, setTheme] = useState<Theme>("luxury");
-  const [headline, setHeadline] = useState("Your Dream Trip Awaits —");
-  const [variantLabel, setVariantLabel] = useState("Customised");
+  const [headline, setHeadline] = useState(DEFAULT_HEADLINE);
+  const [variantLabel, setVariantLabel] = useState(DEFAULT_VARIANT_LABEL);
   const [coverSubtitle, setCoverSubtitle] = useState("");
   const [coverStorageId, setCoverStorageId] = useState<Id<"_storage"> | null>(null);
-  const [complianceLine, setComplianceLine] = useState(
-    "JunketTours — Government Registered Tourism Company | DTS",
-  );
+  const [complianceLine, setComplianceLine] = useState(DEFAULT_COMPLIANCE_LINE);
   const [pickupDropoff, setPickupDropoff] = useState("");
-  const [atGlanceDays, setAtGlanceDays] = useState<AtGlanceDay[]>([
-    { dayNumber: 1, title: "", detail: "" },
-  ]);
+  const [atGlanceDays, setAtGlanceDays] = useState<AtGlanceDay[]>(() =>
+    syncAtGlanceToDayCount([], 5),
+  );
   const [packageTiers, setPackageTiers] = useState<EditablePackageTier[]>([
-    {
-      name: "Standard",
-      pricePkr: undefined,
-      vehicle: "",
-      note: "",
-      stays: [{ location: "", hotel: "", nights: 1 }],
-    },
+    blankPackageTier(1, "Standard"),
   ]);
   const [includedInput, setIncludedInput] = useState("");
   const [notIncludedInput, setNotIncludedInput] = useState("");
 
-  const [savingState, setSavingState] = useState<"idle" | "saving" | "saved" | "error">(
-    "idle",
-  );
   const [msg, setMsg] = useState<string | null>(null);
   const [creatingDraft, setCreatingDraft] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [mobileTab, setMobileTab] = useState<"form" | "pdf">("form");
 
-  const hydratedKey = useRef<string | null>(null);
-  /**
-   * Autosave gate. Stays null until this itinerary's saved values are loaded
-   * into state (or until we just created the draft, when local state is the
-   * source of truth). Patching before that would overwrite the saved draft with
-   * this component's blank defaults.
-   */
+  /** Id whose saved values are loaded into state. Autosave stays off until then. */
   const [hydratedId, setHydratedId] = useState<string | null>(null);
-  const legacyMigratedKey = useRef<string | null>(null);
-  const localDraftHydratedKey = useRef<string | null>(null);
-  const localDraftJsonRef = useRef<string>("");
-  /** The browser backup found on load, before this session overwrites it. */
-  const localSnapshotRef = useRef<Partial<SimpleBuilderDraftSnapshot> | null>(null);
-  const restoreCheckedKey = useRef<string | null>(null);
-  const [restorable, setRestorable] = useState<{
-    snapshot: Partial<SimpleBuilderDraftSnapshot>;
-    extra: number;
-  } | null>(null);
+  const isHydrated = Boolean(itineraryId) && hydratedId === String(itineraryId);
+  /** Last values known to be on the server, per field (JSON). Only changed fields are sent. */
+  const baselineRef = useRef<Record<string, string> | null>(null);
+  /** One-time legacy migration patch, sent right after hydration. */
+  const migrationPatchRef = useRef<ItineraryPatch | null>(null);
+  const lastAutoNights = useRef<number>(1);
 
-  const computedDaysFromDates = useMemo(() => {
-    if (!startDate || !endDate) return null;
-    const s = new Date(`${startDate}T00:00:00`);
-    const e = new Date(`${endDate}T00:00:00`);
-    if (!Number.isFinite(s.getTime()) || !Number.isFinite(e.getTime())) return null;
-    const diff = Math.floor((e.getTime() - s.getTime()) / 86400000) + 1;
-    if (diff < 1) return null;
-    return clamp(diff, 1, 60);
-  }, [startDate, endDate]);
-
-  const syncDatesToDayCount = useCallback(
-    (targetDays: number) => {
-      if (!startDate && !endDate) return;
-      const baseStart = parseYmdLocal(startDate)
-        ? startDate
-        : parseYmdLocal(endDate)
-          ? endDate
-          : minDate;
-      if (!startDate || startDate !== baseStart) {
-        setStartDate(baseStart);
-      }
-      const nextEndDate = addDaysToYmd(baseStart, targetDays - 1);
-      if (nextEndDate) {
-        setEndDate(nextEndDate);
-      }
-    },
-    [endDate, minDate, startDate],
-  );
-
-  const setDayCountAndSync = useCallback(
-    (next: number) => {
-      const safe = clamp(next, 1, 60);
-      setDayCount(safe);
-      setAtGlanceDays((prev) => syncAtGlanceToDayCount(prev, safe));
-      if (startDate || endDate) {
-        syncDatesToDayCount(safe);
-      }
-    },
-    [syncDatesToDayCount, startDate, endDate],
-  );
-
-  useEffect(() => {
-    if (!itineraryIdProp) return;
-    setItineraryId(itineraryIdProp as Id<"itineraries">);
-    hydratedKey.current = null;
-    setHydratedId(null);
-  }, [itineraryIdProp]);
-
-  useEffect(() => {
-    if (!existing || !itineraryId) return;
-    const key = String(itineraryId);
-    if (hydratedKey.current === key) return;
-    hydratedKey.current = key;
-    setHydratedId(key);
-
-    setTitle(existing.title ?? "");
-    setClientName(existing.clientName ?? "");
-    setStartDate(existing.startDate ?? "");
-    setEndDate(existing.endDate ?? "");
-    setDayCount(clamp(existing.days ?? existing.atGlanceDays?.length ?? 5, 1, 60));
-    setTheme(existing.theme ?? "luxury");
-    setHeadline(existing.headline ?? "Your Dream Trip Awaits —");
-    setVariantLabel(existing.variantLabel ?? "Customised");
-    setCoverSubtitle(existing.coverSubtitle ?? "");
-    setComplianceLine(
-      existing.complianceLine ??
-        "JunketTours — Government Registered Tourism Company | DTS",
-    );
-    setPickupDropoff(existing.pickupDropoff ?? "");
-    setCoverStorageId(existing.coverImageStorageId ?? null);
-
-    if (existing.atGlanceDays?.length) {
-      setAtGlanceDays(
-        syncAtGlanceToDayCount(
-          existing.atGlanceDays.map((d) => ({
-            dayNumber: d.dayNumber,
-            title: d.title,
-            detail: d.detail,
-            overnight: d.overnight,
-          })),
-          existing.days ?? existing.atGlanceDays.length,
-        ),
-      );
-    }
-
-    if (existing.packageTiers?.length) {
-      const fallbackRows = existing.packageStayRows ?? [];
-      setPackageTiers(existing.packageTiers.map((tier) => normalizePackageTier(tier, fallbackRows)));
-    }
-
-    setIncludedInput((existing.included ?? []).join("\n"));
-    setNotIncludedInput((existing.notIncluded ?? []).join("\n"));
-  }, [existing, itineraryId]);
-
-  useEffect(() => {
-    if (!canMutate || !existing || !itineraryId) return;
-    const key = String(itineraryId);
-    if (legacyMigratedKey.current === key) return;
-
-    const needsAtGlance =
-      !existing.atGlanceDays || existing.atGlanceDays.length === 0;
-    const needsMatrix = !existing.packageTiers || existing.packageTiers.length === 0;
-    const hasLegacy =
-      (existing.dayPlans && existing.dayPlans.length > 0) ||
-      (existing.packages && existing.packages.length > 0);
-
-    if (!hasLegacy) {
-      legacyMigratedKey.current = key;
-      return;
-    }
-
-    const patch: Record<string, unknown> = {};
-
-    if (needsAtGlance && existing.dayPlans?.length) {
-      const next = syncAtGlanceToDayCount(
-        legacyDayPlansToAtGlance(existing.dayPlans),
-        existing.days ?? existing.dayPlans.length,
-      );
-      setAtGlanceDays(next);
-      patch.atGlanceDays = next;
-    }
-
-    if (needsMatrix && existing.packages?.length) {
-      const { tiers } = legacyPackagesToMatrix(existing.packages);
-      const safeTiers =
-        tiers.length > 0
-          ? tiers
-          : [
-              {
-                name: "Standard",
-                pricePkr: undefined,
-                vehicle: "",
-                note: "",
-                stays: [{ location: "", hotel: "", nights: 1 }],
-              },
-            ];
-      setPackageTiers(safeTiers);
-      patch.packageTiers = editablePackageTiersToPatchPayload(safeTiers);
-    }
-
-    legacyMigratedKey.current = key;
-    void patchDraft({
-      sessionToken,
-      itineraryId,
-      ...(patch as unknown as Omit<Parameters<typeof patchDraft>[0], "sessionToken" | "itineraryId">),
-    });
-  }, [canMutate, existing, itineraryId, legacyMigratedKey, patchDraft, sessionToken]);
-
-  useEffect(() => {
-    if (!adminSettings || !itineraryId || !existing) return;
-    const incEmpty = !(existing.included && existing.included.length);
-    const excEmpty = !(existing.notIncluded && existing.notIncluded.length);
-    if (incEmpty && adminSettings.defaultIncluded?.length) {
-      setIncludedInput(adminSettings.defaultIncluded.join("\n"));
-    }
-    if (excEmpty && adminSettings.defaultNotIncluded?.length) {
-      setNotIncludedInput(adminSettings.defaultNotIncluded.join("\n"));
-    }
-  }, [adminSettings, existing, itineraryId]);
-
-  const applySnapshot = useCallback((snapshot: Partial<SimpleBuilderDraftSnapshot>) => {
-    if (typeof snapshot.title === "string") setTitle(snapshot.title);
-    if (typeof snapshot.clientName === "string") setClientName(snapshot.clientName);
-    if (typeof snapshot.startDate === "string") setStartDate(snapshot.startDate);
-    if (typeof snapshot.endDate === "string") setEndDate(snapshot.endDate);
-    if (typeof snapshot.dayCount === "number") {
-      setDayCount(clamp(snapshot.dayCount, 1, 60));
-    }
-    if (snapshot.theme) setTheme(snapshot.theme);
-    if (typeof snapshot.headline === "string") setHeadline(snapshot.headline);
-    if (typeof snapshot.variantLabel === "string") setVariantLabel(snapshot.variantLabel);
-    if (typeof snapshot.coverSubtitle === "string") setCoverSubtitle(snapshot.coverSubtitle);
-    if (typeof snapshot.complianceLine === "string") setComplianceLine(snapshot.complianceLine);
-    if (typeof snapshot.pickupDropoff === "string") setPickupDropoff(snapshot.pickupDropoff);
-    if (Array.isArray(snapshot.atGlanceDays) && snapshot.atGlanceDays.length > 0) {
-      setAtGlanceDays(snapshot.atGlanceDays);
-    }
-    if (Array.isArray(snapshot.packageTiers) && snapshot.packageTiers.length > 0) {
-      const restoredTiers: EditablePackageTier[] = snapshot.packageTiers.map((tier) => ({
-        name: String(tier.name ?? "").trim(),
-        pricePkr: typeof tier.pricePkr === "number" ? tier.pricePkr : undefined,
-        vehicle:
-          typeof tier.vehicle === "string" && tier.vehicle.trim()
-            ? tier.vehicle.trim()
-            : undefined,
-        note: typeof tier.note === "string" && tier.note.trim() ? tier.note.trim() : undefined,
-        stays: tier.stays.map((stay, idx) => ({
-          location:
-            String(stay.location ?? `Stop ${idx + 1}`).trim() || `Stop ${idx + 1}`,
-          hotel: String(stay.hotel ?? "").trim(),
-          nights: Math.max(1, Math.floor(Number(stay.nights) || 1)),
-        })),
-      }));
-      setPackageTiers(restoredTiers);
-    }
-    if (typeof snapshot.includedInput === "string") setIncludedInput(snapshot.includedInput);
-    if (typeof snapshot.notIncludedInput === "string") setNotIncludedInput(snapshot.notIncludedInput);
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const storageKey = getSimpleBuilderStorageKey(itineraryId ? String(itineraryId) : null);
-    if (localDraftHydratedKey.current === storageKey) return;
-    localDraftHydratedKey.current = storageKey;
-
-    const snapshot = parseSimpleBuilderSnapshot(window.localStorage.getItem(storageKey));
-    localSnapshotRef.current = snapshot;
-    if (!snapshot) return;
-
-    // For a saved itinerary the server is the source of truth. The browser
-    // backup is offered explicitly through the restore banner instead, so a
-    // stale snapshot can never silently replace saved content.
-    if (itineraryId) return;
-    applySnapshot(snapshot);
-  }, [applySnapshot, itineraryId]);
-
-  const saveTimer = useRef<number | null>(null);
-  const lastPatchJson = useRef<string>("");
-
-  const queuePatch = useCallback(
-    (partial: Record<string, unknown> | null) => {
-      if (!canMutate || !itineraryId || !partial) return;
-      // Never autosave before the saved draft has been loaded into state.
-      if (hydratedId !== String(itineraryId)) return;
-      const payload = { sessionToken, itineraryId, ...partial };
-      const json = JSON.stringify(payload);
-      if (json === lastPatchJson.current) return;
-      lastPatchJson.current = json;
-      if (saveTimer.current) window.clearTimeout(saveTimer.current);
-      setSavingState("saving");
-      saveTimer.current = window.setTimeout(() => {
-        void (async () => {
-          try {
-            await patchDraft(payload as Parameters<typeof patchDraft>[0]);
-            setSavingState("saved");
-            setMsg(null);
-          } catch (e) {
-            // Keep the raw reason in the console: the user-facing copy is
-            // deliberately generic and hides validation details.
-            console.error("Itinerary autosave failed", e);
-            // Allow an identical payload to be retried after a failure.
-            lastPatchJson.current = "";
-            setSavingState("error");
-            setMsg(`Couldn’t save your changes. ${toUserFacingErrorMessage(e)}`);
-          }
-        })();
-      }, 350);
-    },
-    [canMutate, hydratedId, itineraryId, patchDraft, sessionToken],
-  );
-
-  useEffect(() => {
-    return () => {
-      if (saveTimer.current) window.clearTimeout(saveTimer.current);
-    };
-  }, []);
-
-  const safeDays = clamp(dayCount, 1, 60);
+  const safeDays = clamp(dayCount, 1, MAX_DAYS);
   const nights = Math.max(0, safeDays - 1);
   const defaultHotelNights = Math.max(1, nights || 1);
-  const mapFallback = pickMapFallbackImage(
-    [title, pickupDropoff].filter(Boolean).join(" "),
-  );
+  const computedDaysFromDates = startDate && endDate ? daysBetween(startDate, endDate) : null;
 
-  // Keep the package matrix "Nights" default in sync with itinerary dates, but
-  // only update cells that still match the previous auto-default.
-  const lastAutoNights = useRef<number>(1);
-  useEffect(() => {
-    const prev = lastAutoNights.current;
-    const next = defaultHotelNights;
-    if (prev === next) return;
-    lastAutoNights.current = next;
-    setPackageTiers((prevTiers) =>
-      prevTiers.map((tier) => ({
-        ...tier,
-        stays: tier.stays.map((stay) => ({
-          ...stay,
-          nights: stay.nights === prev ? next : stay.nights,
-        })),
-      })),
-    );
-  }, [defaultHotelNights]);
-
-  // Resolve cover storage id to a URL for previewing/embedding
-  const coverResolve = useQuery(
-    api.media.resolveStorageIdsForAdmin,
-    canMutate && coverStorageId ? { sessionToken, ids: [coverStorageId] } : "skip",
-  ) as (string | null)[] | undefined;
-  const coverUrlResolved = coverResolve?.[0] ?? undefined;
-  let coverPreviewSrc = toAbsoluteUrl(`/maps/${mapFallback}`) ?? "";
-  if (coverUrlResolved) {
-    coverPreviewSrc = toAbsoluteUrl(coverUrlResolved) ?? coverPreviewSrc;
-  }
-
-  const pdfModel: ItineraryPdfModel = useMemo(() => {
-    const included = linesToList(includedInput);
-    const notIncluded = linesToList(notIncludedInput);
-
-    const packages = tiersToPackagesForPdf([], packageTiers);
-
-    const settings = adminSettings;
-    const licence =
-      (settings as { governmentLicenseNo?: string })?.governmentLicenseNo?.trim() ||
-      "";
-    const licence2 =
-      (settings as { governmentLicenseNo2?: string })?.governmentLicenseNo2?.trim() ||
-      "";
-
-    return {
-      layoutVariant: "simple",
-      includeEmptySections: true,
-      headline,
-      variantLabel,
-      tripTitle: title || "Trip Itinerary",
-      coverSubtitle: coverSubtitle || undefined,
-      clientName,
-      dateRangeLabel: isoDateRangeLabel(startDate, endDate),
-      nightsLabel: `${nights}-Night`,
-      daysLabel: `${safeDays}-Day`,
-      pickupDropoff: pickupDropoff || undefined,
-      complianceLine: complianceLine || undefined,
-      licenceNumber: licence || undefined,
-      licenceNumber2: licence2 || undefined,
-      companyName: "JunketTours",
-      contact: {
-        phone: settings?.whatsappPhone?.trim() || undefined,
-        email: settings?.contactEmail?.trim() || undefined,
-        website: (settings as { website?: string })?.website?.trim() || undefined,
-        officeAddress: settings?.officeAddress?.trim() || undefined,
-      },
-      coverImageUrl: coverUrlResolved ? toAbsoluteUrl(coverUrlResolved) : toAbsoluteUrl(`/maps/${mapFallback}`),
-      logoUrl: defaultLogoUrlAbs,
-      atGlanceDays,
-      dayPlans: [],
-      included,
-      notIncluded,
-      packages,
-      paymentTerms: settings?.paymentTerms ?? [],
-      bankDetails: settings?.bankDetails,
-      termsBlocks: settings?.termsBlocks ?? [],
-    };
-  }, [
-    adminSettings,
-    atGlanceDays,
-    clientName,
-    complianceLine,
-    coverSubtitle,
-    defaultLogoUrlAbs,
-    headline,
-    includedInput,
-    mapFallback,
-    nights,
-    notIncludedInput,
-    packageTiers,
-    pickupDropoff,
-    safeDays,
-    startDate,
-    endDate,
-    title,
-    variantLabel,
-    coverUrlResolved,
-  ]);
-  
-
-  async function uploadCoverImage(file: File) {
-    if (!canMutate) throw new Error("Not authenticated");
-    if (!itineraryId) throw new Error("Create the draft first.");
-    const folderKey = `itineraries/${String(itineraryId)}`;
-    const postUrl = await generateUploadUrl({ sessionToken, folderKey });
-    const contentType = file.type || "application/octet-stream";
-    const res = await fetch(postUrl, {
-      method: "POST",
-      headers: { "Content-Type": contentType },
-      body: file,
-    });
-    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
-    const data = (await res.json()) as { storageId?: Id<"_storage"> };
-    if (!data.storageId) throw new Error("No storageId returned");
-    try {
-      await addItineraryImageAsset({ sessionToken, itineraryId, folderKey, storageId: data.storageId });
-    } catch (e) {
-      console.warn("Failed to index itinerary image asset", e);
-    }
-    setCoverStorageId(data.storageId);
-    try {
-      await patchDraft({ sessionToken, itineraryId, coverImageStorageId: data.storageId });
-    } catch (e) {
-      console.warn("Failed to persist coverImageStorageId", e);
-    }
-  }
-
-  const [previewModel, setPreviewModel] = useState<ItineraryPdfModel>(pdfModel);
-  const previewTimer = useRef<number | null>(null);
-
-  const localDraftSnapshot = useMemo<SimpleBuilderDraftSnapshot>(
+  const snapshot = useMemo<BuilderSnapshot>(
     () => ({
       title,
       clientName,
       startDate,
       endDate,
-      dayCount,
+      dayCount: safeDays,
       theme,
       headline,
       variantLabel,
@@ -865,7 +289,7 @@ export function AdminItinerarySimpleBuilder({
       clientName,
       startDate,
       endDate,
-      dayCount,
+      safeDays,
       theme,
       headline,
       variantLabel,
@@ -878,168 +302,350 @@ export function AdminItinerarySimpleBuilder({
       notIncludedInput,
     ],
   );
+  const formPatch = useMemo(() => snapshotToPatch(snapshot), [snapshot]);
 
-  const localDraftStorageKey = useMemo(
-    () => getSimpleBuilderStorageKey(itineraryId ? String(itineraryId) : null),
-    [itineraryId],
-  );
-
-  /**
-   * Write the browser backup, but never replace a richer one with a poorer one.
-   * Loading an itinerary whose content failed to save would otherwise blank the
-   * backup on mount — destroying the only remaining copy.
-   */
-  const writeLocalBackup = useCallback(
-    (json: string, candidate: Partial<SimpleBuilderDraftSnapshot>) => {
-      if (typeof window === "undefined") return;
-      try {
-        const stored = parseSimpleBuilderSnapshot(
-          window.localStorage.getItem(localDraftStorageKey),
-        );
-        if (stored && snapshotContentScore(stored) > snapshotContentScore(candidate)) return;
-        window.localStorage.setItem(localDraftStorageKey, json);
-      } catch {
-        // ignore storage failures
-      }
+  // ── Autosave ──────────────────────────────────────────────────────────────
+  const autosave = useAutosave<ItineraryPatch>({
+    enabled: canMutate && isHydrated,
+    save: async (patch) => {
+      if (!sessionToken || !itineraryId) throw new Error("Not authenticated");
+      await patchDraft({ sessionToken, itineraryId, ...patch });
     },
-    [localDraftStorageKey],
+  });
+  const { queue: queueSave, flush: flushSave } = autosave;
+
+  useEffect(() => {
+    if (!itineraryIdProp) return;
+    setItineraryId(itineraryIdProp as Id<"itineraries">);
+  }, [itineraryIdProp]);
+
+  // Load the saved record into the form exactly once per itinerary.
+  useEffect(() => {
+    if (!existing || !itineraryId) return;
+    const key = String(itineraryId);
+    if (hydratedId === key) return;
+
+    const migration: ItineraryPatch = {};
+    let days = existing.atGlanceDays?.length ? existing.atGlanceDays : null;
+    if (!days && existing.dayPlans?.length) {
+      days = legacyDayPlansToAtGlance(existing.dayPlans);
+    }
+    const count = clamp(Math.max(existing.days || 1, days?.length ?? 0), 1, MAX_DAYS);
+    const syncedDays = syncAtGlanceToDayCount(days ?? [], count);
+    if (!existing.atGlanceDays?.length && existing.dayPlans?.length) {
+      migration.atGlanceDays = syncedDays;
+    }
+
+    let tiers: EditablePackageTier[] | null = null;
+    if (existing.packageTiers?.length) {
+      tiers = existing.packageTiers.map((t) => normalizePackageTier(t, existing.packageStayRows ?? []));
+    } else if (existing.packages?.length) {
+      tiers = legacyPackagesToTiers(existing.packages);
+      migration.packageTiers = editablePackageTiersToPatchPayload(tiers);
+    }
+    // Exports must render what this builder shows (see usesSimpleLayout).
+    if (existing.layoutVariant !== "simple") migration.layoutVariant = "simple";
+
+    setTitle(existing.title ?? "");
+    setClientName(existing.clientName ?? "");
+    setStartDate(existing.startDate ?? "");
+    setEndDate(existing.endDate ?? "");
+    setDayCount(count);
+    setTheme(existing.theme ?? "luxury");
+    setHeadline(existing.headline ?? DEFAULT_HEADLINE);
+    setVariantLabel(existing.variantLabel ?? DEFAULT_VARIANT_LABEL);
+    setCoverSubtitle(existing.coverSubtitle ?? "");
+    setComplianceLine(existing.complianceLine ?? DEFAULT_COMPLIANCE_LINE);
+    setPickupDropoff(existing.pickupDropoff ?? "");
+    setCoverStorageId(existing.coverImageStorageId ?? null);
+    setAtGlanceDays(syncedDays);
+    setPackageTiers(tiers ?? [blankPackageTier(Math.max(1, count - 1), "Standard")]);
+    setIncludedInput((existing.included ?? []).join("\n"));
+    setNotIncludedInput((existing.notIncluded ?? []).join("\n"));
+
+    // Don't let the "nights follow day count" effect rewrite saved hotel nights on open.
+    lastAutoNights.current = Math.max(1, count - 1);
+    baselineRef.current = null;
+    migrationPatchRef.current = Object.keys(migration).length ? migration : null;
+    setHydratedId(key);
+  }, [existing, itineraryId, hydratedId]);
+
+  // Queue only the fields that changed since the last known server state, so
+  // opening a record never rewrites it and one section can't clobber another.
+  useEffect(() => {
+    if (!isHydrated) return;
+    const serialized = serializeFields(formPatch);
+    if (!baselineRef.current) {
+      baselineRef.current = serialized;
+      const migration = migrationPatchRef.current;
+      migrationPatchRef.current = null;
+      if (migration) queueSave(migration);
+      return;
+    }
+    const changed: Record<string, unknown> = {};
+    for (const [k, json] of Object.entries(serialized)) {
+      if (baselineRef.current[k] !== json) changed[k] = formPatch[k as keyof typeof formPatch];
+    }
+    if (Object.keys(changed).length === 0) return;
+    baselineRef.current = serialized;
+    queueSave(changed as ItineraryPatch);
+  }, [formPatch, isHydrated, queueSave]);
+
+  // Keep the package "Nights" default in sync with the day count, only for
+  // cells still holding the previous auto-default.
+  useEffect(() => {
+    const prev = lastAutoNights.current;
+    const next = defaultHotelNights;
+    if (prev === next) return;
+    lastAutoNights.current = next;
+    setPackageTiers((prevTiers) =>
+      prevTiers.map((tier) => ({
+        ...tier,
+        stays: tier.stays.map((stay) => ({ ...stay, nights: stay.nights === prev ? next : stay.nights })),
+      })),
+    );
+  }, [defaultHotelNights]);
+
+  // Site default inclusions: applied once, only to a brand-new (unsaved) form
+  // the admin hasn't typed into. Never re-applied over saved or typed text.
+  const defaultsAppliedRef = useRef(false);
+  useEffect(() => {
+    if (defaultsAppliedRef.current || itineraryIdProp || !adminSettings) return;
+    defaultsAppliedRef.current = true;
+    if (adminSettings.defaultIncluded?.length) {
+      setIncludedInput((cur) => (cur.trim() ? cur : adminSettings.defaultIncluded!.join("\n")));
+    }
+    if (adminSettings.defaultNotIncluded?.length) {
+      setNotIncludedInput((cur) => (cur.trim() ? cur : adminSettings.defaultNotIncluded!.join("\n")));
+    }
+  }, [adminSettings, itineraryIdProp]);
+
+  // ── Local crash backup ───────────────────────────────────────────────────
+  const pristineNewJson = useRef<string | null>(null);
+  if (pristineNewJson.current === null) pristineNewJson.current = JSON.stringify(snapshot);
+  const newFormDirty =
+    !itineraryId && JSON.stringify({ ...snapshot, includedInput: "", notIncludedInput: "" }) !==
+      JSON.stringify({ ...JSON.parse(pristineNewJson.current), includedInput: "", notIncludedInput: "" });
+  const dirty = itineraryId ? isHydrated && autosave.hasPending : newFormDirty;
+
+  const localDraft = useLocalDraft<BuilderSnapshot>(
+    itineraryId && !isHydrated ? null : backupKey(itineraryId ? String(itineraryId) : null),
+    snapshot,
+    dirty,
+  );
+  const { restorable, clear: clearBackup, dismiss: dismissBackup } = localDraft;
+  const [legacyOffer, setLegacyOffer] = useState<Partial<BuilderSnapshot> | null>(null);
+
+  // Old-format backups: offer once (only when richer than what's loaded), then drop the key.
+  const legacyCheckedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const scope = itineraryId ? String(itineraryId) : null;
+    if (itineraryId && !isHydrated) return;
+    const key = scope ?? "new";
+    if (legacyCheckedRef.current === key) return;
+    legacyCheckedRef.current = key;
+    const old = readLegacyBackup(scope);
+    if (!old) return;
+    const worthOffering = scope
+      ? snapshotContentScore(old) > snapshotContentScore(snapshot)
+      : !initialTitle && !initialClientName && snapshotContentScore(old) > 0;
+    if (worthOffering) setLegacyOffer(old);
+    else removeLegacyBackup(scope);
+  }, [initialClientName, initialTitle, isHydrated, itineraryId, snapshot]);
+
+  // A backup identical to the loaded record isn't worth a prompt.
+  useEffect(() => {
+    if (!restorable || !itineraryId || !isHydrated) return;
+    if (JSON.stringify(snapshotToPatch(restorable.data)) === JSON.stringify(formPatch)) clearBackup();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restorable, isHydrated]);
+
+  // Once everything is saved (and no restore decision is pending) drop the backup.
+  useEffect(() => {
+    if (!itineraryId || restorable || legacyOffer) return;
+    if (autosave.status === "saved" && !autosave.hasPending) clearBackup();
+  }, [autosave.hasPending, autosave.status, clearBackup, itineraryId, legacyOffer, restorable]);
+
+  const applySnapshot = useCallback((s: Partial<BuilderSnapshot>) => {
+    if (typeof s.title === "string") setTitle(s.title);
+    if (typeof s.clientName === "string") setClientName(s.clientName);
+    if (typeof s.startDate === "string") setStartDate(s.startDate);
+    if (typeof s.endDate === "string") setEndDate(s.endDate);
+    if (typeof s.dayCount === "number") setDayCount(clamp(s.dayCount, 1, MAX_DAYS));
+    if (s.theme) setTheme(s.theme);
+    if (typeof s.headline === "string") setHeadline(s.headline);
+    if (typeof s.variantLabel === "string") setVariantLabel(s.variantLabel);
+    if (typeof s.coverSubtitle === "string") setCoverSubtitle(s.coverSubtitle);
+    if (typeof s.complianceLine === "string") setComplianceLine(s.complianceLine);
+    if (typeof s.pickupDropoff === "string") setPickupDropoff(s.pickupDropoff);
+    if (Array.isArray(s.atGlanceDays) && s.atGlanceDays.length > 0) setAtGlanceDays(s.atGlanceDays);
+    if (Array.isArray(s.packageTiers) && s.packageTiers.length > 0) {
+      setPackageTiers(s.packageTiers.map((t) => normalizePackageTier(t)));
+    }
+    if (typeof s.includedInput === "string") setIncludedInput(s.includedInput);
+    if (typeof s.notIncludedInput === "string") setNotIncludedInput(s.notIncludedInput);
+  }, []);
+
+  useUnsavedChangesGuard(dirty || creatingDraft || uploadingCover);
+
+  // ── Day count / dates ────────────────────────────────────────────────────
+  /**
+   * Days removed by lowering the count, by index. Typing "12" into the count
+   * passes through "1"; without this, days 2..N would be silently erased.
+   */
+  const trimmedDaysRef = useRef<Map<number, AtGlanceDay>>(new Map());
+  const setDayCountAndSync = useCallback(
+    (next: number) => {
+      const safe = clamp(next, 1, MAX_DAYS);
+      setDayCount(safe);
+      setAtGlanceDays((prev) => {
+        const trimmed = trimmedDaysRef.current;
+        for (let i = safe; i < prev.length; i++) trimmed.set(i, prev[i]!);
+        const restored = [...prev];
+        for (let i = prev.length; i < safe; i++) {
+          const kept = trimmed.get(i);
+          if (!kept) break;
+          restored.push(kept);
+          trimmed.delete(i);
+        }
+        return syncAtGlanceToDayCount(restored, safe);
+      });
+      if (!startDate && !endDate) return;
+      const baseStart = parseYmdLocal(startDate) ? startDate : parseYmdLocal(endDate) ? endDate : minDate;
+      if (startDate !== baseStart) setStartDate(baseStart);
+      const nextEnd = addDaysToYmd(baseStart, safe - 1);
+      if (nextEnd) setEndDate(nextEnd);
+    },
+    [endDate, minDate, startDate],
   );
 
+  // ── Cover image & preview ────────────────────────────────────────────────
+  const mapFallback = pickMapFallbackImage([title, pickupDropoff].filter(Boolean).join(" "));
+  const coverResolve = useQuery(
+    api.media.resolveStorageIdsForAdmin,
+    canMutate && coverStorageId ? { sessionToken, ids: [coverStorageId] } : "skip",
+  ) as (string | null)[] | undefined;
+  const coverUrlResolved = coverResolve?.[0] ?? undefined;
+  const coverFallbackAbs = toAbsoluteUrl(`/maps/${mapFallback}`);
+  const coverPreviewSrc = (coverUrlResolved && toAbsoluteUrl(coverUrlResolved)) || coverFallbackAbs || "";
+
+  const pdfModel: ItineraryPdfModel = useMemo(
+    () =>
+      buildSimpleItineraryModel(
+        {
+          headline,
+          variantLabel,
+          title,
+          coverSubtitle,
+          clientName,
+          startDate,
+          endDate,
+          days: safeDays,
+          pickupDropoff,
+          complianceLine,
+          coverImageUrl: coverUrlResolved ? toAbsoluteUrl(coverUrlResolved) : coverFallbackAbs,
+          logoUrl: defaultLogoUrlAbs,
+          atGlanceDays,
+          included: linesToList(includedInput),
+          notIncluded: linesToList(notIncludedInput),
+          packageTiers: editablePackageTiersToPatchPayload(packageTiers),
+          packageStayRows: [],
+        },
+        adminSettings,
+      ),
+    [
+      adminSettings,
+      atGlanceDays,
+      clientName,
+      complianceLine,
+      coverFallbackAbs,
+      coverSubtitle,
+      coverUrlResolved,
+      defaultLogoUrlAbs,
+      endDate,
+      headline,
+      includedInput,
+      notIncludedInput,
+      packageTiers,
+      pickupDropoff,
+      safeDays,
+      startDate,
+      title,
+      variantLabel,
+    ],
+  );
+
+  const [previewModel, setPreviewModel] = useState<ItineraryPdfModel>(pdfModel);
   useEffect(() => {
-    const json = JSON.stringify(localDraftSnapshot);
-    localDraftJsonRef.current = json;
-    if (typeof window === "undefined") return;
-
-    const timer = window.setTimeout(() => writeLocalBackup(json, localDraftSnapshot), 100);
-
-    return () => window.clearTimeout(timer);
-  }, [localDraftSnapshot, writeLocalBackup]);
-
-  /** Offer the browser backup when it holds content the server copy is missing. */
-  useEffect(() => {
-    if (!itineraryId) return;
-    const key = String(itineraryId);
-    if (hydratedId !== key) return;
-    if (restoreCheckedKey.current === key) return;
-    restoreCheckedKey.current = key;
-
-    const snapshot = localSnapshotRef.current;
-    if (!snapshot) return;
-    const localScore = snapshotContentScore(snapshot);
-    const serverScore = snapshotContentScore(localDraftSnapshot);
-    if (localScore > serverScore) {
-      setRestorable({ snapshot, extra: localScore - serverScore });
-    }
-  }, [hydratedId, itineraryId, localDraftSnapshot]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const flushSnapshot = () => {
-      writeLocalBackup(localDraftJsonRef.current, JSON.parse(localDraftJsonRef.current || "{}"));
-    };
-
-    window.addEventListener("pagehide", flushSnapshot);
-    window.addEventListener("beforeunload", flushSnapshot);
-    return () => {
-      window.removeEventListener("pagehide", flushSnapshot);
-      window.removeEventListener("beforeunload", flushSnapshot);
-    };
-  }, [writeLocalBackup]);
-
-  useEffect(() => {
-    if (previewTimer.current) window.clearTimeout(previewTimer.current);
-    previewTimer.current = window.setTimeout(() => {
-      setPreviewModel(pdfModel);
-    }, 500);
-    return () => {
-      if (previewTimer.current) window.clearTimeout(previewTimer.current);
-    };
+    const t = window.setTimeout(() => setPreviewModel(pdfModel), 500);
+    return () => window.clearTimeout(t);
   }, [pdfModel]);
 
-  useEffect(() => {
-    if (!itineraryId) return;
-    // `coverImageStorageId` is deliberately not part of the autosave payload:
-    // it is persisted by uploadCoverImage()/"Use map fallback" instead. Sending
-    // it here as `null` made Convex reject the whole patch (v.optional accepts
-    // a missing field, not null), which silently dropped every other field.
-    queuePatch({
-      headline,
-      variantLabel,
-      coverSubtitle,
-      complianceLine,
-      pickupDropoff,
-      title,
-      clientName,
-      startDate: startDate.trim() || undefined,
-      endDate: endDate.trim() || undefined,
-      days: safeDays,
-      theme,
-      atGlanceDays,
-      packageTiers: editablePackageTiersToPatchPayload(packageTiers),
-      included: linesToList(includedInput),
-      notIncluded: linesToList(notIncludedInput),
+  async function uploadCoverImage(file: File) {
+    if (!sessionToken) throw new Error("Not authenticated");
+    if (!itineraryId) throw new Error("Create the draft first.");
+    const folderKey = `itineraries/${String(itineraryId)}`;
+    const postUrl = await generateUploadUrl({ sessionToken, folderKey });
+    const res = await fetch(postUrl, {
+      method: "POST",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
     });
-  }, [
-    itineraryId,
-    headline,
-    variantLabel,
-    coverSubtitle,
-    complianceLine,
-    pickupDropoff,
-    title,
-    clientName,
-    startDate,
-    endDate,
-    safeDays,
-    theme,
-    atGlanceDays,
-    packageTiers,
-    includedInput,
-    notIncludedInput,
-    queuePatch,
-  ]);
+    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+    const data = (await res.json()) as { storageId?: Id<"_storage"> };
+    if (!data.storageId) throw new Error("No storageId returned");
+    // Persist the cover first — that's the part the admin can't afford to lose.
+    queueSave({ coverImageStorageId: data.storageId });
+    await flushSave();
+    setCoverStorageId(data.storageId);
+    try {
+      await addItineraryImageAsset({ sessionToken, itineraryId, folderKey, storageId: data.storageId });
+      return null;
+    } catch (e) {
+      console.error("Failed to index itinerary image asset", e);
+      return "Cover saved, but it couldn’t be added to the image library.";
+    }
+  }
 
   async function handleCreateDraft() {
-    if (!canMutate) return;
+    if (!sessionToken || creatingDraft || itineraryId) return;
     setCreatingDraft(true);
     setMsg(null);
+    const sent = snapshotToPatch(snapshot);
     try {
+      // One atomic mutation: everything typed so far is saved with the insert.
       const id = await createDraft({
         sessionToken,
-        title: title || "Untitled itinerary",
-        clientName: clientName || "Client",
-        startDate: startDate.trim() || undefined,
-        endDate: endDate.trim() || undefined,
-        days: safeDays,
-        theme,
+        title: sent.title.trim() || "Untitled itinerary",
+        clientName: sent.clientName.trim() || "Client",
+        startDate: sent.startDate ?? undefined,
+        endDate: sent.endDate ?? undefined,
+        days: sent.days,
+        theme: sent.theme,
+        headline: sent.headline,
+        variantLabel: sent.variantLabel,
+        coverSubtitle: sent.coverSubtitle,
+        complianceLine: sent.complianceLine,
+        pickupDropoff: sent.pickupDropoff,
+        atGlanceDays: sent.atGlanceDays,
+        packageTiers: sent.packageTiers,
+        included: sent.included,
+        notIncluded: sent.notIncluded,
         sourceTourId: sourceTourId as Id<"tours"> | undefined,
         sourceBookingId: sourceBookingId as Id<"bookings"> | undefined,
         sourceGuestBookingId: sourceGuestBookingId as Id<"guestBookings"> | undefined,
       });
-      // Everything typed so far is the source of truth for this brand-new
-      // draft, so unlock autosave immediately and skip re-hydrating from the
-      // (still mostly empty) freshly inserted document.
-      hydratedKey.current = String(id);
-      setHydratedId(String(id));
+      // The server now holds exactly `sent`; anything typed during the request
+      // differs from this baseline and is autosaved right away.
+      baselineRef.current = serializeFields(sent);
+      migrationPatchRef.current = null;
+      clearBackup();
+      removeLegacyBackup(null);
+      setLegacyOffer(null);
       setItineraryId(id);
-      router.replace(`/admin/itineraries/${id}`);
-      await patchDraft({
-        sessionToken,
-        itineraryId: id,
-        headline,
-        variantLabel,
-        coverSubtitle,
-        complianceLine,
-        pickupDropoff,
-        // Persist whatever was filled in before the draft existed: this awaited
-        // patch lands before we navigate to the edit page, which hydrates from
-        // the server and would otherwise show blanks.
-        atGlanceDays,
-        packageTiers: editablePackageTiersToPatchPayload(packageTiers),
-        included: linesToList(includedInput),
-        notIncluded: linesToList(notIncludedInput),
-      });
+      setHydratedId(String(id));
+      // Update the URL without remounting, so a refresh reopens this draft.
+      window.history.replaceState(null, "", `/admin/itineraries/${id}`);
     } catch (e) {
       setMsg(toUserFacingErrorMessage(e));
     } finally {
@@ -1047,19 +653,18 @@ export function AdminItinerarySimpleBuilder({
     }
   }
 
-  const primaryPrice =
-    packageTiers[0]?.pricePkr != null ? packageTiers[0]!.pricePkr : null;
-
   async function copyWhatsappMessage() {
-    const line1 = `Hi ${clientName?.trim() || ""}`.trim();
-    const dateLine =
-      startDate && endDate ? `Travel dates: ${startDate} → ${endDate}` : "";
-    const titleLine = title?.trim() ? `Trip: ${title.trim()}` : "";
-    const priceLine =
+    const primaryPrice = packageTiers[0]?.pricePkr;
+    const text = [
+      `Hi ${clientName.trim()}`.trim(),
+      title.trim() ? `Trip: ${title.trim()}` : "",
+      startDate && endDate ? `Travel dates: ${startDate} → ${endDate}` : "",
       primaryPrice != null
-        ? `Starting from: PKR ${primaryPrice.toLocaleString()} (${packageTiers[0]?.name ?? "Package"})`
-        : "";
-    const text = [line1, titleLine, dateLine, priceLine].filter(Boolean).join("\n");
+        ? `Starting from: PKR ${primaryPrice.toLocaleString()} (${packageTiers[0]?.name || "Package"})`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
     try {
       await navigator.clipboard.writeText(text);
       setMsg("Copied WhatsApp message.");
@@ -1069,15 +674,10 @@ export function AdminItinerarySimpleBuilder({
     }
   }
 
-  /**
-   * Fills only the days left blank, so a draft can never overwrite text the
-   * admin wrote. The rows land in state and autosave persists them.
-   */
+  /** Fills only blank days, so a draft can never overwrite text the admin wrote. */
   async function draftDaysWithAi() {
-    if (!canMutate || !itineraryId) return;
-    const blanks = atGlanceDays.filter(
-      (d) => !(d.title ?? "").trim() && !(d.detail ?? "").trim(),
-    ).length;
+    if (!sessionToken || !itineraryId) return;
+    const blanks = atGlanceDays.filter((d) => !d.title.trim() && !d.detail.trim()).length;
     if (blanks === 0) {
       setMsg("Every day already has content — clear a day first if you want it redrafted.");
       return;
@@ -1085,22 +685,17 @@ export function AdminItinerarySimpleBuilder({
     setDrafting(true);
     setMsg(null);
     try {
+      await flushSave();
       const res = await draftItineraryDays({ sessionToken, itineraryId });
       const byDay = new Map(res.days.map((d) => [d.dayNumber, d]));
       let filled = 0;
       setAtGlanceDays((prev) =>
         prev.map((row) => {
-          const hasContent = (row.title ?? "").trim() || (row.detail ?? "").trim();
           const draft = byDay.get(row.dayNumber);
-          if (hasContent || !draft) return row;
+          if (row.title.trim() || row.detail.trim() || !draft) return row;
           if (!draft.title.trim() && !draft.detail.trim()) return row;
           filled++;
-          return {
-            ...row,
-            title: draft.title,
-            detail: draft.detail,
-            overnight: row.overnight ?? draft.overnight,
-          };
+          return { ...row, title: draft.title, detail: draft.detail, overnight: row.overnight ?? draft.overnight };
         }),
       );
       setMsg(
@@ -1116,44 +711,68 @@ export function AdminItinerarySimpleBuilder({
     }
   }
 
-  async function downloadPdfNow(model: ItineraryPdfModel) {
-    const blob = await pdf(<ItineraryPdf model={model} />).toBlob();
+  async function downloadPdfNow() {
+    const blob = await pdf(<ItineraryPdf model={pdfModel} />).toBlob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${(title || "itinerary").replace(/\s+/g, "-").toLowerCase()}.pdf`;
+    a.download = itineraryFileName(title, "pdf");
     document.body.appendChild(a);
     a.click();
     a.remove();
     window.setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
+  /** Runs an action only after every pending edit is saved; shows failures. */
+  async function afterSave(action: () => Promise<void>, setBusy: (b: boolean) => void) {
+    setBusy(true);
+    setMsg(null);
+    try {
+      await flushSave();
+      await action();
+    } catch (e) {
+      setMsg(toUserFacingErrorMessage(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────
   if (!canMutate) {
     return (
       <p className="text-sm text-muted">
-        {sessionToken === undefined ? "Loading session…" : "Sign in required."}
+        {liveToken === undefined ? "Loading session…" : "Sign in required."}
       </p>
     );
   }
 
+  if (itineraryId && !isHydrated) {
+    if (existing === null) return <p className="text-sm text-muted">Itinerary not found.</p>;
+    return (
+      <div className="space-y-3">
+        <QueryErrorBanner error={existingQuery.error} />
+        <p className="text-sm text-muted">Loading itinerary…</p>
+      </div>
+    );
+  }
+
+  const legacySource = existing ?? null;
+
   return (
     <div className="space-y-6">
+      <QueryErrorBanner error={sessionLost ? new Error("Not authenticated") : existingQuery.error} />
+
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm text-muted">
+        <div className="flex min-h-6 items-center gap-2 text-sm text-muted">
           {itineraryId ? (
-            <span
-              className={cn(
-                savingState === "error" && "font-semibold text-red-600 dark:text-red-400",
-              )}
-            >
-              {savingState === "saving"
-                ? "Saving…"
-                : savingState === "saved"
-                  ? "Saved"
-                  : savingState === "error"
-                    ? "Not saved — your changes are only on this device"
-                    : ""}
-            </span>
+            <SaveStatusPill status={autosave.status} error={autosave.error} />
+          ) : (
+            <span>Not saved yet — create the draft to start autosaving.</span>
+          )}
+          {autosave.status === "error" ? (
+            <Button type="button" variant="secondary" onClick={() => void flushSave().catch(() => undefined)}>
+              Retry save
+            </Button>
           ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
@@ -1166,91 +785,94 @@ export function AdminItinerarySimpleBuilder({
             Copy WhatsApp blurb
           </Button>
           {itineraryId ? (
-            <PDFDownloadLink
-              document={<ItineraryPdf model={previewModel} />}
-              fileName={`${(title || "itinerary").replace(/\s+/g, "-").toLowerCase()}.pdf`}
-              className="inline-flex items-center justify-center rounded-xl bg-brand-primary px-4 py-2 text-sm font-semibold text-white"
-            >
-              Download PDF
-            </PDFDownloadLink>
-          ) : null}
-          {itineraryId ? (
-            <ButtonLink
-              href={`/admin/itineraries/${itineraryId}/download-word`}
-              variant="ghost"
-              className="px-4 py-2"
-            >
-              Download Word
-            </ButtonLink>
+            <>
+              <Button
+                type="button"
+                disabled={downloading}
+                onClick={() => void afterSave(downloadPdfNow, setDownloading)}
+              >
+                {downloading ? "Preparing…" : "Download PDF"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() =>
+                  void afterSave(async () => {
+                    router.push(`/admin/itineraries/${itineraryId}/download-word`);
+                  }, setDownloading)
+                }
+              >
+                Download Word
+              </Button>
+            </>
           ) : null}
         </div>
       </div>
 
       {restorable ? (
+        <DraftRestoreBanner
+          savedAt={restorable.savedAt}
+          onRestore={() => {
+            applySnapshot(restorable.data);
+            dismissBackup();
+            setMsg(itineraryId ? "Backup restored into the form — saving now." : "Backup restored.");
+          }}
+          onDiscard={clearBackup}
+        />
+      ) : null}
+
+      {legacyOffer ? (
         <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-          <p className="font-semibold text-foreground">
-            This browser has a backup with content the saved copy is missing
-          </p>
+          <p className="font-semibold text-foreground">This browser has an older unsaved backup</p>
           <p className="mt-1 text-muted">
-            {`${restorable.extra} field${restorable.extra === 1 ? "" : "s"} (day details, inclusions or package rows) exist in this browser but not on the server. Restoring loads them into the form and saves them.`}
+            {itineraryId
+              ? "It holds day details, inclusions or package rows the saved copy is missing."
+              : "It holds a previous unfinished itinerary. Restore it only if it belongs to this client."}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
               type="button"
               onClick={() => {
-                applySnapshot(restorable.snapshot);
-                setRestorable(null);
-                setMsg("Backup restored into the form — saving now.");
+                applySnapshot(legacyOffer);
+                setLegacyOffer(null);
+                removeLegacyBackup(itineraryId ? String(itineraryId) : null);
               }}
             >
               Restore backup
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setRestorable(null)}>
-              Keep saved version
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setLegacyOffer(null);
+                removeLegacyBackup(itineraryId ? String(itineraryId) : null);
+              }}
+            >
+              Discard
             </Button>
           </div>
         </div>
       ) : null}
 
-      {msg ? (
-        <div
-          className={cn(
-            "rounded-xl border p-3 text-sm",
-            savingState === "error"
-              ? "border-red-500/40 bg-red-500/10 font-medium text-red-700 dark:text-red-300"
-              : "border-border bg-panel-elevated",
-          )}
-        >
-          {msg}
-        </div>
-      ) : null}
+      {msg ? <div className="rounded-xl border border-border bg-panel-elevated p-3 text-sm">{msg}</div> : null}
 
       <div className="lg:hidden">
         <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-panel-elevated p-2">
-          <button
-            type="button"
-            onClick={() => setMobileTab("form")}
-            className={cn(
-              "rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
-              mobileTab === "form"
-                ? "bg-brand-sun/18 text-foreground ring-1 ring-brand-sun/25"
-                : "text-muted hover:bg-black/5 hover:text-foreground",
-            )}
-          >
-            Edit
-          </button>
-          <button
-            type="button"
-            onClick={() => setMobileTab("pdf")}
-            className={cn(
-              "rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
-              mobileTab === "pdf"
-                ? "bg-brand-sun/18 text-foreground ring-1 ring-brand-sun/25"
-                : "text-muted hover:bg-black/5 hover:text-foreground",
-            )}
-          >
-            PDF preview
-          </button>
+          {(["form", "pdf"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setMobileTab(tab)}
+              className={cn(
+                "rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
+                mobileTab === tab
+                  ? "bg-brand-sun/18 text-foreground ring-1 ring-brand-sun/25"
+                  : "text-muted hover:bg-black/5 hover:text-foreground",
+              )}
+            >
+              {tab === "form" ? "Edit" : "PDF preview"}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -1280,7 +902,7 @@ export function AdminItinerarySimpleBuilder({
                 <FieldLabel>Start date (optional)</FieldLabel>
                 <TextInput
                   type="date"
-                  min={minDate}
+                  min={itineraryId ? undefined : minDate}
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                 />
@@ -1289,7 +911,7 @@ export function AdminItinerarySimpleBuilder({
                 <FieldLabel>End date (optional)</FieldLabel>
                 <TextInput
                   type="date"
-                  min={startDate || minDate}
+                  min={startDate || (itineraryId ? undefined : minDate)}
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                 />
@@ -1299,11 +921,11 @@ export function AdminItinerarySimpleBuilder({
                 <TextInput
                   type="number"
                   min={1}
-                  max={60}
+                  max={MAX_DAYS}
                   value={safeDays}
                   onChange={(e) => {
                     const n = Number(e.target.value);
-                    if (!Number.isFinite(n)) return;
+                    if (!Number.isFinite(n) || e.target.value === "") return;
                     setDayCountAndSync(Math.floor(n));
                   }}
                 />
@@ -1354,29 +976,19 @@ export function AdminItinerarySimpleBuilder({
                   </div>
                   <div>
                     <FieldLabel>Variant label</FieldLabel>
-                    <TextInput
-                      value={variantLabel}
-                      onChange={(e) => setVariantLabel(e.target.value)}
-                    />
+                    <TextInput value={variantLabel} onChange={(e) => setVariantLabel(e.target.value)} />
                   </div>
                   <div>
                     <FieldLabel>Cover subtitle</FieldLabel>
-                    <TextInput
-                      value={coverSubtitle}
-                      onChange={(e) => setCoverSubtitle(e.target.value)}
-                    />
+                    <TextInput value={coverSubtitle} onChange={(e) => setCoverSubtitle(e.target.value)} />
                   </div>
                   <div>
                     <FieldLabel>Cover image</FieldLabel>
                     <div className="mt-2 flex items-center gap-3">
                       {coverStorageId ? (
-                        <img
-                          src={coverPreviewSrc}
-                          alt="Cover preview"
-                          className="h-16 w-28 rounded-md object-cover"
-                        />
+                        <img src={coverPreviewSrc} alt="Cover preview" className="h-16 w-28 rounded-md object-cover" />
                       ) : (
-                        <div className="h-16 w-28 rounded-md bg-panel flex items-center justify-center text-sm text-muted">
+                        <div className="flex h-16 w-28 items-center justify-center rounded-md bg-panel text-sm text-muted">
                           Map fallback
                         </div>
                       )}
@@ -1385,36 +997,36 @@ export function AdminItinerarySimpleBuilder({
                           id="cover-upload"
                           type="file"
                           accept="image/*"
+                          disabled={uploadingCover}
                           onChange={async (e) => {
                             const f = e.target.files?.[0];
+                            e.target.value = "";
                             if (!f) return;
-                            setCreatingDraft(true);
+                            setUploadingCover(true);
+                            setMsg(null);
                             try {
-                              await uploadCoverImage(f);
-                              setMsg("Cover image uploaded.");
-                              window.setTimeout(() => setMsg(null), 2000);
+                              const warning = await uploadCoverImage(f);
+                              setMsg(warning ?? "Cover image saved.");
                             } catch (err) {
-                              setMsg(toUserFacingErrorMessage(err));
+                              setMsg(`Cover image not saved. ${toUserFacingErrorMessage(err)}`);
                             } finally {
-                              setCreatingDraft(false);
+                              setUploadingCover(false);
                             }
                           }}
                         />
                         <Button
                           type="button"
                           variant="secondary"
-                              onClick={async () => {
-                            if (!itineraryId) return;
+                          disabled={!coverStorageId || uploadingCover}
+                          onClick={async () => {
+                            setMsg(null);
                             try {
-                              // `null` clears the stored cover; `undefined` was
-                              // skipped server-side, so it never took effect.
-                              await patchDraft({ sessionToken, itineraryId, coverImageStorageId: null });
+                              queueSave({ coverImageStorageId: null });
+                              await flushSave();
+                              setCoverStorageId(null);
                             } catch (e) {
-                              console.error("Failed to clear cover image", e);
                               setMsg(toUserFacingErrorMessage(e));
-                              return;
                             }
-                            setCoverStorageId(null);
                           }}
                         >
                           Use map fallback
@@ -1424,101 +1036,50 @@ export function AdminItinerarySimpleBuilder({
                   </div>
                   <div>
                     <FieldLabel>Compliance line</FieldLabel>
-                    <TextAreaField
-                      rows={2}
-                      value={complianceLine}
-                      onChange={(e) => setComplianceLine(e.target.value)}
-                    />
+                    <TextAreaField rows={2} value={complianceLine} onChange={(e) => setComplianceLine(e.target.value)} />
                   </div>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-border bg-panel-elevated p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted">
-                    Itinerary at a glance
-                  </p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted">Itinerary at a glance</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-muted">{safeDays} days</span>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => void draftDaysWithAi()}
-                      disabled={!itineraryId || drafting}
-                    >
+                    <Button type="button" variant="secondary" onClick={() => void draftDaysWithAi()} disabled={drafting}>
                       {drafting ? "Drafting…" : "Draft empty days with AI"}
                     </Button>
                     <Button
                       type="button"
                       variant="secondary"
-                      onClick={() => setDayCountAndSync(safeDays - 1)}
                       disabled={safeDays <= 1}
+                      onClick={() => {
+                        const last = atGlanceDays[safeDays - 1];
+                        const hasContent = last && (last.title.trim() || last.detail.trim() || last.overnight?.trim());
+                        if (hasContent && !window.confirm(`Remove Day ${safeDays} and its text?`)) return;
+                        setDayCountAndSync(safeDays - 1);
+                      }}
                     >
                       Remove Day
                     </Button>
                   </div>
                 </div>
                 <FieldHint>
-                  AI fills only days you have left blank, as a draft to edit. It never
-                  writes hotel names or prices — add those yourself.
+                  AI fills only days you have left blank, as a draft to edit. It never writes hotel names or
+                  prices — add those yourself.
                 </FieldHint>
                 <FieldHint>
                   {startDate || endDate
                     ? "If dates are set, changing day count updates the end date to match."
                     : "Add as many days as you need; dates are optional."}
                 </FieldHint>
-                <div className="mt-3 space-y-4">
-                  {atGlanceDays.map((d, idx) => (
-                    <div key={d.dayNumber} className="rounded-xl border border-border bg-panel p-3">
-                      <p className="text-xs font-bold text-muted">Day {d.dayNumber}</p>
-                      <div className="mt-2">
-                        <FieldLabel>Title</FieldLabel>
-                        <TextInput
-                          value={d.title}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setAtGlanceDays((prev) =>
-                              prev.map((x, i) => (i === idx ? { ...x, title: v } : x)),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div className="mt-2">
-                        <FieldLabel>Details</FieldLabel>
-                        <TextAreaField
-                          rows={3}
-                          value={d.detail}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setAtGlanceDays((prev) =>
-                              prev.map((x, i) => (i === idx ? { ...x, detail: v } : x)),
-                            );
-                          }}
-                        />
-                      </div>
-                      <div className="mt-2">
-                        <FieldLabel>Overnight (optional)</FieldLabel>
-                        <TextInput
-                          value={d.overnight ?? ""}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setAtGlanceDays((prev) =>
-                              prev.map((x, i) =>
-                                i === idx ? { ...x, overnight: v || undefined } : x,
-                              ),
-                            );
-                          }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <AtGlanceDaysEditor days={atGlanceDays} onChange={setAtGlanceDays} />
                 <div className="mt-4">
                   <Button
                     type="button"
                     variant="secondary"
                     onClick={() => setDayCountAndSync(safeDays + 1)}
-                    disabled={safeDays >= 60}
+                    disabled={safeDays >= MAX_DAYS}
                   >
                     + Add Day
                   </Button>
@@ -1526,17 +1087,11 @@ export function AdminItinerarySimpleBuilder({
               </div>
 
               <div className="rounded-2xl border border-border bg-panel-elevated p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-muted">
-                  Included / Not included
-                </p>
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">Included / Not included</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div>
                     <FieldLabel>Included (one per line)</FieldLabel>
-                    <TextAreaField
-                      rows={8}
-                      value={includedInput}
-                      onChange={(e) => setIncludedInput(e.target.value)}
-                    />
+                    <TextAreaField rows={8} value={includedInput} onChange={(e) => setIncludedInput(e.target.value)} />
                   </div>
                   <div>
                     <FieldLabel>Not included (one per line)</FieldLabel>
@@ -1547,289 +1102,36 @@ export function AdminItinerarySimpleBuilder({
                     />
                   </div>
                 </div>
+                {(!includedInput.trim() && adminSettings?.defaultIncluded?.length) ||
+                (!notIncludedInput.trim() && adminSettings?.defaultNotIncluded?.length) ? (
+                  <div className="mt-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        if (!includedInput.trim() && adminSettings?.defaultIncluded?.length) {
+                          setIncludedInput(adminSettings.defaultIncluded.join("\n"));
+                        }
+                        if (!notIncludedInput.trim() && adminSettings?.defaultNotIncluded?.length) {
+                          setNotIncludedInput(adminSettings.defaultNotIncluded.join("\n"));
+                        }
+                      }}
+                    >
+                      Fill empty lists with site defaults
+                    </Button>
+                  </div>
+                ) : null}
               </div>
 
               <div className="rounded-2xl border border-border bg-panel-elevated p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted">Packages</p>
-                </div>
-                <div className="mt-4 space-y-6">
-                  {packageTiers.map((tier, tIdx) => {
-                    const stays = tier.stays;
-                    return (
-                      <div key={tIdx} className="rounded-xl border border-border bg-panel p-3">
-                        <div className="flex flex-wrap items-end gap-2">
-                          <div className="min-w-[120px] flex-1">
-                            <FieldLabel>Tier name</FieldLabel>
-                            <TextInput
-                              value={tier.name}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                setPackageTiers((prev) =>
-                                  prev.map((x, i) => (i === tIdx ? { ...x, name: v } : x)),
-                                );
-                              }}
-                            />
-                          </div>
-                          <div className="w-28">
-                            <FieldLabel>PKR</FieldLabel>
-                            <TextInput
-                              type="number"
-                              min={0}
-                              value={tier.pricePkr ?? ""}
-                              onChange={(e) => {
-                                const n = Number(e.target.value);
-                                setPackageTiers((prev) =>
-                                  prev.map((x, i) =>
-                                    i === tIdx
-                                      ? {
-                                          ...x,
-                                          pricePkr: Number.isFinite(n) ? n : undefined,
-                                        }
-                                      : x,
-                                  ),
-                                );
-                              }}
-                            />
-                          </div>
-                          <div className="min-w-[100px] flex-1">
-                            <FieldLabel>Vehicle (optional)</FieldLabel>
-                            <TextInput
-                              value={tier.vehicle ?? ""}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                setPackageTiers((prev) =>
-                                  prev.map((x, i) => (i === tIdx ? { ...x, vehicle: v } : x)),
-                                );
-                              }}
-                            />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => {
-                              setPackageTiers((prev) => {
-                                const src = prev[tIdx];
-                                if (!src) return prev;
-                                const clone: EditablePackageTier = {
-                                  name: src.name ? `${src.name} (copy)` : "",
-                                  pricePkr: src.pricePkr,
-                                  vehicle: src.vehicle,
-                                  note: src.note,
-                                  stays: src.stays.map((stay) => ({ ...stay })),
-                                };
-                                const next = [...prev];
-                                next.splice(tIdx + 1, 0, clone);
-                                return next;
-                              });
-                            }}
-                          >
-                            Duplicate tier
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="border-red-500/40 text-red-200 hover:border-red-400/60 hover:bg-red-500/10"
-                            disabled={packageTiers.length <= 1}
-                            onClick={() =>
-                              setPackageTiers((prev) =>
-                                prev.length <= 1 ? prev : prev.filter((_, i) => i !== tIdx),
-                              )
-                            }
-                          >
-                            Remove tier
-                          </Button>
-                        </div>
-
-                        <div className="mt-3 space-y-3">
-                          <div className="hidden md:grid md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_96px_28px] md:gap-2 md:text-xs md:font-bold md:uppercase md:tracking-wide md:text-muted">
-                            <div>Location</div>
-                            <div>Hotel</div>
-                            <div>Nights</div>
-                            <div />
-                          </div>
-
-                          <div className="flex items-center justify-between gap-2">
-                            <FieldLabel className="text-xs uppercase tracking-wide text-muted">
-                              Stay rows
-                            </FieldLabel>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              onClick={() => {
-                                setPackageTiers((prev) =>
-                                  prev.map((x, i) =>
-                                    i === tIdx
-                                      ? {
-                                          ...x,
-                                          stays: [
-                                            ...x.stays,
-                                            {
-                                              location: "",
-                                              hotel: "",
-                                              nights: defaultHotelNights,
-                                            },
-                                          ],
-                                        }
-                                      : x,
-                                  ),
-                                );
-                              }}
-                            >
-                              + Add row
-                            </Button>
-                          </div>
-
-                          {stays.map((row, ri) => (
-                            <div
-                              key={ri}
-                              className="rounded-xl border border-border/60 bg-panel p-3 md:rounded-none md:border-0 md:bg-transparent md:p-0"
-                            >
-                              <div className="grid gap-2 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_96px_28px] md:items-start">
-                                <div className="min-w-0">
-                                  <p className="md:hidden text-[11px] font-bold uppercase tracking-wide text-muted">
-                                    Location
-                                  </p>
-                                  <TextInput
-                                    value={row.location}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      setPackageTiers((prev) =>
-                                        prev.map((x, i) => {
-                                          if (i !== tIdx) return x;
-                                          const nextStays = [...x.stays];
-                                          nextStays[ri] = {
-                                            location: v,
-                                            hotel: nextStays[ri]?.hotel ?? "",
-                                            nights: nextStays[ri]?.nights ?? 1,
-                                          };
-                                          return { ...x, stays: nextStays };
-                                        }),
-                                      );
-                                    }}
-                                    placeholder="e.g. Skardu"
-                                  />
-                                </div>
-
-                                <div className="min-w-0">
-                                  <p className="md:hidden text-[11px] font-bold uppercase tracking-wide text-muted">
-                                    Hotel
-                                  </p>
-                                  <TextInput
-                                    value={row.hotel}
-                                    onChange={(e) => {
-                                      const v = e.target.value;
-                                      setPackageTiers((prev) =>
-                                        prev.map((x, i) => {
-                                          if (i !== tIdx) return x;
-                                          const nextStays = [...x.stays];
-                                          nextStays[ri] = {
-                                            location: nextStays[ri]?.location ?? "",
-                                            hotel: v,
-                                            nights: nextStays[ri]?.nights ?? 1,
-                                          };
-                                          return { ...x, stays: nextStays };
-                                        }),
-                                      );
-                                    }}
-                                  />
-                                </div>
-
-                                <div className="min-w-0">
-                                  <p className="md:hidden text-[11px] font-bold uppercase tracking-wide text-muted">
-                                    Nights
-                                  </p>
-                                  <TextInput
-                                    type="number"
-                                    min={1}
-                                    inputMode="numeric"
-                                    value={row.nights}
-                                    onChange={(e) => {
-                                      const n = Number(e.target.value);
-                                      setPackageTiers((prev) =>
-                                        prev.map((x, i) => {
-                                          if (i !== tIdx) return x;
-                                          const nextStays = [...x.stays];
-                                          nextStays[ri] = {
-                                            location: nextStays[ri]?.location ?? "",
-                                            hotel: nextStays[ri]?.hotel ?? "",
-                                            nights: Math.max(1, n || 1),
-                                          };
-                                          return { ...x, stays: nextStays };
-                                        }),
-                                      );
-                                    }}
-                                  />
-                                </div>
-
-                                <div className="flex items-center justify-end">
-                                  {stays.length > 1 ? (
-                                    <button
-                                      type="button"
-                                      className="text-xs font-semibold text-red-600"
-                                      onClick={() => {
-                                        setPackageTiers((prev) =>
-                                          prev.map((x, i) => {
-                                            if (i !== tIdx) return x;
-                                            return {
-                                              ...x,
-                                              stays: x.stays.filter((_, stayIdx) => stayIdx !== ri),
-                                            };
-                                          }),
-                                        );
-                                      }}
-                                    >
-                                      Remove
-                                    </button>
-                                  ) : (
-                                    <span className="hidden md:block" />
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className="mt-2">
-                          <FieldLabel>Note (optional)</FieldLabel>
-                          <TextInput
-                            value={tier.note ?? ""}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setPackageTiers((prev) =>
-                                prev.map((x, i) => (i === tIdx ? { ...x, note: v } : x)),
-                              );
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => {
-                      setPackageTiers((prev) => [
-                        ...prev,
-                        {
-                          name: "",
-                          pricePkr: undefined,
-                          vehicle: "",
-                          note: "",
-                          stays: [{ location: "", hotel: "", nights: defaultHotelNights }],
-                        },
-                      ]);
-                    }}
-                  >
-                    + Add package tier
-                  </Button>
-                </div>
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">Packages</p>
+                <PackageTiersEditor tiers={packageTiers} onChange={setPackageTiers} defaultNights={defaultHotelNights} />
               </div>
 
+              {legacySource ? <LegacyItineraryContentPanel doc={legacySource} /> : null}
+
               <div className="rounded-2xl border border-dashed border-border bg-panel-elevated p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-muted">
-                  On every PDF (read-only)
-                </p>
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">On every PDF (read-only)</p>
                 <p className="mt-2 text-sm text-muted">
                   Payment terms, bank, and legal text come from{" "}
                   <Link href="/admin/itinerary-template" className="font-semibold underline">
@@ -1848,22 +1150,14 @@ export function AdminItinerarySimpleBuilder({
                   type="button"
                   variant="primary"
                   disabled={finishing}
-                  onClick={() => {
-                    if (!itineraryId) return;
-                    void (async () => {
-                      try {
-                        setFinishing(true);
-                        setMsg(null);
-                        await markFinal({ sessionToken, itineraryId });
-                        await downloadPdfNow(pdfModel);
-                        router.push("/admin/itineraries");
-                      } catch (e) {
-                        setMsg(toUserFacingErrorMessage(e));
-                      } finally {
-                        setFinishing(false);
-                      }
-                    })();
-                  }}
+                  onClick={() =>
+                    void afterSave(async () => {
+                      if (!sessionToken || !itineraryId) return;
+                      await markFinal({ sessionToken, itineraryId });
+                      await downloadPdfNow();
+                      router.push("/admin/itineraries");
+                    }, setFinishing)
+                  }
                 >
                   {finishing ? "Finishing…" : "Finish (download + mark final)"}
                 </Button>
@@ -1874,9 +1168,7 @@ export function AdminItinerarySimpleBuilder({
 
         <div className={cn("lg:sticky lg:top-24", mobileTab !== "pdf" && "hidden lg:block")}>
           <div className="rounded-2xl border border-border bg-panel-elevated p-2">
-            <p className="px-2 py-2 text-xs font-bold uppercase tracking-wide text-muted">
-              Live PDF
-            </p>
+            <p className="px-2 py-2 text-xs font-bold uppercase tracking-wide text-muted">Live PDF</p>
             <div className="h-[min(720px,75vh)] w-full overflow-hidden rounded-xl border border-border bg-white">
               <PDFViewer width="100%" height="100%" showToolbar className="border-0">
                 <ItineraryPdf model={previewModel} />

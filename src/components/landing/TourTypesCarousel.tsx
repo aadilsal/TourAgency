@@ -48,7 +48,7 @@ export function TourTypesCarousel() {
           title="Choose Your Travel Style"
         />
         <div className="mt-6 md:mt-8">
-          <EmblaRow slideClassName="min-w-0 flex-[0_0_62%] sm:flex-[0_0_42%] md:flex-[0_0_32%] lg:flex-[0_0_25%]">
+          <EmblaRow itemLabel="travel style" slideClassName="min-w-0 flex-[0_0_62%] sm:flex-[0_0_42%] md:flex-[0_0_32%] lg:flex-[0_0_25%]">
             {SLIDES.map((s) => (
               <Link
                 key={s.href}
@@ -57,7 +57,7 @@ export function TourTypesCarousel() {
               >
                 <Image
                   src={s.image}
-                  alt=""
+                  alt={s.label}
                   fill
                   sizes="(min-width: 1024px) 25vw, (min-width: 640px) 42vw, 62vw"
                   className="object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
@@ -67,7 +67,7 @@ export function TourTypesCarousel() {
                   <p className="text-base font-semibold text-white drop-shadow-sm">
                     {s.label}
                   </p>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-white/25 backdrop-blur-sm transition group-hover:bg-havezic-primary">
+                  <span className="hidden shrink-0 items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs sm:inline-flex font-semibold text-white ring-1 ring-white/25 backdrop-blur-sm transition group-hover:bg-havezic-primary">
                     Explore →
                   </span>
                 </div>

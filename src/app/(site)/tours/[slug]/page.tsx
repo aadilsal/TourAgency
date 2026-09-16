@@ -5,11 +5,11 @@ import type { Metadata } from "next";
 import nextDynamic from "next/dynamic";
 import { TourJsonLd } from "@/components/TourJsonLd";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
-import { getSiteUrl } from "@/lib/site";
+import { buildMetadata } from "@/lib/seo";
 import { getWhatsAppClickUrl } from "@/lib/whatsapp-server";
 import type { Id } from "@convex/_generated/dataModel";
 import { PageContainer } from "@/components/ui/PageContainer";
-import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
+import { Skeleton } from "@/components/ui/Skeleton";
 import type { TourCardData } from "@/components/shared/TourCard";
 import {
   Clock,
@@ -29,15 +29,16 @@ import { loadTourBySlug } from "@/lib/tours-server";
 import { getConvexServer } from "@/lib/convex-server";
 import { getServerCurrency } from "@/lib/currency-server";
 import { tourHasPrice } from "@/lib/tourPricing";
+import { getTourDisplayRating } from "@/lib/tourRating";
 import { TourLivePrice, type TourPriceFields } from "@/components/tours/TourLivePrice";
 
 function lazyBlock(label: string, minH: string) {
+  // Skeleton sized like the lazy block (not a spinner) to avoid layout shift.
   function LoadingBlock() {
     return (
-      <div
-        className={`flex ${minH} items-center justify-center rounded-2xl border border-border bg-panel`}
-      >
-        <PageLoadingSpinner label={label} size="sm" />
+      <div role="status" aria-label={label} className={`${minH} rounded-2xl border border-border bg-panel p-5`}>
+        <Skeleton className="h-5 w-1/3 rounded-md" />
+        <Skeleton className="mt-4 h-[calc(100%-2.25rem)] min-h-[8rem] w-full" />
       </div>
     );
   }
@@ -88,6 +89,8 @@ type TourDetail = {
   types?: string[];
   ratingAvg?: number;
   reviewsCount?: number;
+  approvedReviewAvg?: number;
+  approvedReviewCount?: number;
   highlights?: string[];
   included?: string[];
   excluded?: string[];
@@ -101,19 +104,22 @@ type Props = { params: { slug: string } };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const tour = await loadTourBySlug(params.slug);
-    if (!tour || !tour.isActive) return { title: "Tour" };
-    const base = getSiteUrl();
-    return {
-      title: tour.title,
-      description: tour.description.slice(0, 160),
-      openGraph: {
-        title: tour.title,
-        description: tour.description.slice(0, 160),
-        url: `${base}/tours/${tour.slug}`,
-      },
-    };
+    if (!tour || !tour.isActive) return { title: "Tour not found", robots: { index: false } };
+    const days =
+      tour.durationDays > 0 && !/\bdays?\b/i.test(tour.title)
+        ? ` (${tour.durationDays} Days)`
+        : "";
+    const title = `${tour.title}${days}`;
+    return buildMetadata({
+      // Keep ≤ ~46 chars so " | JunketTours" fits Google's ~60-char title.
+      title: title.length > 46 ? tour.title : title,
+      description: tour.description,
+      path: `/tours/${tour.slug}`,
+      image: tour.images?.find(Boolean) ?? null,
+      imageAlt: `${tour.title} — ${tour.location}, Pakistan`,
+    });
   } catch {
-    return { title: "Tour" };
+    return { title: "Pakistan tour" };
   }
 }
 
@@ -174,11 +180,7 @@ export default async function TourDetailPage({ params }: Props) {
     priceUsd: tour.priceUsd,
     perHeadPrices: tour.perHeadPrices ?? [],
   };
-  const hasRating =
-    typeof tour.ratingAvg === "number" &&
-    tour.ratingAvg > 0 &&
-    typeof tour.reviewsCount === "number" &&
-    tour.reviewsCount > 0;
+  const rating = getTourDisplayRating(tour);
 
   const startCity = tour.itinerary[0]
     ? cleanPlace(tour.itinerary[0].title)
@@ -248,14 +250,14 @@ export default async function TourDetailPage({ params }: Props) {
           {/* Facts card */}
           <aside className="lg:col-span-1">
             <div className="rounded-2xl border border-border bg-panel p-6 shadow-sm">
-              {hasRating ? (
+              {rating ? (
                 <a href="#reviews" className="flex items-center gap-2 text-sm">
                   <Star className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
                   <span className="text-lg font-bold text-foreground">
-                    {tour.ratingAvg!.toFixed(1)}
+                    {rating.average.toFixed(1)}
                   </span>
                   <span className="text-havezic-primary underline">
-                    {tour.reviewsCount} review{tour.reviewsCount === 1 ? "" : "s"}
+                    {rating.count} review{rating.count === 1 ? "" : "s"}
                   </span>
                 </a>
               ) : (
@@ -331,7 +333,7 @@ export default async function TourDetailPage({ params }: Props) {
 
         {/* Why you'll love this trip */}
         {highlights.length > 0 ? (
-          <section className="mt-14 grid gap-8 md:mt-20 lg:grid-cols-[1fr_2fr] lg:gap-12">
+          <section className="mt-14 grid grid-cols-1 gap-8 md:mt-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-12">
             <h2 className="text-3xl font-bold tracking-tight text-foreground md:text-4xl">
               Why you&apos;ll love this trip
             </h2>
@@ -362,8 +364,10 @@ export default async function TourDetailPage({ params }: Props) {
           <p className="mt-2 max-w-2xl text-sm text-muted">
             Day-by-day flow — timings may shift slightly with weather and road conditions.
           </p>
-          <div className="mt-6 grid gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-            <div className="lg:self-start">
+          {/* grid-cols-1 = minmax(0,1fr): an implicit `auto` track grows to the
+              map's min-content width and pushed the itinerary off-screen on phones. */}
+          <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
+            <div className="min-w-0 lg:self-start">
               <TourRouteMap
                 location={tour.location}
                 title={tour.title}
@@ -457,7 +461,7 @@ export default async function TourDetailPage({ params }: Props) {
           <h2 className="text-2xl font-bold text-foreground md:text-3xl">
             {bookable ? "Dates and prices" : "Plan this tour"}
           </h2>
-          <div className="mt-6 grid gap-8 lg:grid-cols-[1.4fr_1fr]">
+          <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
             <div className="rounded-2xl border border-border bg-panel p-6 shadow-sm">
               <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
                 <div>

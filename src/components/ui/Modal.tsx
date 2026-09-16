@@ -2,8 +2,10 @@
 
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { X } from "lucide-react";
-import { useEffect, useId, useRef } from "react";
+import { useCallback, useEffect, useId, useRef } from "react";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { cn } from "@/lib/cn";
+import { useBodyScrollLock } from "@/components/ui/useBodyScrollLock";
 
 export function Modal({
   open,
@@ -14,6 +16,7 @@ export function Modal({
   className,
   panelClassName,
   fullscreenOnMobile,
+  confirmClose,
 }: {
   open: boolean;
   onClose: () => void;
@@ -23,50 +26,46 @@ export function Modal({
   className?: string;
   panelClassName?: string;
   fullscreenOnMobile?: boolean;
+  /**
+   * Pass `true` (or a custom message) while the dialog holds unsaved edits.
+   * Escape, backdrop clicks and the X button then ask before discarding.
+   */
+  confirmClose?: boolean | string;
 }) {
   const reduce = useReducedMotion();
   const titleId = useId();
   const descId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef(confirmClose);
+  confirmRef.current = confirmClose;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  const requestClose = useCallback(() => {
+    const c = confirmRef.current;
+    if (c) {
+      const msg = typeof c === "string" ? c : "Discard your unsaved changes?";
+      if (!window.confirm(msg)) return;
+    }
+    onCloseRef.current();
+  }, []);
+
+  useUnsavedChangesGuard(open && Boolean(confirmClose));
+
+  useBodyScrollLock(open);
 
   useEffect(() => {
-    if (!open) return;
-    // Robust scroll lock (incl. iOS): freeze body at current scrollY.
-    const scrollY = window.scrollY;
-    const prev = {
-      overflow: document.body.style.overflow,
-      position: document.body.style.position,
-      top: document.body.style.top,
-      width: document.body.style.width,
-      paddingRight: document.body.style.paddingRight,
-    };
-    const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
-    if (scrollBarWidth > 0) {
-      document.body.style.paddingRight = `${scrollBarWidth}px`;
-    }
-    closeRef.current?.focus();
-    return () => {
-      document.body.style.overflow = prev.overflow;
-      document.body.style.position = prev.position;
-      document.body.style.top = prev.top;
-      document.body.style.width = prev.width;
-      document.body.style.paddingRight = prev.paddingRight;
-      window.scrollTo(0, scrollY);
-    };
+    if (open) closeRef.current?.focus();
   }, [open]);
 
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") requestClose();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, requestClose]);
 
   return (
     <AnimatePresence>
@@ -80,7 +79,7 @@ export function Modal({
             animate={{ opacity: 1 }}
             exit={reduce ? undefined : { opacity: 0 }}
             transition={{ duration: 0.2 }}
-            onClick={onClose}
+            onClick={requestClose}
           />
           <div
             className={cn(
@@ -94,12 +93,12 @@ export function Modal({
               aria-labelledby={title ? titleId : undefined}
               aria-describedby={description ? descId : undefined}
               className={cn(
-                "pointer-events-auto max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/20 bg-white/95 p-6 text-slate-900 shadow-glass backdrop-blur-glass-lg",
+                "pointer-events-auto max-h-[90vh] max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/20 bg-white/95 p-6 text-slate-900 shadow-glass backdrop-blur-glass-lg",
                 // Many admin components use dark-theme tokens like text-foreground/text-muted.
                 // Inside a white modal panel, force them to readable (black) shades.
                 "[&_.text-foreground]:text-slate-900 [&_.text-muted]:text-slate-600 [&_.text-brand-ink]:text-slate-900 [&_.text-brand-muted]:text-slate-600",
                 fullscreenOnMobile &&
-                  "max-h-[92vh] p-4 sm:max-h-[90vh] sm:p-6",
+                  "max-h-[100dvh] p-4 sm:max-h-[90dvh] sm:p-6",
                 fullscreenOnMobile &&
                   "sm:rounded-2xl sm:border-white/20 sm:bg-white/95",
                 fullscreenOnMobile &&
@@ -131,8 +130,9 @@ export function Modal({
                 <button
                   ref={closeRef}
                   type="button"
-                  onClick={onClose}
-                  className="shrink-0 rounded-xl p-2 text-slate-900 transition-colors hover:bg-slate-100 hover:text-slate-950"
+                  onClick={requestClose}
+                  aria-label="Close"
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-900 transition-colors hover:bg-slate-100 hover:text-slate-950"
                 >
                   <X className="h-5 w-5" />
                 </button>

@@ -1,149 +1,99 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useState } from "react";
+import { useMutation, usePaginatedQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { FieldLabel, TextAreaField } from "@/components/ui/FormField";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
+import { StatusBadge } from "@/components/admin/shared/StatusSelect";
+import { InlineNoteEditor } from "@/components/admin/shared/InlineNoteEditor";
+import { DecisionWithNote, type Decision } from "@/components/admin/shared/DecisionWithNote";
+import { InboxFilterTabs, LoadMoreFooter } from "@/components/admin/shared/InboxControls";
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected";
+type ReviewStatus = "approved" | "rejected";
 
+const PAGE_SIZE = 20;
+
+const FILTERS = [
+  { id: "pending", label: "Pending" },
+  { id: "all", label: "All" },
+  { id: "approved", label: "Approved" },
+  { id: "rejected", label: "Rejected" },
+] as const;
+
+const DECISIONS: readonly Decision<ReviewStatus>[] = [
+  {
+    status: "approved",
+    label: "Approve",
+    variant: "primary",
+    confirmLabel: "Confirm approval",
+    noteLabel: "Note to client (optional)",
+  },
+  {
+    status: "rejected",
+    label: "Reject",
+    variant: "secondary",
+    confirmLabel: "Confirm rejection",
+    noteLabel: "Reason / note to client (optional)",
+  },
+];
+
+const CLIENT_NOTE_HINT =
+  "Emailed to the client with the decision. Leave unchanged to keep the current note.";
+
+/**
+ * Trip requests inbox (AI planner / custom itinerary requests).
+ * The single screen for the `customItineraryRequests` table — both
+ * /admin/custom-itineraries and the legacy /admin/ai-planner route render it.
+ */
 export function AdminAiPlannerRequestsPanel() {
   const sessionToken = useConvexSessionToken();
   const canMutate = typeof sessionToken === "string";
   const [filter, setFilter] = useState<StatusFilter>("pending");
-  const listArgs =
-    filter === "all"
-      ? ({} as { status?: "pending" | "approved" | "rejected" })
-      : { status: filter };
-  const rows = useQuery(
-    api.customItineraries.listForAdmin,
-    canMutate ? { sessionToken, ...listArgs } : "skip",
+  const { results, status, loadMore } = usePaginatedQuery(
+    api.customItineraries.listForAdminPage,
+    canMutate
+      ? { sessionToken, ...(filter === "all" ? {} : { status: filter }) }
+      : "skip",
+    { initialNumItems: PAGE_SIZE },
   );
   const setStatus = useMutation(api.customItineraries.setRequestStatus);
   const setAdminNote = useMutation(api.customItineraries.setAdminNote);
   const setAdminDraft = useMutation(api.customItineraries.setAdminDraft);
 
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [draftEdits, setDraftEdits] = useState<Record<string, string>>({});
-  const [savingDraft, setSavingDraft] = useState<Record<string, boolean>>({});
 
-  const sorted = useMemo(() => {
-    if (!rows) return rows;
-    return [...rows].sort((a, b) => b.createdAt - a.createdAt);
-  }, [rows]);
-
-  async function review(
-    id: Id<"customItineraryRequests">,
-    status: "approved" | "rejected",
-  ) {
-    const note = window.prompt(
-      status === "approved"
-        ? "Optional note for records (or leave blank)"
-        : "Reason for rejection (optional)",
-    );
-    if (!canMutate) return;
-    await setStatus({
-      sessionToken,
-      requestId: id,
-      status,
-      adminNote: note?.trim() || undefined,
-    });
-  }
-
-  async function editNote(id: Id<"customItineraryRequests">, current?: string) {
-    const note = window.prompt("Update admin note (optional)", current ?? "");
-    if (note === null) return;
-    if (!canMutate) return;
-    await setAdminNote({
-      sessionToken,
-      requestId: id,
-      adminNote: note.trim() || undefined,
-    });
-  }
-
-  async function saveDraft(id: Id<"customItineraryRequests">) {
-    const key = id as unknown as string;
-    const next = (draftEdits[key] ?? "").trim();
-    if (!canMutate) return;
-    setSavingDraft((m) => ({ ...m, [key]: true }));
-    try {
-      await setAdminDraft({
-        sessionToken,
-        requestId: id,
-        adminDraft: next || undefined,
-      });
-    } finally {
-      setSavingDraft((m) => ({ ...m, [key]: false }));
+  function requireToken(): string {
+    if (typeof sessionToken !== "string") {
+      throw new Error("Session expired — refresh and sign in again.");
     }
-  }
-
-  if (sorted === undefined) {
-    return <p className="text-sm text-brand-muted">Loading…</p>;
+    return sessionToken;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
-        {(
-          [
-            ["pending", "Pending"],
-            ["all", "All"],
-            ["approved", "Approved"],
-            ["rejected", "Rejected"],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => setFilter(key)}
-            className={`rounded-xl px-4 py-2 text-sm font-semibold ${
-              filter === key
-                ? "bg-brand-primary text-white"
-                : "border border-slate-200 bg-white text-brand-ink hover:bg-brand-surface"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <InboxFilterTabs options={FILTERS} value={filter} onChange={setFilter} />
 
-      {sorted.length === 0 ? (
-        <p className="text-sm text-brand-muted">No requests in this view.</p>
-      ) : (
+      {results.length > 0 ? (
         <ul className="space-y-6">
-          {sorted.map((r) => {
-            const key = r._id as unknown as string;
+          {results.map((r) => {
+            const id = r._id as Id<"customItineraryRequests">;
+            const key = r._id as string;
             const isOpen = expanded[key] ?? false;
-            const localDraft =
-              draftEdits[key] ?? (r.adminDraft ? String(r.adminDraft) : "");
-            const draftSaved =
-              (r.adminDraft ?? "").trim() === (localDraft ?? "").trim();
+            const remainingDecisions = DECISIONS.filter((d) => d.status !== r.status);
             return (
               <li key={key}>
                 <Card className="p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <span
-                        className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold uppercase ${
-                          r.status === "pending"
-                            ? "bg-amber-100 text-amber-900"
-                            : r.status === "approved"
-                              ? "bg-emerald-100 text-emerald-800"
-                              : "bg-slate-200 text-slate-800"
-                        }`}
-                      >
-                        {r.status}
-                      </span>
+                    <div className="min-w-0">
+                      <StatusBadge status={r.status} />
                       <p className="mt-2 font-semibold text-brand-ink">
                         {r.name} · {r.phone}
                       </p>
-                      {r.email ? (
-                        <p className="text-sm text-brand-muted">{r.email}</p>
-                      ) : null}
+                      {r.email ? <p className="text-sm text-brand-muted">{r.email}</p> : null}
                       {(r.preferredStart ||
                         r.preferredEnd ||
                         r.adults != null ||
@@ -162,54 +112,58 @@ export function AdminAiPlannerRequestsPanel() {
                       </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2">
-                      {r.status === "pending" ? (
-                        <>
-                          <Button
-                            type="button"
-                            variant="primary"
-                            className="py-2 text-sm"
-                            onClick={() => void review(r._id, "approved")}
-                          >
-                            Approve
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="py-2 text-sm"
-                            onClick={() => void review(r._id, "rejected")}
-                          >
-                            Reject
-                          </Button>
-                        </>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="py-2 text-sm"
-                          onClick={() => void editNote(r._id, r.adminNote)}
-                        >
-                          Edit note
-                        </Button>
-                      )}
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="py-2 text-sm"
-                        onClick={() =>
-                          setExpanded((m) => ({ ...m, [key]: !isOpen }))
-                        }
-                      >
-                        {isOpen ? "Hide details" : "View details"}
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="!min-h-10 !py-2 !text-sm"
+                      aria-expanded={isOpen}
+                      onClick={() => setExpanded((m) => ({ ...m, [key]: !isOpen }))}
+                    >
+                      {isOpen ? "Hide details" : "View details"}
+                    </Button>
                   </div>
 
                   <div className="mt-4">
-                    <p className="text-xs font-bold uppercase text-brand-muted">
-                      Trip summary
-                    </p>
+                    <p className="text-xs font-bold uppercase text-brand-muted">Trip summary</p>
                     <p className="mt-1 text-sm text-brand-ink">{r.summary}</p>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                    <p className="mb-2 text-xs font-bold uppercase text-brand-muted">
+                      {r.status === "pending" ? "Decision" : "Change decision"}
+                    </p>
+                    <DecisionWithNote
+                      decisions={r.status === "pending" ? DECISIONS : remainingDecisions}
+                      currentNote={r.adminNote}
+                      disabled={!canMutate}
+                      hint={CLIENT_NOTE_HINT}
+                      onDecide={(next, note) =>
+                        setStatus({
+                          sessionToken: requireToken(),
+                          requestId: id,
+                          status: next,
+                          adminNote: note,
+                        })
+                      }
+                    />
+                    <InlineNoteEditor
+                      className="mt-4"
+                      value={r.adminNote}
+                      disabled={!canMutate}
+                      label="Note"
+                      hint={
+                        r.status === "pending"
+                          ? "Saved on the request. It's emailed to the client when you approve or reject."
+                          : "Saving a changed note emails the client an update."
+                      }
+                      onSave={(note) =>
+                        setAdminNote({
+                          sessionToken: requireToken(),
+                          requestId: id,
+                          adminNote: note,
+                        })
+                      }
+                    />
                   </div>
 
                   {isOpen ? (
@@ -223,45 +177,29 @@ export function AdminAiPlannerRequestsPanel() {
                         </pre>
                       </div>
 
-                      <div>
-                        <FieldLabel htmlFor={`draft-${key}`}>
-                          Draft plan (ops workspace)
-                        </FieldLabel>
-                        <TextAreaField
-                          id={`draft-${key}`}
-                          rows={10}
-                          placeholder="Write the final itinerary/quote here. This is saved on the request so the team can collaborate."
-                          value={localDraft}
-                          onChange={(e) =>
-                            setDraftEdits((m) => ({ ...m, [key]: e.target.value }))
-                          }
-                        />
-                        <div className="mt-3 flex flex-wrap items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="primary"
-                            disabled={savingDraft[key] || draftSaved}
-                            onClick={() => void saveDraft(r._id)}
-                          >
-                            {savingDraft[key] ? "Saving…" : "Save draft"}
-                          </Button>
-                          {draftSaved ? (
-                            <p className="text-xs font-semibold text-emerald-700">
-                              Saved
-                            </p>
-                          ) : (
-                            <p className="text-xs text-brand-muted">
-                              Unsaved changes
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                      <InlineNoteEditor
+                        value={r.adminDraft}
+                        disabled={!canMutate}
+                        rows={10}
+                        label="Draft plan (ops workspace)"
+                        hint="Internal — saved on the request so the team can collaborate."
+                        placeholder="Write the final itinerary/quote here."
+                        emptyText="No draft yet."
+                        saveLabel="Save draft"
+                        onSave={(draft) =>
+                          setAdminDraft({
+                            sessionToken: requireToken(),
+                            requestId: id,
+                            adminDraft: draft,
+                          })
+                        }
+                      />
 
-                      {r.thread?.length ? (
-                        <div className="lg:col-span-2">
-                          <p className="text-xs font-bold uppercase text-brand-muted">
-                            Full AI Planner transcript
-                          </p>
+                      <div className="lg:col-span-2">
+                        <p className="text-xs font-bold uppercase text-brand-muted">
+                          Full AI Planner transcript
+                        </p>
+                        {r.thread?.length ? (
                           <div className="mt-2 max-h-[520px] overflow-auto rounded-lg border border-slate-200 bg-white">
                             <ul className="divide-y divide-slate-100">
                               {r.thread.map((m, idx) => (
@@ -276,28 +214,12 @@ export function AdminAiPlannerRequestsPanel() {
                               ))}
                             </ul>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="lg:col-span-2">
-                          <p className="text-xs font-bold uppercase text-brand-muted">
-                            Full AI Planner transcript
-                          </p>
+                        ) : (
                           <p className="mt-2 text-sm text-brand-muted">
                             No transcript was saved for this request.
                           </p>
-                        </div>
-                      )}
-
-                      {r.adminNote ? (
-                        <div className="lg:col-span-2">
-                          <p className="text-xs font-bold uppercase text-brand-muted">
-                            Admin note
-                          </p>
-                          <p className="mt-1 text-sm text-brand-ink">
-                            {r.adminNote}
-                          </p>
-                        </div>
-                      ) : null}
+                        )}
+                      </div>
                     </div>
                   ) : null}
                 </Card>
@@ -305,8 +227,18 @@ export function AdminAiPlannerRequestsPanel() {
             );
           })}
         </ul>
-      )}
+      ) : null}
+
+      <LoadMoreFooter
+        status={canMutate ? status : "LoadingFirstPage"}
+        count={results.length}
+        onLoadMore={() => loadMore(PAGE_SIZE)}
+        noun="requests"
+        emptyText="No requests in this view."
+      />
     </div>
   );
 }
 
+/** Alias: the custom-itineraries screen is the same consolidated inbox. */
+export const AdminTripRequestsPanel = AdminAiPlannerRequestsPanel;

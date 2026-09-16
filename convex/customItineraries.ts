@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { paginationOptsValidator } from "convex/server";
 import {
   internalMutation,
   internalQuery,
@@ -45,24 +46,56 @@ export const getRequestDoc = internalQuery({
   },
 });
 
+const requestStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("rejected"),
+);
+
+/** @deprecated Unbounded — use `listForAdminPage`. Kept for deployed clients. */
 export const listForAdmin = query({
   args: {
     sessionToken: v.string(),
-    status: v.optional(
-      v.union(
-        v.literal("pending"),
-        v.literal("approved"),
-        v.literal("rejected"),
-      ),
-    ),
+    status: v.optional(requestStatusValidator),
   },
   handler: async (ctx, { sessionToken, status }) => {
     await requireAdminFromSession(ctx, sessionToken);
-    const all = await ctx.db.query("customItineraryRequests").collect();
-    const filtered = status
-      ? all.filter((r) => r.status === status)
-      : all;
-    return filtered.sort((a, b) => b.createdAt - a.createdAt);
+    const rows = status
+      ? await ctx.db
+          .query("customItineraryRequests")
+          .withIndex("by_status", (q) => q.eq("status", status))
+          .order("desc")
+          .take(5000)
+      : await ctx.db
+          .query("customItineraryRequests")
+          .withIndex("by_created")
+          .order("desc")
+          .take(5000);
+    return rows.sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
+/** Paginated admin inbox, newest first, optional status filter (indexed). */
+export const listForAdminPage = query({
+  args: {
+    sessionToken: v.string(),
+    status: v.optional(requestStatusValidator),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, { sessionToken, status, paginationOpts }) => {
+    await requireAdminFromSession(ctx, sessionToken);
+    if (status) {
+      return await ctx.db
+        .query("customItineraryRequests")
+        .withIndex("by_status", (q) => q.eq("status", status))
+        .order("desc")
+        .paginate(paginationOpts);
+    }
+    return await ctx.db
+      .query("customItineraryRequests")
+      .withIndex("by_created")
+      .order("desc")
+      .paginate(paginationOpts);
   },
 });
 
@@ -71,13 +104,16 @@ export const setRequestStatus = mutation({
     sessionToken: v.string(),
     requestId: v.id("customItineraryRequests"),
     status: v.union(v.literal("approved"), v.literal("rejected")),
+    /** Omit to keep the existing note; "" clears it. */
     adminNote: v.optional(v.string()),
   },
   handler: async (ctx, { sessionToken, requestId, status, adminNote }) => {
     const admin = await requireAdminFromSession(ctx, sessionToken);
     const row = await ctx.db.get(requestId);
     if (!row) throw new Error("Request not found");
-    const nextAdminNote = adminNote?.trim() || undefined;
+    // Omitted note = unchanged (a status change must never wipe the note).
+    const nextAdminNote =
+      adminNote === undefined ? row.adminNote : adminNote.trim() || undefined;
     const changedStatus = row.status !== status;
     const changedAdminNote = (row.adminNote ?? undefined) !== nextAdminNote;
 
@@ -110,6 +146,11 @@ export const setRequestStatus = mutation({
   },
 });
 
+/**
+ * Set the note on a request. This is the dedicated note editor, so an empty
+ * value clears the note. On reviewed requests the customer is emailed the
+ * update; on pending requests the note is saved silently.
+ */
 export const setAdminNote = mutation({
   args: {
     sessionToken: v.string(),
@@ -120,9 +161,6 @@ export const setAdminNote = mutation({
     const admin = await requireAdminFromSession(ctx, sessionToken);
     const row = await ctx.db.get(requestId);
     if (!row) throw new Error("Request not found");
-    if (row.status === "pending") {
-      throw new Error("Add a note during approve/reject, or review first");
-    }
 
     const nextAdminNote = adminNote?.trim() || undefined;
     const changedAdminNote = (row.adminNote ?? undefined) !== nextAdminNote;
@@ -140,6 +178,7 @@ export const setAdminNote = mutation({
       details: `${requestId} → note`,
     });
 
+    if (row.status === "pending") return;
     await ctx.scheduler.runAfter(0, internal.email.sendCustomItineraryStatusUpdate, {
       requestId,
       status: row.status,

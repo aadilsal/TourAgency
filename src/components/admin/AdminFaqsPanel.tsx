@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
+import { useSafePaginatedQuery } from "@/hooks/useSafePaginatedQuery";
+import { QueryErrorBanner } from "@/components/admin/shared/EditorStatus";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { Plus, Trash2, Pencil, HelpCircle } from "lucide-react";
@@ -13,6 +15,8 @@ import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
 import { asBoolean, asNumber, asString } from "@/lib/bulkUpload/coerce";
 import { importInBatches } from "@/lib/bulkUpload/importInBatches";
+import { useEditorForm } from "@/hooks/useEditorForm";
+import { confirmDiscard } from "@/hooks/useUnsavedChangesGuard";
 
 type FaqRow = {
   _id: Id<"faqs">;
@@ -25,6 +29,17 @@ type FaqRow = {
   updatedAt: number;
 };
 
+type FaqForm = {
+  question: string;
+  answer: string;
+  category: string;
+  sortOrder: string;
+  isActive: boolean;
+};
+
+const DEFAULT_CATEGORY = "General Travel FAQs";
+const PAGE_SIZE = 100;
+
 function slugifyCategory(cat: string) {
   return (cat || "")
     .trim()
@@ -33,10 +48,81 @@ function slugifyCategory(cat: string) {
     .replace(/\s+/g, "-");
 }
 
+/**
+ * Inline sort-order editor. Saves on blur / Enter only (not per keystroke),
+ * validates the number, and Escape reverts. Previously every keystroke saved,
+ * so clearing the field saved 0 and the row jumped under the cursor.
+ */
+function SortOrderInput({
+  value,
+  onCommit,
+}: {
+  value: number;
+  onCommit: (next: number) => Promise<void>;
+}) {
+  const [text, setText] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!focused && !busy) setText(String(value));
+  }, [value, focused, busy]);
+
+  async function commit() {
+    const trimmed = text.trim();
+    const next = Number(trimmed);
+    if (trimmed === "" || !Number.isFinite(next)) {
+      setText(String(value));
+      return;
+    }
+    if (next === value) return;
+    setBusy(true);
+    try {
+      await onCommit(next);
+    } catch {
+      setText(String(value));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <input
+      className={cn(
+        "w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm",
+        busy && "opacity-60",
+      )}
+      type="number"
+      aria-label="Sort order"
+      value={text}
+      disabled={busy}
+      onFocus={() => setFocused(true)}
+      onChange={(e) => setText(e.target.value)}
+      onBlur={() => {
+        setFocused(false);
+        void commit();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          (e.target as HTMLInputElement).blur();
+        } else if (e.key === "Escape") {
+          setText(String(value));
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+    />
+  );
+}
+
 export function AdminFaqsPanel() {
   const sessionToken = useConvexSessionToken();
   const canQuery = typeof sessionToken === "string";
-  const faqs = useQuery(api.faqs.listAdmin, canQuery ? { sessionToken } : "skip");
+  const { results, status, loadMore, error: listError } = useSafePaginatedQuery(
+    api.faqs.listAdminPage,
+    canQuery ? { sessionToken } : "skip",
+    { initialNumItems: PAGE_SIZE },
+  );
 
   const upsert = useMutation(api.faqs.upsert);
   const bulkUpsert = useMutation(api.faqs.bulkUpsert);
@@ -47,36 +133,47 @@ export function AdminFaqsPanel() {
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<Id<"faqs"> | null>(null);
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState("");
-  const [category, setCategory] = useState("General Travel FAQs");
-  const [sortOrder, setSortOrderState] = useState<number>(1);
-  const [isActive, setIsActiveState] = useState(true);
+  const form = useEditorForm<FaqForm>({
+    question: "",
+    answer: "",
+    category: DEFAULT_CATEGORY,
+    sortOrder: "",
+    isActive: true,
+  });
+  const { values, setField, dirty } = form;
   const [err, setErr] = useState<string | null>(null);
+  const [listErr, setListErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
 
-  const list = useMemo(() => (faqs as FaqRow[] | undefined) ?? [], [faqs]);
+  const list = useMemo(() => (results as FaqRow[] | undefined) ?? [], [results]);
+  const allLoaded = status === "Exhausted";
 
   function openNew() {
-    const nextSort = (list[list.length - 1]?.sortOrder ?? 0) + 1;
+    // Only suggest a sort order when the whole list is loaded; otherwise the
+    // server appends the FAQ after the current last one.
+    const nextSort = allLoaded ? String((list[list.length - 1]?.sortOrder ?? 0) + 1) : "";
     setEditingId(null);
-    setQuestion("");
-    setAnswer("");
-    setCategory("General Travel FAQs");
-    setSortOrderState(nextSort);
-    setIsActiveState(true);
+    form.reset({
+      question: "",
+      answer: "",
+      category: DEFAULT_CATEGORY,
+      sortOrder: nextSort,
+      isActive: true,
+    });
     setErr(null);
     setEditorOpen(true);
   }
 
   function openEdit(row: FaqRow) {
     setEditingId(row._id);
-    setQuestion(row.question);
-    setAnswer(row.answer);
-    setCategory(row.category);
-    setSortOrderState(row.sortOrder);
-    setIsActiveState(row.isActive);
+    form.reset({
+      question: row.question,
+      answer: row.answer,
+      category: row.category,
+      sortOrder: String(row.sortOrder),
+      isActive: row.isActive,
+    });
     setErr(null);
     setEditorOpen(true);
   }
@@ -95,24 +192,49 @@ export function AdminFaqsPanel() {
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
-    if (!sessionToken) return;
-    setSaving(true);
     setErr(null);
+    if (typeof sessionToken !== "string") {
+      setErr("Session expired — refresh and sign in again.");
+      return;
+    }
+    const sortText = values.sortOrder.trim();
+    const sortOrder = sortText === "" ? undefined : Number(sortText);
+    if (sortOrder !== undefined && !Number.isFinite(sortOrder)) {
+      setErr("Sort order must be a number.");
+      return;
+    }
+    if (editingId && sortOrder === undefined) {
+      setErr("Sort order is required.");
+      return;
+    }
+    setSaving(true);
     try {
       await upsert({
         sessionToken,
         faqId: editingId ?? undefined,
-        question,
-        answer,
-        category,
+        question: values.question,
+        answer: values.answer,
+        category: values.category,
         sortOrder,
-        isActive,
+        isActive: values.isActive,
       });
+      form.markSaved();
       setEditorOpen(false);
     } catch (er) {
       setErr(toUserFacingErrorMessage(er));
     } finally {
       setSaving(false);
+    }
+  }
+
+  /** Runs a list action and surfaces failures (these used to be fire-and-forget). */
+  async function runListAction(action: () => Promise<unknown>) {
+    setListErr(null);
+    try {
+      await action();
+    } catch (e) {
+      setListErr(toUserFacingErrorMessage(e));
+      throw e;
     }
   }
 
@@ -124,7 +246,7 @@ export function AdminFaqsPanel() {
     );
   }
 
-  if (faqs === undefined) {
+  if (status === "LoadingFirstPage") {
     return <p className="text-sm text-muted">Loading…</p>;
   }
 
@@ -134,6 +256,7 @@ export function AdminFaqsPanel() {
 
   return (
     <div className="space-y-6">
+      <QueryErrorBanner error={listError} />
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" variant="primary" onClick={openNew}>
           <Plus className="h-4 w-4" aria-hidden />
@@ -145,14 +268,25 @@ export function AdminFaqsPanel() {
         <Button
           type="button"
           variant="secondary"
-          onClick={() => void seed({ sessionToken })}
+          onClick={() =>
+            void runListAction(async () => {
+              const r = await seed({ sessionToken });
+              if (r.skipped) setListErr("Sample FAQs are only added when there are no FAQs yet.");
+            }).catch(() => undefined)
+          }
         >
           Seed sample FAQs
         </Button>
         <p className="text-xs text-slate-500">
-          Tip: use sort order to control how items appear on `/faqs`.
+          Tip: use sort order to control how items appear on `/faqs`. Press Enter or click away to save it.
         </p>
       </div>
+
+      {listErr ? (
+        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
+          {listErr}
+        </p>
+      ) : null}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
         <table className="min-w-[880px] w-full text-left text-sm">
@@ -185,16 +319,13 @@ export function AdminFaqsPanel() {
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  <input
-                    className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm"
-                    type="number"
+                  <SortOrderInput
                     value={row.sortOrder}
-                    onChange={(e) => {
-                      const next = Number(e.target.value);
-                      if (Number.isFinite(next)) {
-                        void setSortOrder({ sessionToken, faqId: row._id, sortOrder: next });
-                      }
-                    }}
+                    onCommit={(next) =>
+                      runListAction(() =>
+                        setSortOrder({ sessionToken, faqId: row._id, sortOrder: next }),
+                      )
+                    }
                   />
                 </td>
                 <td className="px-4 py-3">
@@ -207,7 +338,9 @@ export function AdminFaqsPanel() {
                     role="switch"
                     aria-checked={row.isActive}
                     onClick={() =>
-                      void setActive({ sessionToken, faqId: row._id, isActive: !row.isActive })
+                      void runListAction(() =>
+                        setActive({ sessionToken, faqId: row._id, isActive: !row.isActive }),
+                      ).catch(() => undefined)
                     }
                   >
                     <span
@@ -241,8 +374,10 @@ export function AdminFaqsPanel() {
                       type="button"
                       className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
                       onClick={() => {
-                        if (confirm("Delete this FAQ?")) {
-                          void remove({ sessionToken, faqId: row._id });
+                        if (confirm("Delete this FAQ? This cannot be undone.")) {
+                          void runListAction(() =>
+                            remove({ sessionToken, faqId: row._id }),
+                          ).catch(() => undefined);
                         }
                       }}
                     >
@@ -262,9 +397,23 @@ export function AdminFaqsPanel() {
         ) : null}
       </div>
 
+      {!allLoaded ? (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={status !== "CanLoadMore"}
+            onClick={() => loadMore(PAGE_SIZE)}
+          >
+            {status === "LoadingMore" ? "Loading…" : "Load more FAQs"}
+          </Button>
+        </div>
+      ) : null}
+
       <Modal
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
+        confirmClose={dirty}
         title={editingId ? "Edit FAQ" : "New FAQ"}
         description="Question/answer show on the public FAQs page when Visible is on."
         panelClassName="max-w-2xl"
@@ -282,8 +431,8 @@ export function AdminFaqsPanel() {
               <input
                 required
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
+                value={values.question}
+                onChange={(e) => setField("question", e.target.value)}
               />
             </label>
             <label className="block text-xs font-semibold text-slate-600">
@@ -291,8 +440,8 @@ export function AdminFaqsPanel() {
               <input
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 list="faq-categories"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                value={values.category}
+                onChange={(e) => setField("category", e.target.value)}
               />
               <datalist id="faq-categories">
                 {categories.map((c) => (
@@ -305,8 +454,9 @@ export function AdminFaqsPanel() {
               <input
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 type="number"
-                value={sortOrder}
-                onChange={(e) => setSortOrderState(Number(e.target.value))}
+                placeholder={editingId ? undefined : "auto (end of list)"}
+                value={values.sortOrder}
+                onChange={(e) => setField("sortOrder", e.target.value)}
               />
             </label>
           </div>
@@ -317,8 +467,8 @@ export function AdminFaqsPanel() {
               required
               rows={8}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm leading-relaxed"
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
+              value={values.answer}
+              onChange={(e) => setField("answer", e.target.value)}
             />
           </label>
 
@@ -335,16 +485,16 @@ export function AdminFaqsPanel() {
               type="button"
               className={cn(
                 "relative inline-flex h-8 w-14 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
-                isActive ? "bg-emerald-500" : "bg-slate-300",
+                values.isActive ? "bg-emerald-500" : "bg-slate-300",
               )}
               role="switch"
-              aria-checked={isActive}
-              onClick={() => setIsActiveState(!isActive)}
+              aria-checked={values.isActive}
+              onClick={() => setField("isActive", !values.isActive)}
             >
               <span
                 className={cn(
                   "pointer-events-none inline-block h-7 w-7 transform rounded-full bg-white shadow transition",
-                  isActive ? "translate-x-6" : "translate-x-0.5",
+                  values.isActive ? "translate-x-6" : "translate-x-0.5",
                 )}
               />
             </button>
@@ -357,7 +507,9 @@ export function AdminFaqsPanel() {
             <Button
               type="button"
               variant="secondary"
-              onClick={() => setEditorOpen(false)}
+              onClick={() => {
+                if (confirmDiscard(dirty)) setEditorOpen(false);
+              }}
             >
               Cancel
             </Button>
@@ -369,7 +521,7 @@ export function AdminFaqsPanel() {
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
         title="Bulk upload FAQs"
-        description="Upload a .json or .xlsx file. Rows are upserted by (category + question)."
+        description="Upload a .json or .xlsx file. Rows are upserted by (category + question). Blank cells keep existing values."
         templateHint={
           <div className="space-y-1">
             <p className="font-semibold">Columns / keys</p>
@@ -413,4 +565,3 @@ export function AdminFaqsPanel() {
     </div>
   );
 }
-

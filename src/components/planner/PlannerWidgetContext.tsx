@@ -16,7 +16,8 @@ type PlannerWidgetContextValue = {
   toggle: () => void;
 };
 
-const PlannerWidgetContext = createContext<PlannerWidgetContextValue | null>(
+/** Exported for optional consumers; prefer `usePlannerWidget()` inside the provider. */
+export const PlannerWidgetContext = createContext<PlannerWidgetContextValue | null>(
   null,
 );
 

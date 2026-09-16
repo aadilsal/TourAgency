@@ -1,13 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { User, Phone, Mail } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { FieldLabel, TextInput, FieldError } from "@/components/ui/FormField";
+import {
+  FieldLabel,
+  TextInput,
+  FieldError,
+  FormAlert,
+  fieldErrorId,
+  fieldErrorProps,
+} from "@/components/ui/FormField";
+import {
+  FORM_MESSAGES,
+  focusFirstError,
+  isValidPhone,
+  type FieldErrorMap,
+} from "@/lib/formValidation";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 
@@ -25,9 +38,15 @@ export function DashboardProfile() {
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrorMap<"name" | "phone">>({});
+  const prefilledFor = useRef<string | null>(null);
 
+  // Prefill once per account so a reactive refresh never overwrites what the
+  // visitor is typing (or has typed before a failed save).
   useEffect(() => {
     if (!user) return;
+    if (prefilledFor.current === user._id) return;
+    prefilledFor.current = user._id;
     setName(user.name);
     setPhone(user.phone ?? "");
   }, [user]);
@@ -35,13 +54,22 @@ export function DashboardProfile() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (sessionToken === null || sessionToken === undefined) return;
+    if (saving) return;
     setErr(null);
     setSaved(false);
+    const next: FieldErrorMap<"name" | "phone"> = {};
+    if (!name.trim()) next.name = FORM_MESSAGES.nameRequired;
+    if (phone.trim() && !isValidPhone(phone)) next.phone = FORM_MESSAGES.phoneInvalid;
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) {
+      focusFirstError([next.name && "dash-name", next.phone && "dash-phone"]);
+      return;
+    }
     setSaving(true);
     try {
       await updateProfile({
         sessionToken,
-        name,
+        name: name.trim(),
         phone: phone.trim() || undefined,
       });
       setSaved(true);
@@ -74,7 +102,7 @@ export function DashboardProfile() {
 
   return (
     <Card className="mt-6 p-6">
-      <form onSubmit={onSubmit} className="space-y-5">
+      <form onSubmit={onSubmit} noValidate className="space-y-5">
         <div>
           <FieldLabel htmlFor="dash-email">Email</FieldLabel>
           <div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-brand-muted">
@@ -98,12 +126,18 @@ export function DashboardProfile() {
             <TextInput
               id="dash-name"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                setSaved(false);
+                setFieldErrors((x) => ({ ...x, name: undefined }));
+              }}
               className="pl-10"
               required
               autoComplete="name"
+              {...fieldErrorProps("dash-name", fieldErrors.name)}
             />
           </div>
+          <FieldError id={fieldErrorId("dash-name")}>{fieldErrors.name}</FieldError>
         </div>
 
         <div>
@@ -117,20 +151,28 @@ export function DashboardProfile() {
               id="dash-phone"
               type="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => {
+                setPhone(e.target.value);
+                setSaved(false);
+                setFieldErrors((x) => ({ ...x, phone: undefined }));
+              }}
               className="pl-10"
               autoComplete="tel"
               placeholder="Optional"
+              {...fieldErrorProps("dash-phone", fieldErrors.phone)}
             />
           </div>
+          <FieldError id={fieldErrorId("dash-phone")}>{fieldErrors.phone}</FieldError>
         </div>
 
-        {err ? <FieldError>{err}</FieldError> : null}
+        <FormAlert>{err}</FormAlert>
         {saved ? (
-          <p className="text-sm font-medium text-emerald-600">Profile updated.</p>
+          <p className="text-sm font-medium text-emerald-600" role="status">
+            Profile updated.
+          </p>
         ) : null}
 
-        <Button type="submit" disabled={saving || !name.trim()}>
+        <Button type="submit" disabled={saving} aria-busy={saving}>
           {saving ? "Saving…" : "Update profile"}
         </Button>
       </form>

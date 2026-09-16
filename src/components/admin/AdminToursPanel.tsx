@@ -1,31 +1,50 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
+import { useMutation, usePaginatedQuery, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
 import { TourPdfImportButton } from "@/components/admin/TourPdfImportButton";
+import { adminErrorMessage } from "@/components/admin/tour-form/errors";
 import { asBoolean, asJson, asNumber, asString, asStringArray } from "@/lib/bulkUpload/coerce";
 import { importInBatches } from "@/lib/bulkUpload/importInBatches";
 import { TOUR_PDF_DRAFT_STORAGE_KEY } from "@/lib/tour-draft";
+
+const PAGE_SIZE = 50;
+
+/** Non-empty array or `undefined`, so blank spreadsheet cells never clear data. */
+function nonEmpty<T>(arr: T[] | undefined): T[] | undefined {
+  return arr && arr.length > 0 ? arr : undefined;
+}
 
 export function AdminToursPanel() {
   const router = useRouter();
   const sessionToken = useConvexSessionToken();
   const hasConvexSessionToken = typeof sessionToken === "string";
-  const tours = useQuery(
-    api.tours.getTours,
-    hasConvexSessionToken
-      ? { includeInactive: true, sessionToken }
-      : { includeInactive: false },
+
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const {
+    results: tours,
+    status,
+    loadMore,
+  } = usePaginatedQuery(
+    api.tours.listToursForAdmin,
+    hasConvexSessionToken ? { sessionToken, search: search || undefined } : "skip",
+    { initialNumItems: PAGE_SIZE },
   );
   const seed = useMutation(api.seed.seedSampleTours);
   const destinations = useQuery(api.destinations.listForTourAssignment, {});
@@ -34,6 +53,7 @@ export function AdminToursPanel() {
   const bulkUpsert = useMutation(api.tours.bulkUpsert);
 
   const [msg, setMsg] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   /** These used to be fire-and-forget: failures now surface in the panel. */
   async function toggleActive(tourId: Id<"tours">, isActive: boolean) {
@@ -45,7 +65,7 @@ export function AdminToursPanel() {
     try {
       await updateTour({ sessionToken, tourId, isActive });
     } catch (e) {
-      setMsg(toUserFacingErrorMessage(e));
+      setMsg(adminErrorMessage(e));
     }
   }
 
@@ -58,15 +78,10 @@ export function AdminToursPanel() {
     try {
       await deleteTour({ sessionToken, tourId });
     } catch (e) {
-      setMsg(toUserFacingErrorMessage(e));
+      // e.g. "…has bookings… Deactivate it instead" — show it verbatim.
+      setMsg(adminErrorMessage(e));
     }
   }
-  const [bulkOpen, setBulkOpen] = useState(false);
-
-  const sortedTours = useMemo(() => {
-    if (!tours) return [];
-    return [...tours].sort((a, b) => a.title.localeCompare(b.title));
-  }, [tours]);
 
   async function onSeed() {
     setMsg(null);
@@ -78,7 +93,7 @@ export function AdminToursPanel() {
     }
   }
 
-  if (tours === undefined) {
+  if (sessionToken === undefined || (hasConvexSessionToken && status === "LoadingFirstPage")) {
     return <p className="text-sm text-brand-muted">Loading…</p>;
   }
 
@@ -86,14 +101,24 @@ export function AdminToursPanel() {
     <div className="space-y-6">
       {!hasConvexSessionToken ? (
         <p className="text-sm text-amber-800">
-          {sessionToken === undefined
-            ? "Loading your session for uploads and tour data…"
-            : "Log in with an admin session to manage all tours (including inactive)."}
+          Log in with an admin session to manage tours.
         </p>
       ) : null}
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="primary" onClick={() => router.push("/admin/tours/new")}>
+        <Button
+          type="button"
+          variant="primary"
+          onClick={() => {
+            // "Add tour" is a blank form: drop any leftover document import.
+            try {
+              sessionStorage.removeItem(TOUR_PDF_DRAFT_STORAGE_KEY);
+            } catch {
+              /* ignore */
+            }
+            router.push("/admin/tours/new");
+          }}
+        >
           <Plus className="h-4 w-4" aria-hidden />
           Add tour
         </Button>
@@ -116,8 +141,28 @@ export function AdminToursPanel() {
         <Button type="button" variant="secondary" onClick={() => void onSeed()}>
           Seed sample tours
         </Button>
-        {msg ? <span className="text-sm text-brand-muted">{msg}</span> : null}
       </div>
+
+      {msg ? (
+        <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {msg}
+        </p>
+      ) : null}
+
+      <label className="relative block max-w-sm">
+        <span className="sr-only">Search tours by title</span>
+        <Search
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          aria-hidden
+        />
+        <input
+          type="search"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder="Search tours by title…"
+          className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm"
+        />
+      </label>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
         <table className="min-w-[720px] w-full text-left text-sm">
@@ -134,7 +179,7 @@ export function AdminToursPanel() {
             </tr>
           </thead>
           <tbody>
-            {sortedTours.map((t) => (
+            {tours.map((t) => (
               <tr key={t._id} className="border-b border-slate-100 last:border-0">
                 <td className="px-4 py-3 font-medium text-brand-ink">{t.title}</td>
                 <td className="px-4 py-3 text-slate-600">/{t.slug}</td>
@@ -145,7 +190,7 @@ export function AdminToursPanel() {
                       ...(Array.isArray(t.destinationIds) ? t.destinationIds : []),
                       ...(t.destinationId ? [t.destinationId] : []),
                     ];
-                    const names = ids
+                    const names = Array.from(new Set(ids))
                       .map((id) => destinations?.find((d) => d._id === id)?.name)
                       .filter((name): name is string => Boolean(name));
                     return names.length > 0 ? names.join(", ") : "-";
@@ -200,7 +245,11 @@ export function AdminToursPanel() {
                       type="button"
                       className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
                       onClick={() => {
-                        if (confirm("Delete this tour?")) {
+                        if (
+                          confirm(
+                            `Permanently delete “${t.title}”? This can't be undone. Tours with bookings, reviews or itineraries can't be deleted — switch them off instead.`,
+                          )
+                        ) {
                           void removeTour(t._id);
                         }
                       }}
@@ -214,21 +263,40 @@ export function AdminToursPanel() {
             ))}
           </tbody>
         </table>
-        {sortedTours.length === 0 ? (
-          <p className="p-6 text-sm text-slate-500">No tours yet. Add one or seed samples.</p>
+        {tours.length === 0 && hasConvexSessionToken ? (
+          <p className="p-6 text-sm text-slate-500">
+            {search ? `No tours match “${search}”.` : "No tours yet. Add one or seed samples."}
+          </p>
         ) : null}
       </div>
+
+      {status === "CanLoadMore" || status === "LoadingMore" ? (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={status === "LoadingMore"}
+            onClick={() => loadMore(PAGE_SIZE)}
+          >
+            {status === "LoadingMore" ? "Loading…" : "Load more tours"}
+          </Button>
+        </div>
+      ) : null}
 
       <BulkUploadModal
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
         title="Bulk upload tours"
-        description="Upload a .json or .xlsx file. Rows are upserted by slug. For nested fields, use JSON-in-cell (recommended) or newline-separated lists where applicable."
+        description="Upload a .json or .xlsx file. Rows are upserted by slug. When a tour already exists, only the columns you fill in are updated — blank cells keep the current value. For nested fields, use JSON-in-cell (recommended) or newline-separated lists where applicable."
         templateHint={
           <div className="space-y-1">
             <p className="font-semibold">Required keys</p>
             <p className="font-mono text-xs">
-              title, slug, description, durationDays, location, images, itinerary, isActive
+              title, slug, description, durationDays, location, isActive (+ itinerary for new tours)
+            </p>
+            <p className="text-xs text-slate-600">
+              Optional: images, pricePkr (or price), priceUsd, types, highlights, included, excluded,
+              timeSlots, ticketGroups, maxPeople, minAge, tourTypeLabel, office, email.
             </p>
             <p className="text-xs text-slate-600">
               For XLSX: put <span className="font-mono">images</span> as newline/comma text, and{" "}
@@ -240,7 +308,6 @@ export function AdminToursPanel() {
           const title = asString(row.title);
           const slug = asString(row.slug);
           const description = asString(row.description);
-          const price = asNumber(row.price) ?? 0;
           const durationDays = asNumber(row.durationDays);
           const location = asString(row.location);
           const isActive = asBoolean(row.isActive);
@@ -251,35 +318,47 @@ export function AdminToursPanel() {
           if (!location) throw new Error("Missing location");
           if (isActive === undefined) throw new Error("Missing isActive");
 
-          const images = asStringArray(row.images) ?? [];
-          const itinerary = asJson<
-            Array<{ day?: number; title?: string; description?: string }>
-          >(row.itinerary);
-          if (!Array.isArray(itinerary) || itinerary.length === 0) {
-            throw new Error("itinerary must be a JSON array");
+          let normalizedItinerary:
+            | Array<{ day: number; title: string; description: string }>
+            | undefined;
+          if (asString(row.itinerary) !== undefined || Array.isArray(row.itinerary)) {
+            const itinerary = asJson<
+              Array<{ day?: number; title?: string; description?: string }>
+            >(row.itinerary);
+            if (!Array.isArray(itinerary)) {
+              throw new Error("itinerary must be a JSON array");
+            }
+            normalizedItinerary = nonEmpty(
+              itinerary.map((it, idx) => ({
+                day: typeof it.day === "number" ? it.day : idx + 1,
+                title:
+                  typeof it.title === "string" && it.title.trim() ? it.title : `Day ${idx + 1}`,
+                description: typeof it.description === "string" ? it.description : "",
+              })),
+            );
           }
-          const normalizedItinerary = itinerary.map((it, idx) => ({
-            day: typeof it.day === "number" ? it.day : idx + 1,
-            title: typeof it.title === "string" && it.title.trim() ? it.title : `Day ${idx + 1}`,
-            description: typeof it.description === "string" ? it.description : "",
-          }));
+          const ticketGroups = asJson<Array<{ label: string; ageRange?: string }>>(
+            row.ticketGroups,
+          );
 
           return {
             title,
             slug,
             description,
-            price,
             durationDays,
             location,
             isActive,
-            images,
+            price: asNumber(row.price),
+            pricePkr: asNumber(row.pricePkr),
+            priceUsd: asNumber(row.priceUsd),
+            images: nonEmpty(asStringArray(row.images)),
             itinerary: normalizedItinerary,
-            types: asStringArray(row.types),
-            highlights: asStringArray(row.highlights),
-            included: asStringArray(row.included),
-            excluded: asStringArray(row.excluded),
-            timeSlots: asStringArray(row.timeSlots),
-            ticketGroups: asJson<Array<{ label: string; ageRange?: string }>>(row.ticketGroups),
+            types: nonEmpty(asStringArray(row.types)),
+            highlights: nonEmpty(asStringArray(row.highlights)),
+            included: nonEmpty(asStringArray(row.included)),
+            excluded: nonEmpty(asStringArray(row.excluded)),
+            timeSlots: nonEmpty(asStringArray(row.timeSlots)),
+            ticketGroups: Array.isArray(ticketGroups) ? nonEmpty(ticketGroups) : undefined,
             maxPeople: asNumber(row.maxPeople),
             minAge: asNumber(row.minAge),
             tourTypeLabel: asString(row.tourTypeLabel),
@@ -293,34 +372,10 @@ export function AdminToursPanel() {
           return await importInBatches({
             rows,
             batchSize: 10,
+            // Every optional key is `undefined` when its cell was blank, and the
+            // server only patches keys that are present.
             importBatch: async (batch) =>
-              bulkUpsert({
-                sessionToken: sessionToken as string,
-                rows: batch.map((b) => ({
-                  title: b.title,
-                  slug: b.slug,
-                  description: b.description,
-                  price: b.price,
-                  durationDays: b.durationDays,
-                  location: b.location,
-                  images: b.images,
-                  itinerary: b.itinerary,
-                  isActive: b.isActive,
-                  types: b.types,
-                  highlights: b.highlights,
-                  included: b.included,
-                  excluded: b.excluded,
-                  timeSlots: b.timeSlots,
-                  ticketGroups: Array.isArray(b.ticketGroups) ? b.ticketGroups : undefined,
-                  maxPeople: b.maxPeople,
-                  minAge: b.minAge,
-                  tourTypeLabel: b.tourTypeLabel,
-                  ratingAvg: b.ratingAvg,
-                  reviewsCount: b.reviewsCount,
-                  office: b.office,
-                  email: b.email,
-                })),
-              }),
+              bulkUpsert({ sessionToken: sessionToken as string, rows: batch }),
             merge: (a, b) => ({
               processed: a.processed + b.processed,
               created: (a.created ?? 0) + (b.created ?? 0),

@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { landingPages } from "@/config/programmatic-seo";
+import { landingPages, landingPath } from "@/config/programmatic-seo";
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
@@ -40,12 +41,17 @@ export function generateStaticParams() {
 
 export function generateMetadata({ params }: Props): Metadata {
   const page = landingPages.find((p) => p.slug === params.slug);
-  if (!page) return { title: "Landing" };
-  return {
+  if (!page) return { title: "Page not found", robots: { index: false } };
+  // Config titles already end in "| JunketTours" — use them verbatim so the
+  // root template doesn't append the brand twice.
+  return buildMetadata({
     title: page.title,
+    absoluteTitle: true,
     description: page.description,
+    path: landingPath(page.slug),
+    image: heroForSlug(page.slug),
     keywords: page.keywords,
-  };
+  });
 }
 
 export default function LandingPage({ params }: Props) {

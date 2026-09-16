@@ -136,14 +136,20 @@ export const listForAdmin = query({
   },
 });
 
+/**
+ * Adds default sites whose (province, slug) is missing. INSERT-ONLY: existing
+ * sites are never modified (no re-publishing hidden sites, no wiped fields).
+ * `updated` stays in the return shape for older clients and is always 0;
+ * `skipped` = seed rows whose province doesn't exist; `alreadyPresent` = untouched rows.
+ */
 export const syncDefaultCatalog = mutation({
   args: { sessionToken: v.string() },
   handler: async (ctx, { sessionToken }) => {
     await requireAdminFromSession(ctx, sessionToken);
     const now = Date.now();
     let created = 0;
-    let updated = 0;
     let skipped = 0;
+    let alreadyPresent = 0;
     for (let i = 0; i < SITES_SEED_ROWS.length; i++) {
       const row = SITES_SEED_ROWS[i]!;
       const province = await getProvinceBySlug(ctx, row.provinceSlug);
@@ -156,39 +162,43 @@ export const syncDefaultCatalog = mutation({
         .withIndex("by_province_and_slug", (q) =>
           q.eq("provinceId", province._id).eq("slug", row.slug),
         )
-        .unique();
-      const payload = {
+        .first();
+      if (existing) {
+        alreadyPresent++;
+        continue;
+      }
+      const optional = row as {
+        city?: string;
+        era?: string;
+        unesco?: boolean;
+        heroExternalUrl?: string;
+        destinationSlug?: string;
+      };
+      await ctx.db.insert("sites", {
         provinceId: province._id,
         slug: row.slug,
         name: row.name,
         type: row.type,
         summary: row.summary,
         history: row.history,
-        city: "city" in row ? (row.city as string | undefined) : undefined,
-        era: "era" in row ? (row.era as string | undefined) : undefined,
-        unesco: "unesco" in row ? (row.unesco as boolean | undefined) : undefined,
-        heroExternalUrl:
-          "heroExternalUrl" in row
-            ? (row.heroExternalUrl as string | undefined)
-            : undefined,
-        destinationSlug:
-          "destinationSlug" in row
-            ? (row.destinationSlug as string | undefined)
-            : undefined,
+        ...(optional.city !== undefined ? { city: optional.city } : {}),
+        ...(optional.era !== undefined ? { era: optional.era } : {}),
+        ...(optional.unesco !== undefined ? { unesco: optional.unesco } : {}),
+        ...(optional.heroExternalUrl !== undefined
+          ? { heroExternalUrl: optional.heroExternalUrl }
+          : {}),
+        ...(optional.destinationSlug !== undefined
+          ? { destinationSlug: optional.destinationSlug }
+          : {}),
         featured: row.featured,
         sortOrder: row.sortOrder,
         isActive: true,
+        createdAt: now + i,
         updatedAt: now + i,
-      };
-      if (existing) {
-        await ctx.db.patch(existing._id, payload);
-        updated++;
-      } else {
-        await ctx.db.insert("sites", { ...payload, createdAt: now + i });
-        created++;
-      }
+      });
+      created++;
     }
-    return { created, updated, skipped, total: SITES_SEED_ROWS.length };
+    return { created, updated: 0, skipped, alreadyPresent, total: SITES_SEED_ROWS.length };
   },
 });
 
@@ -234,15 +244,18 @@ export const updateSite = mutation({
   args: {
     sessionToken: v.string(),
     siteId: v.id("sites"),
+    /** Move the site to another province (slug must be free there). */
+    provinceId: v.optional(v.id("provinces")),
     name: v.optional(v.string()),
     type: v.optional(siteType),
     summary: v.optional(v.string()),
     history: v.optional(v.string()),
-    city: v.optional(v.string()),
-    era: v.optional(v.string()),
-    unesco: v.optional(v.boolean()),
-    heroExternalUrl: v.optional(v.string()),
-    destinationSlug: v.optional(v.string()),
+    // Optional fields: `undefined` = unchanged, `null` = clear.
+    city: v.optional(v.union(v.string(), v.null())),
+    era: v.optional(v.union(v.string(), v.null())),
+    unesco: v.optional(v.union(v.boolean(), v.null())),
+    heroExternalUrl: v.optional(v.union(v.string(), v.null())),
+    destinationSlug: v.optional(v.union(v.string(), v.null())),
     featured: v.optional(v.boolean()),
     sortOrder: v.optional(v.number()),
     isActive: v.optional(v.boolean()),
@@ -251,9 +264,27 @@ export const updateSite = mutation({
     await requireAdminFromSession(ctx, sessionToken);
     const existing = await ctx.db.get(siteId);
     if (!existing) throw new Error("Site not found");
+    if (patch.name !== undefined && !patch.name.trim()) {
+      throw new Error("Site name can't be empty");
+    }
+    if (patch.provinceId !== undefined && patch.provinceId !== existing.provinceId) {
+      const target = await ctx.db.get(patch.provinceId);
+      if (!target) throw new Error("Target province not found");
+      const conflict = await ctx.db
+        .query("sites")
+        .withIndex("by_province_and_slug", (q) =>
+          q.eq("provinceId", patch.provinceId!).eq("slug", existing.slug),
+        )
+        .first();
+      if (conflict) {
+        throw new Error(`"${target.name}" already has a site with the slug "${existing.slug}"`);
+      }
+    }
     const next: Record<string, unknown> = {};
     for (const [k, val] of Object.entries(patch)) {
-      if (val !== undefined) next[k] = val;
+      if (val === undefined) continue;
+      // null clears an optional field (patching `undefined` removes it).
+      next[k] = val === null ? undefined : val;
     }
     next.updatedAt = Date.now();
     await ctx.db.patch(siteId, next as Partial<Doc<"sites">>);
@@ -284,8 +315,9 @@ export const bulkUpsert = mutation({
         unesco: v.optional(v.boolean()),
         heroExternalUrl: v.optional(v.string()),
         destinationSlug: v.optional(v.string()),
-        featured: v.boolean(),
-        sortOrder: v.number(),
+        // Optional so a blank cell leaves the existing value untouched on update.
+        featured: v.optional(v.boolean()),
+        sortOrder: v.optional(v.number()),
         isActive: v.optional(v.boolean()),
       }),
     ),
@@ -309,29 +341,53 @@ export const bulkUpsert = mutation({
           .withIndex("by_province_and_slug", (q) =>
             q.eq("provinceId", province._id).eq("slug", slug),
           )
-          .unique();
-        const payload = {
-          provinceId: province._id,
-          slug,
-          name: row.name.trim(),
-          type: row.type,
-          summary: row.summary.trim(),
-          history: row.history.trim(),
-          city: row.city?.trim() || undefined,
-          era: row.era?.trim() || undefined,
-          unesco: row.unesco,
-          heroExternalUrl: row.heroExternalUrl?.trim() || undefined,
-          destinationSlug: row.destinationSlug?.trim() || undefined,
-          featured: row.featured,
-          sortOrder: row.sortOrder,
-          isActive: row.isActive ?? true,
-          updatedAt: now + i,
-        };
+          .first();
+        const name = row.name.trim();
+        if (!slug) throw new Error("slug is required");
+        if (!name) throw new Error("name is required");
+        // Only keys with a real value are written: a blank cell never wipes data
+        // and a missing isActive never re-publishes a hidden site.
+        const present: Partial<Doc<"sites">> = {};
+        const summary = row.summary.trim();
+        const history = row.history.trim();
+        if (summary) present.summary = summary;
+        if (history) present.history = history;
+        const city = row.city?.trim();
+        if (city) present.city = city;
+        const era = row.era?.trim();
+        if (era) present.era = era;
+        if (row.unesco !== undefined) present.unesco = row.unesco;
+        const heroExternalUrl = row.heroExternalUrl?.trim();
+        if (heroExternalUrl) present.heroExternalUrl = heroExternalUrl;
+        const destinationSlug = row.destinationSlug?.trim();
+        if (destinationSlug) present.destinationSlug = destinationSlug;
+        if (row.featured !== undefined) present.featured = row.featured;
+        if (row.sortOrder !== undefined) present.sortOrder = row.sortOrder;
+        if (row.isActive !== undefined) present.isActive = row.isActive;
+
         if (existing) {
-          await ctx.db.patch(existing._id, payload);
+          await ctx.db.patch(existing._id, {
+            ...present,
+            name,
+            type: row.type,
+            updatedAt: now + i,
+          });
           updated++;
         } else {
-          await ctx.db.insert("sites", { ...payload, createdAt: now + i });
+          await ctx.db.insert("sites", {
+            ...present,
+            provinceId: province._id,
+            slug,
+            name,
+            type: row.type,
+            summary: present.summary ?? "",
+            history: present.history ?? "",
+            featured: present.featured ?? false,
+            sortOrder: present.sortOrder ?? 0,
+            isActive: present.isActive ?? true,
+            createdAt: now + i,
+            updatedAt: now + i,
+          });
           created++;
         }
       } catch (e) {

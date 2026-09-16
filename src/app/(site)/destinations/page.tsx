@@ -1,22 +1,27 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import { MapPin, ArrowRight } from "lucide-react";
 import { loadDestinationIndexRows } from "@/lib/destinations-server";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
 import Image from "next/image";
+import { getServerCurrency } from "@/lib/currency-server";
+import { formatTourPriceSummary } from "@/lib/tourPricing";
 
 export const revalidate = 0;
 
-export const metadata: Metadata = {
-  title: "Destinations",
+export const metadata: Metadata = buildMetadata({
+  title: "Pakistan Destinations: Lahore to Hunza",
   description:
-    "Heritage destinations across Pakistan — Lahore, Taxila, Swat, Hunza, Skardu, and more. Guides and tours for each region.",
-};
+    "Explore Pakistan's top destinations — Lahore, Multan, Taxila, Swat, Chitral, Hunza, Skardu and Naran — with best times to visit, travel tips and guided tours.",
+  path: "/destinations",
+});
 
 export default async function DestinationsIndexPage() {
   const byDestination = await loadDestinationIndexRows();
+  const currency = getServerCurrency();
 
   return (
     <main className="min-h-screen py-16 md:py-24">
@@ -43,7 +48,7 @@ export default async function DestinationsIndexPage() {
                     >
                       <Image
                         src={heroUrl}
-                        alt=""
+                        alt={name}
                         fill
                         sizes="(min-width: 1280px) 560px, (min-width: 768px) 50vw, 100vw"
                         className="object-cover transition duration-500 group-hover:scale-[1.02]"
@@ -79,7 +84,7 @@ export default async function DestinationsIndexPage() {
                                 >
                                   <span className="line-clamp-1">{t.title}</span>
                                   <span className="shrink-0 text-xs font-semibold text-havezic-primary">
-                                    PKR {t.price.toLocaleString()}
+                                    {formatTourPriceSummary(t, currency) ?? "Price on request"}
                                   </span>
                                 </Link>
                               </li>

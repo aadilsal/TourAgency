@@ -29,7 +29,7 @@ export function FormStepper({
             </div>
             <span
               className={cn(
-                "block w-full text-center text-[10px] font-semibold uppercase tracking-[0.08em] leading-tight",
+                "block w-full text-center text-[11px] font-semibold uppercase tracking-[0.04em] sm:text-xs leading-tight",
                 "whitespace-nowrap",
                 active ? "text-brand-accent" : "text-slate-500",
               )}

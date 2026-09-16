@@ -38,7 +38,7 @@ const SLIDES: {
 
 export function PlanByBudgetCarousel() {
   return (
-    <section className="border-y border-white/10 bg-gradient-to-br from-brand-primary via-brand-primary-dark to-slate-900 py-16 text-white md:py-24">
+    <section className="border-y border-white/10 bg-gradient-to-br from-brand-primary via-brand-primary-dark to-slate-900 py-12 text-white sm:py-16 md:py-24">
       <PageContainer>
         <h2 className="font-display text-3xl font-semibold md:text-4xl">
           Plan by budget
@@ -47,8 +47,11 @@ export function PlanByBudgetCarousel() {
           Drag or swipe — each card opens filtered tours. Not sure? Ask our AI
           planner.
         </p>
-        <div className="mt-12">
-          <EmblaRow slideClassName="min-w-0 flex-[0_0_88%] sm:flex-[0_0_65%] md:flex-[0_0_48%] lg:flex-[0_0_38%]">
+        <div className="mt-8 md:mt-12">
+          <EmblaRow
+            itemLabel="budget"
+            arrowButtonClassName="border-white/20 bg-white/10 text-white hover:bg-white/20"
+            slideClassName="min-w-0 flex-[0_0_88%] sm:flex-[0_0_65%] md:flex-[0_0_48%] lg:flex-[0_0_38%]">
             {SLIDES.map((s) => (
               <Link
                 key={s.href}
@@ -59,11 +62,12 @@ export function PlanByBudgetCarousel() {
                 <img
                   src={s.image}
                   alt=""
+                  aria-hidden
                   className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-black/10" />
-                <div className="absolute inset-0 flex flex-col justify-end p-6 md:p-8">
-                  <h3 className="text-2xl font-bold">{s.title}</h3>
+                <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-6 md:p-8">
+                  <h3 className="text-xl font-bold sm:text-2xl">{s.title}</h3>
                   <p className="mt-2 text-sm text-white/85">{s.subtitle}</p>
                   <span className="mt-3 inline-flex text-sm font-semibold text-brand-accent">
                     View tours →

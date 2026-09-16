@@ -30,8 +30,8 @@ export function FeaturedToursCarousel({ tours }: Props) {
           title={"Culture-first journeys\nacross Pakistan"}
           description="Handpicked routes through heritage cities, ancient sites, and northern valleys — tell us your dates and we'll tailor a quote."
         />
-        <div className="mt-12 md:mt-16">
-          <EmblaRow slideClassName="min-w-0 flex-[0_0_90%] sm:flex-[0_0_55%] lg:flex-[0_0_36%] xl:flex-[0_0_32%]">
+        <div className="mt-8 md:mt-16">
+          <EmblaRow itemLabel="tour" slideClassName="min-w-0 flex-[0_0_90%] sm:flex-[0_0_55%] lg:flex-[0_0_36%] xl:flex-[0_0_32%]">
             {tours.map((t, i) => (
               <TourCard
                 key={t._id}

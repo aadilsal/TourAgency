@@ -1,4 +1,5 @@
 import { getSiteUrl } from "@/lib/site";
+import { JsonLdScript } from "@/components/JsonLdScript";
 
 export type BreadcrumbItem = { name: string; path: string };
 
@@ -15,11 +16,5 @@ export function BreadcrumbJsonLd({ items }: { items: BreadcrumbItem[] }) {
     })),
   };
 
-  return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(json) }}
-    />
-  );
+  return <JsonLdScript data={json} />;
 }
-

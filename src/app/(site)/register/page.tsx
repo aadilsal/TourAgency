@@ -2,11 +2,29 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useMemo, useTransition } from "react";
+import { useRef, useState, useMemo, useTransition } from "react";
 import { Mail, Lock, User, Phone } from "lucide-react";
 import { AuthSplitShell } from "@/components/AuthSplitShell";
 import { Button } from "@/components/ui/Button";
-import { FieldLabel, TextInput, FieldHint, FieldError } from "@/components/ui/FormField";
+import {
+  FieldLabel,
+  TextInput,
+  FieldHint,
+  FieldError,
+  FormAlert,
+  fieldErrorId,
+  fieldErrorProps,
+} from "@/components/ui/FormField";
+import { PasswordInput } from "@/components/ui/PasswordInput";
+import {
+  FORM_MESSAGES,
+  focusFirstError,
+  isValidEmail,
+  isValidPhone,
+  type FieldErrorMap,
+} from "@/lib/formValidation";
+
+type RegisterField = "name" | "email" | "phone" | "password" | "confirm";
 import { NavigationBlockingOverlay } from "@/components/ui/PageLoadingSpinner";
 import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
 import { analyzePassword } from "@/lib/passwordStrength";
@@ -21,8 +39,14 @@ export default function RegisterPage() {
   const [confirm, setConfirm] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrorMap<RegisterField>>({});
   const [loading, setLoading] = useState(false);
   const [isNavPending, startTransition] = useTransition();
+  const submittingRef = useRef(false);
+
+  function clearFieldError(field: RegisterField) {
+    setFieldErrors((x) => ({ ...x, [field]: undefined }));
+  }
 
   const passwordOk = useMemo(
     () => analyzePassword(password).meetsMinimum,
@@ -31,29 +55,53 @@ export default function RegisterPage() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (password !== confirm) {
-      setErr("Passwords do not match.");
-      return;
-    }
-    if (!passwordOk) {
-      setErr(
-        "Password must meet every item in the checklist (length, mixed case, number, symbol).",
-      );
-      return;
-    }
-    setLoading(true);
+    if (submittingRef.current) return;
     setErr(null);
-    const res = await fetch("/api/auth/register", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        email,
-        password,
-        phone: phone || undefined,
-      }),
-    });
+    const next: FieldErrorMap<RegisterField> = {};
+    if (!name.trim()) next.name = FORM_MESSAGES.nameRequired;
+    if (!email.trim()) next.email = FORM_MESSAGES.emailRequired;
+    else if (!isValidEmail(email)) next.email = FORM_MESSAGES.emailInvalid;
+    if (phone.trim() && !isValidPhone(phone)) next.phone = FORM_MESSAGES.phoneInvalid;
+    if (!password) next.password = "Please create a password.";
+    else if (!passwordOk) {
+      next.password =
+        "Password must meet every item in the checklist (length, mixed case, number, symbol).";
+    }
+    if (!confirm) next.confirm = "Please repeat your password.";
+    else if (password !== confirm) next.confirm = "Passwords do not match.";
+    setFieldErrors(next);
+    if (Object.keys(next).length > 0) {
+      focusFirstError([
+        next.name && "reg-name",
+        next.email && "reg-email",
+        next.phone && "reg-phone",
+        next.password && "reg-pass",
+        next.confirm && "reg-confirm",
+      ]);
+      return;
+    }
+    submittingRef.current = true;
+    setLoading(true);
+    let res: Response;
+    try {
+      res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim(),
+          password,
+          phone: phone.trim() || undefined,
+        }),
+      });
+    } catch (error) {
+      setErr(toUserFacingErrorMessage(error));
+      submittingRef.current = false;
+      setLoading(false);
+      return;
+    }
     setLoading(false);
+    submittingRef.current = false;
     if (!res.ok) {
       const j = await res.json().catch(() => ({}));
       setErr(
@@ -83,7 +131,7 @@ export default function RegisterPage() {
         </>
       }
     >
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} noValidate className="space-y-4">
         <div>
           <FieldLabel htmlFor="reg-name" required>
             Name
@@ -95,8 +143,13 @@ export default function RegisterPage() {
             icon={<User />}
             placeholder="Full name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              clearFieldError("name");
+            }}
+            {...fieldErrorProps("reg-name", fieldErrors.name)}
           />
+          <FieldError id={fieldErrorId("reg-name")}>{fieldErrors.name}</FieldError>
         </div>
         <div>
           <FieldLabel htmlFor="reg-email" required>
@@ -110,8 +163,13 @@ export default function RegisterPage() {
             icon={<Mail />}
             placeholder="you@example.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              clearFieldError("email");
+            }}
+            {...fieldErrorProps("reg-email", fieldErrors.email)}
           />
+          <FieldError id={fieldErrorId("reg-email")}>{fieldErrors.email}</FieldError>
         </div>
         <div>
           <FieldLabel htmlFor="reg-phone">Phone</FieldLabel>
@@ -122,58 +180,67 @@ export default function RegisterPage() {
             icon={<Phone />}
             placeholder="+92 300 1234567"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              clearFieldError("phone");
+            }}
+            {...fieldErrorProps("reg-phone", fieldErrors.phone)}
           />
+          <FieldError id={fieldErrorId("reg-phone")}>{fieldErrors.phone}</FieldError>
           <FieldHint>Helps link past guest bookings to your account.</FieldHint>
         </div>
         <div>
           <FieldLabel htmlFor="reg-pass" required>
             Password
           </FieldLabel>
-          <TextInput
+          <PasswordInput
             id="reg-pass"
-            type={showPw ? "text" : "password"}
+            visible={showPw}
+            onVisibleChange={setShowPw}
             required
             minLength={8}
             autoComplete="new-password"
             icon={<Lock />}
             placeholder="Create a strong password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              clearFieldError("password");
+            }}
+            {...fieldErrorProps("reg-pass", fieldErrors.password)}
           />
+          <FieldError id={fieldErrorId("reg-pass")}>{fieldErrors.password}</FieldError>
           <PasswordStrengthMeter password={password} />
         </div>
         <div>
           <FieldLabel htmlFor="reg-confirm" required>
             Confirm password
           </FieldLabel>
-          <TextInput
+          <PasswordInput
             id="reg-confirm"
-            type={showPw ? "text" : "password"}
+            visible={showPw}
+            onVisibleChange={setShowPw}
             required
             minLength={8}
             autoComplete="new-password"
             icon={<Lock />}
             placeholder="Repeat password"
             value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
+            onChange={(e) => {
+              setConfirm(e.target.value);
+              clearFieldError("confirm");
+            }}
+            {...fieldErrorProps("reg-confirm", fieldErrors.confirm)}
           />
+          <FieldError id={fieldErrorId("reg-confirm")}>{fieldErrors.confirm}</FieldError>
         </div>
-        <label className="flex items-center gap-2 text-xs text-havezic-text">
-          <input
-            type="checkbox"
-            checked={showPw}
-            onChange={(e) => setShowPw(e.target.checked)}
-            className="rounded border-border"
-          />
-          Show passwords
-        </label>
-        {err ? <FieldError>{err}</FieldError> : null}
+        <FormAlert>{err}</FormAlert>
         <Button
           type="submit"
           variant="primary"
           className="w-full py-3"
-          disabled={busy || !passwordOk}
+          disabled={busy}
+          aria-busy={busy}
         >
           {loading
             ? "Creating…"

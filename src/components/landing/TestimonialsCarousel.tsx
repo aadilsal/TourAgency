@@ -80,8 +80,8 @@ export function TestimonialsCarousel() {
           title="Travelers love the experience"
           description="Real feedback from guests who planned and booked with JunketTours."
         />
-        <div className="mt-12 md:mt-16">
-          <EmblaRow slideClassName="min-w-0 flex-[0_0_92%] sm:flex-[0_0_70%] lg:flex-[0_0_42%]">
+        <div className="mt-8 md:mt-16">
+          <EmblaRow itemLabel="review" slideClassName="min-w-0 flex-[0_0_92%] sm:flex-[0_0_70%] lg:flex-[0_0_42%]">
             {items.map((t, i) => (
               <Card
                 key={`${t.name}-${i}`}
@@ -91,7 +91,7 @@ export function TestimonialsCarousel() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={t.image}
-                    alt=""
+                    alt={`Portrait of ${t.name}`}
                     className="absolute inset-0 h-full w-full object-cover"
                     referrerPolicy="no-referrer"
                   />

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import Link from "next/link";
 import Image from "next/image";
 import { loadProvinceIndexRows } from "@/lib/provinces-server";
@@ -7,11 +8,12 @@ import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 
-export const metadata: Metadata = {
-  title: "Province guides — explore Pakistan south to north",
+export const metadata: Metadata = buildMetadata({
+  title: "Pakistan Travel Guides by Province",
   description:
-    "Province-by-province travel guides for Pakistan — historical sites, cultural landmarks, natural wonders, and bookable tours from Sindh to Gilgit-Baltistan.",
-};
+    "Province-by-province Pakistan travel guides — historical sites, cultural landmarks, natural wonders and bookable tours from Sindh to Gilgit-Baltistan.",
+  path: "/guides",
+});
 
 export const revalidate = 0;
 
@@ -39,7 +41,7 @@ export default async function GuidesIndexPage() {
                 <div className="relative h-48 bg-black/10">
                   <Image
                     src={p.heroUrl}
-                    alt=""
+                    alt={p.name}
                     fill
                     sizes="(max-width: 768px) 100vw, 33vw"
                     className="object-cover"

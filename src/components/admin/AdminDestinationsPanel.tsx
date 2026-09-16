@@ -4,11 +4,12 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import type { Id } from "@convex/_generated/dataModel";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { confirmDiscard } from "@/hooks/useUnsavedChangesGuard";
 import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
 import { asNumber, asString, asStringArray } from "@/lib/bulkUpload/coerce";
 import { importInBatches } from "@/lib/bulkUpload/importInBatches";
@@ -35,6 +36,33 @@ type DestinationRow = {
 function toLines(v: string[]): string {
   return v.join("\n");
 }
+
+/** The editable text of the destination modal, used to detect unsaved edits. */
+type DestinationFormText = {
+  name: string;
+  slug: string;
+  line: string;
+  description: string;
+  sortOrder: number;
+  matchTermsInput: string;
+  bestTime: string;
+  tipsInput: string;
+  costEstimate: string;
+  bulletsInput: string;
+};
+
+const EMPTY_DESTINATION_FORM: DestinationFormText = {
+  name: "",
+  slug: "",
+  line: "",
+  description: "",
+  sortOrder: 100,
+  matchTermsInput: "",
+  bestTime: "",
+  tipsInput: "",
+  costEstimate: "",
+  bulletsInput: "",
+};
 
 function fromLines(v: string): string[] {
   return v
@@ -81,19 +109,43 @@ export function AdminDestinationsPanel() {
 
   const list = useMemo(() => (rows ?? []) as DestinationRow[], [rows]);
 
+  /** Form text as it was when the modal opened. */
+  const openedRef = useRef<DestinationFormText>(EMPTY_DESTINATION_FORM);
+  const currentForm: DestinationFormText = {
+    name,
+    slug,
+    line,
+    description,
+    sortOrder,
+    matchTermsInput,
+    bestTime,
+    tipsInput,
+    costEstimate,
+    bulletsInput,
+  };
+  const dirty =
+    modalOpen &&
+    (heroStorageId !== undefined ||
+      JSON.stringify(currentForm) !== JSON.stringify(openedRef.current));
+
+  function applyForm(f: DestinationFormText) {
+    openedRef.current = f;
+    setName(f.name);
+    setSlug(f.slug);
+    setLine(f.line);
+    setDescription(f.description);
+    setSortOrder(f.sortOrder);
+    setMatchTermsInput(f.matchTermsInput);
+    setBestTime(f.bestTime);
+    setTipsInput(f.tipsInput);
+    setCostEstimate(f.costEstimate);
+    setBulletsInput(f.bulletsInput);
+  }
+
   function resetForm() {
-    setName("");
-    setSlug("");
-    setLine("");
-    setDescription("");
+    applyForm(EMPTY_DESTINATION_FORM);
     setHeroStorageId(undefined);
     setHeroPreviewUrl(null);
-    setSortOrder(100);
-    setMatchTermsInput("");
-    setBestTime("");
-    setTipsInput("");
-    setCostEstimate("");
-    setBulletsInput("");
   }
 
   function openNew() {
@@ -105,18 +157,20 @@ export function AdminDestinationsPanel() {
 
   function openEdit(d: DestinationRow) {
     setEditingId(d._id);
-    setName(d.name);
-    setSlug(d.slug);
-    setLine(d.line);
-    setDescription(d.description);
+    applyForm({
+      name: d.name,
+      slug: d.slug,
+      line: d.line,
+      description: d.description,
+      sortOrder: d.sortOrder,
+      matchTermsInput: toLines(d.matchTerms),
+      bestTime: d.bestTime,
+      tipsInput: toLines(d.tips),
+      costEstimate: d.costEstimate,
+      bulletsInput: toLines(d.bullets),
+    });
     setHeroStorageId(undefined);
     setHeroPreviewUrl(d.heroStorageId || d.heroExternalUrl ? d.heroUrl ?? null : null);
-    setSortOrder(d.sortOrder);
-    setMatchTermsInput(toLines(d.matchTerms));
-    setBestTime(d.bestTime);
-    setTipsInput(toLines(d.tips));
-    setCostEstimate(d.costEstimate);
-    setBulletsInput(toLines(d.bullets));
     setMsg(null);
     setModalOpen(true);
   }
@@ -185,10 +239,24 @@ export function AdminDestinationsPanel() {
     try {
       if (!canMutate) throw new Error("Not authenticated");
       if (editingId) {
+        // Send only what changed in this modal, so a save can't roll back edits
+        // made elsewhere (another admin, bulk import) since it was opened.
+        const opened = openedRef.current;
+        const changed = <K extends keyof DestinationFormText>(k: K) =>
+          currentForm[k] !== opened[k];
         await updateDestination({
           sessionToken,
           destinationId: editingId,
-          ...base,
+          name: changed("name") ? base.name : undefined,
+          slug: changed("slug") ? base.slug : undefined,
+          line: changed("line") ? base.line : undefined,
+          description: changed("description") ? base.description : undefined,
+          sortOrder: changed("sortOrder") ? base.sortOrder : undefined,
+          matchTerms: changed("matchTermsInput") ? base.matchTerms : undefined,
+          bestTime: changed("bestTime") ? base.bestTime : undefined,
+          tips: changed("tipsInput") ? base.tips : undefined,
+          costEstimate: changed("costEstimate") ? base.costEstimate : undefined,
+          bullets: changed("bulletsInput") ? base.bullets : undefined,
           heroStorageId,
         });
         setMsg("Destination updated.");
@@ -313,6 +381,7 @@ export function AdminDestinationsPanel() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
+        confirmClose={dirty}
         title={editingId ? "Edit destination" : "Add destination"}
         description="Manage destination details and matching terms used by destination pages."
         panelClassName="max-w-2xl"
@@ -469,7 +538,13 @@ export function AdminDestinationsPanel() {
             <Button type="submit" disabled={saving}>
               {saving ? "Saving…" : editingId ? "Save changes" : "Create destination"}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                if (confirmDiscard(dirty)) setModalOpen(false);
+              }}
+            >
               Cancel
             </Button>
           </div>

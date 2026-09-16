@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useMutation, usePaginatedQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { useSafePaginatedQuery } from "@/hooks/useSafePaginatedQuery";
+import { QueryErrorBanner } from "@/components/admin/shared/EditorStatus";
+import {
+  useAdminListSearch,
+  useDebouncedValue,
+} from "@/components/admin/itinerary/useAdminListSearch";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { CheckCircle2, Download, Pencil, Receipt, RotateCcw, Trash2, FileText } from "lucide-react";
@@ -70,24 +76,30 @@ export function AdminItinerariesTable() {
     }
   }
 
-  const { results, status, loadMore } = usePaginatedQuery(
+  const { results, status, loadMore, error: listError } = useSafePaginatedQuery(
     api.itineraries.listForAdmin,
     canQuery ? { sessionToken } : "skip",
     { initialNumItems: 50 },
   );
 
-  const list = useMemo(() => {
-    const all = (results ?? []) as Row[];
-    const needle = q.trim().toLowerCase();
-    const filtered =
-      needle.length === 0
-        ? all
-        : all.filter((r) => {
-            const hay = `${r.title}\n${r.clientName}\n${r.status}`.toLowerCase();
-            return hay.includes(needle);
-          });
-    return filtered;
-  }, [results, q]);
+  const searchTerm = useDebouncedValue(q.trim(), 300);
+  const serverResults = useQuery(
+    api.itineraries.searchForAdmin,
+    canQuery && searchTerm ? { sessionToken, search: searchTerm } : "skip",
+  ) as Row[] | undefined;
+  const loaded = useMemo(() => (results ?? []) as Row[], [results]);
+  const { rows: list, searching, pending: searchPending } = useAdminListSearch({
+    loaded,
+    serverResults,
+    term: searchTerm,
+    haystack: (r) => `${r.title}\n${r.clientName}\n${r.status}`,
+  });
+
+  const emptyLabel = searching
+    ? searchPending
+      ? "Searching all itineraries…"
+      : `No itineraries match “${searchTerm}”.`
+    : "No itineraries yet.";
 
   if (!canQuery) {
     return (
@@ -105,6 +117,7 @@ export function AdminItinerariesTable() {
 
   return (
     <div className="space-y-4">
+      <QueryErrorBanner error={listError} />
       {msg ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           {msg}
@@ -113,7 +126,7 @@ export function AdminItinerariesTable() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="w-full max-w-md">
           <TextInput
-            placeholder="Search title, client, status…"
+            placeholder="Search all itineraries by title or client…"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
@@ -127,7 +140,7 @@ export function AdminItinerariesTable() {
       <div className="grid gap-3 md:hidden">
         {list.length === 0 ? (
           <Card className="p-5">
-            <p className="text-sm text-muted">No itineraries yet.</p>
+            <p className="text-sm text-muted">{emptyLabel}</p>
           </Card>
         ) : (
           list.map((r) => (
@@ -465,7 +478,7 @@ export function AdminItinerariesTable() {
             ))}
           </tbody>
         </table>
-        {list.length === 0 ? <p className="p-6 text-sm text-muted">No itineraries yet.</p> : null}
+        {list.length === 0 ? <p className="p-6 text-sm text-muted">{emptyLabel}</p> : null}
       </Card>
 
       <div className="flex justify-center">

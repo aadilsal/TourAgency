@@ -1,11 +1,13 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { loadDestinationDetailPageData } from "@/lib/destinations-server";
 import { isCultureDestinationSlug } from "@/lib/destinations-data";
 import { getDestinationProvinceSlug } from "@/lib/provinces-server";
 import { getProvince } from "@/lib/provinces-data";
 import { RelatedToursCarousel } from "@/components/destinations/RelatedToursCarousel";
+import { getServerCurrency } from "@/lib/currency-server";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { ButtonLink } from "@/components/ui/Button";
@@ -18,14 +20,17 @@ type Props = { params: { slug: string } };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const d = await loadDestinationDetailPageData(params.slug);
-  if (!d) return { title: "Destination" };
+  if (!d) return { title: "Destination not found", robots: { index: false } };
   const titleSuffix = isCultureDestinationSlug(params.slug)
-    ? "heritage tours & travel guide"
-    : "tours & travel";
-  return {
+    ? "Heritage Tours & Travel Guide"
+    : "Tours & Travel Guide";
+  return buildMetadata({
     title: `${d.name} ${titleSuffix}`,
-    description: d.description.slice(0, 160),
-  };
+    description: d.description,
+    path: `/destinations/${d.slug}`,
+    image: d.heroUrl,
+    imageAlt: `${d.name}, Pakistan`,
+  });
 }
 
 export default async function DestinationPage({ params }: Props) {
@@ -48,7 +53,7 @@ export default async function DestinationPage({ params }: Props) {
       <div className="relative h-[min(55vh,520px)] w-full overflow-hidden">
         <Image
           src={d.heroUrl}
-          alt=""
+          alt={d.name}
           fill
           priority
           sizes="100vw"
@@ -168,7 +173,7 @@ export default async function DestinationPage({ params }: Props) {
           </aside>
         </div>
 
-        <RelatedToursCarousel tours={related} />
+        <RelatedToursCarousel tours={related} currency={getServerCurrency()} />
       </PageContainer>
     </main>
   );

@@ -9,6 +9,7 @@ import { usePlannerWidget } from "@/components/planner/PlannerWidgetContext";
 
 type Slide = {
   image: string;
+  alt: string;
   eyebrow: string;
   title: string;
   subtitle: string;
@@ -18,6 +19,7 @@ type Slide = {
 const SLIDES: Slide[] = [
   {
     image: "/images/marketing/hero-heritage.jpg",
+    alt: "Red sandstone gateway and minaret of the Badshahi Mosque courtyard in Lahore under a cloudy sky",
     eyebrow: "HERITAGE & HISTORY",
     title: "Walk Through Centuries\nOf Pakistan",
     subtitle:
@@ -26,6 +28,7 @@ const SLIDES: Slide[] = [
   },
   {
     image: "/images/marketing/hero-northern-heritage.jpg",
+    alt: "Snow-capped mountain range above a braided river valley and pine forest",
     eyebrow: "NORTHERN HERITAGE",
     title: "Valley Forts, Karakoram Views\n& Living Traditions",
     subtitle:
@@ -37,6 +40,7 @@ const SLIDES: Slide[] = [
   },
   {
     image: "/images/marketing/hero-plan-ai.jpg",
+    alt: "Tiered temple tower among pine trees at sunset",
     eyebrow: "PLAN WITH AI",
     title: "Your Story,\nDay by Day",
     subtitle: "Browse heritage tours and lock your dates — or let AI draft your route.",
@@ -77,11 +81,11 @@ export function HomeHero({ className }: Props) {
         <div className="flex">
           {slides.map((s) => (
             <div key={s.image} className="min-w-0 flex-[0_0_100%]">
-              <div className="relative h-[520px] md:h-[640px]">
+              <div className="relative h-[540px] sm:h-[520px] md:h-[640px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={s.image}
-                  alt=""
+                  alt={s.alt}
                   className="absolute inset-0 h-full w-full object-cover"
                   loading="eager"
                   decoding="async"
@@ -100,14 +104,14 @@ export function HomeHero({ className }: Props) {
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/70">
             {active.eyebrow}
           </p>
-          <h1 className="mt-4 whitespace-pre-line text-4xl font-semibold leading-[1.06] tracking-tight md:text-6xl">
+          <h1 className="mt-4 whitespace-pre-line text-balance text-[2rem] font-semibold leading-[1.08] tracking-tight sm:text-5xl md:text-6xl">
             {active.title}
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base font-medium text-white/85 md:text-lg">
             {active.subtitle}
           </p>
 
-          <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+          <div className="mx-auto mt-8 flex max-w-xs flex-col items-stretch justify-center gap-3 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center md:mt-9">
             <button
               type="button"
               onClick={openPlanner}
@@ -129,18 +133,25 @@ export function HomeHero({ className }: Props) {
             Heritage routes · Clear pricing · Licensed operator
           </p>
 
-          <div className="mt-6 flex items-center justify-center gap-2">
+          <div className="mt-3 flex items-center justify-center">
             {slides.map((_, i) => (
+              // 44px hit area around an 8px visual dot.
               <button
                 key={i}
                 type="button"
                 aria-label={`Go to slide ${i + 1}`}
-                className={cn(
-                  "h-2 w-2 rounded-full border border-white/45 transition",
-                  i === index ? "bg-white" : "bg-white/10 hover:bg-white/30",
-                )}
+                aria-current={i === index ? "true" : undefined}
+                className="group inline-flex h-11 w-11 items-center justify-center"
                 onClick={() => emblaApi?.scrollTo(i)}
-              />
+              >
+                <span
+                  className={cn(
+                    "h-2 rounded-full border border-white/45 transition-all",
+                    i === index ? "w-6 bg-white" : "w-2 bg-white/10 group-hover:bg-white/30",
+                  )}
+                  aria-hidden
+                />
+              </button>
             ))}
           </div>
         </div>

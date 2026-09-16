@@ -15,6 +15,7 @@ import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
 import { asBoolean, asNumber, asString } from "@/lib/bulkUpload/coerce";
 import { importInBatches } from "@/lib/bulkUpload/importInBatches";
+import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 
 function isProbablyImageFile(file: File) {
   const t = (file.type || "").toLowerCase();
@@ -56,6 +57,9 @@ export function AdminTeamPanel() {
   const [msg, setMsg] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+
+  // Warn before navigating away from a half-filled "Add member" form.
+  useUnsavedChangesGuard(name.trim().length > 0 || role.trim().length > 0 || file !== null);
 
   async function uploadOne(f: File): Promise<Id<"_storage">> {
     if (!canMutate) throw new Error("Not authenticated");

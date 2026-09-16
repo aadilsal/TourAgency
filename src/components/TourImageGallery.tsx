@@ -193,6 +193,7 @@ export function TourImageGallery({ images, title }: Props) {
                   <img
                     src={src}
                     alt=""
+                    aria-hidden
                     className="h-full w-full object-cover"
                   />
                 </button>

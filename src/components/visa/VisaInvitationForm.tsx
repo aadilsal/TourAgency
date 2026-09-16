@@ -1,15 +1,20 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { Loader2, Plus, ShieldCheck } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
   FieldError,
   FieldLabel,
+  FormAlert,
   TextInput,
+  fieldErrorId,
+  fieldErrorProps,
 } from "@/components/ui/FormField";
+import { shortRef, thankYouHref } from "@/lib/formValidation";
 import { GovernmentLicenceText } from "@/components/GovernmentLicenceText";
 import { TravelerCard } from "@/components/visa/TravelerCard";
 import { useVisaInvitation } from "@/components/visa/VisaInvitationContext";
@@ -35,6 +40,7 @@ export function VisaInvitationForm({
   const createRequest = useMutation(api.visaInvitations.createRequest);
   const siteSettings = useQuery(api.siteSettings.getPublicSiteSettings, {});
   const { markSubmitted } = useVisaInvitation();
+  const router = useRouter();
 
   const [contactName, setContactName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
@@ -46,7 +52,7 @@ export function VisaInvitationForm({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [sent, setSent] = useState(false);
+  const submittingRef = useRef(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   const expiryWarnings = useMemo(
@@ -86,6 +92,9 @@ export function VisaInvitationForm({
         `[data-traveler-index="${match[1]}"]`,
       );
       el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.querySelector<HTMLElement>("[aria-invalid='true']")?.focus({
+        preventScroll: true,
+      });
       return;
     }
     const idMap: Record<string, string> = {
@@ -97,15 +106,15 @@ export function VisaInvitationForm({
     const base = firstKey.split(".")[0];
     const target = idMap[base];
     if (target) {
-      document.getElementById(target)?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+      const el = document.getElementById(target);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el?.focus({ preventScroll: true });
     }
   }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submittingRef.current) return;
     setFormError(null);
     setFieldErrors({});
 
@@ -131,9 +140,11 @@ export function VisaInvitationForm({
       return;
     }
 
+    submittingRef.current = true;
     setSaving(true);
+    let requestId: string;
     try {
-      await createRequest({
+      const res = await createRequest({
         contactName: parsed.data.contactName,
         contactEmail: parsed.data.contactEmail,
         contactPhone: parsed.data.contactPhone,
@@ -145,29 +156,17 @@ export function VisaInvitationForm({
           }),
         ),
       });
-      markSubmitted();
-      setSent(true);
-      onSuccess?.();
+      requestId = res.requestId;
     } catch (error) {
       setFormError(toUserFacingErrorMessage(error));
-    } finally {
+      submittingRef.current = false;
       setSaving(false);
+      return;
     }
-  }
-
-  if (sent) {
-    return (
-      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-6 text-center">
-        <ShieldCheck className="mx-auto h-10 w-10 text-emerald-600" />
-        <h3 className="mt-3 text-lg font-bold text-emerald-950">
-          Request received
-        </h3>
-        <p className="mt-2 text-sm text-emerald-900/90">
-          Thank you. Our licensed team will review your details and contact you
-          within 24–48 hours to prepare your visa invitation letter.
-        </p>
-      </div>
-    );
+    // Saved: keep the button pending while we redirect to the confirmation page.
+    markSubmitted();
+    onSuccess?.();
+    router.push(thankYouHref("visa", shortRef(requestId)));
   }
 
   return (
@@ -209,7 +208,7 @@ export function VisaInvitationForm({
         <legend className="text-sm font-bold uppercase tracking-wide text-slate-700">
           Primary contact
         </legend>
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <FieldLabel htmlFor="visa-contact-name" required>
               Full name
@@ -218,10 +217,12 @@ export function VisaInvitationForm({
               id="visa-contact-name"
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
-              error={!!fieldErrors.contactName}
+              {...fieldErrorProps("visa-contact-name", fieldErrors.contactName)}
               autoComplete="name"
             />
-            <FieldError>{fieldErrors.contactName}</FieldError>
+            <FieldError id={fieldErrorId("visa-contact-name")}>
+              {fieldErrors.contactName}
+            </FieldError>
           </div>
           <div>
             <FieldLabel htmlFor="visa-contact-email" required>
@@ -232,10 +233,12 @@ export function VisaInvitationForm({
               type="email"
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
-              error={!!fieldErrors.contactEmail}
+              {...fieldErrorProps("visa-contact-email", fieldErrors.contactEmail)}
               autoComplete="email"
             />
-            <FieldError>{fieldErrors.contactEmail}</FieldError>
+            <FieldError id={fieldErrorId("visa-contact-email")}>
+              {fieldErrors.contactEmail}
+            </FieldError>
           </div>
           <div>
             <FieldLabel htmlFor="visa-contact-phone" required>
@@ -246,10 +249,12 @@ export function VisaInvitationForm({
               type="tel"
               value={contactPhone}
               onChange={(e) => setContactPhone(e.target.value)}
-              error={!!fieldErrors.contactPhone}
+              {...fieldErrorProps("visa-contact-phone", fieldErrors.contactPhone)}
               autoComplete="tel"
             />
-            <FieldError>{fieldErrors.contactPhone}</FieldError>
+            <FieldError id={fieldErrorId("visa-contact-phone")}>
+              {fieldErrors.contactPhone}
+            </FieldError>
           </div>
         </div>
       </fieldset>
@@ -302,6 +307,10 @@ export function VisaInvitationForm({
             type="checkbox"
             checked={consentGiven}
             onChange={(e) => setConsentGiven(e.target.checked)}
+            aria-invalid={fieldErrors.consentGiven ? true : undefined}
+            aria-describedby={
+              fieldErrors.consentGiven ? fieldErrorId("visa-consent") : undefined
+            }
             className="mt-1 h-4 w-4 rounded border-slate-300 text-havezic-primary focus:ring-havezic-primary/30"
           />
           <span className="text-sm text-slate-700">
@@ -309,20 +318,26 @@ export function VisaInvitationForm({
             above solely for preparing my tourist visa invitation letter.
           </span>
         </label>
-        <FieldError>{fieldErrors.consentGiven}</FieldError>
+        <FieldError id={fieldErrorId("visa-consent")}>
+          {fieldErrors.consentGiven}
+        </FieldError>
       </div>
 
-      {formError ? (
-        <p className="text-sm text-red-600" role="alert">
-          {formError}
-        </p>
+      {Object.keys(fieldErrors).length > 0 ? (
+        <FormAlert>Please fix the highlighted fields above and try again.</FormAlert>
       ) : null}
+      <FormAlert>{formError}</FormAlert>
 
-      <Button type="submit" disabled={saving} className="w-full sm:w-auto">
+      <Button
+        type="submit"
+        disabled={saving}
+        aria-busy={saving}
+        className="w-full sm:w-auto"
+      >
         {saving ? (
           <>
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Submitting…
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            Sending…
           </>
         ) : (
           "Submit visa invitation request"

@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import dynamic from "next/dynamic";
 import { Sparkles } from "lucide-react";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { MotionSection } from "@/components/ui/MotionSection";
-import { PageLoadingSpinner } from "@/components/ui/PageLoadingSpinner";
+import { FormCardSkeleton } from "@/components/skeletons/PageSkeletons";
 
 const AiPlannerPageClient = dynamic(
   () =>
@@ -11,20 +12,17 @@ const AiPlannerPageClient = dynamic(
       default: m.AiPlannerPageClient,
     })),
   {
-    loading: () => (
-      <div className="flex min-h-[320px] items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-        <PageLoadingSpinner label="Loading planner…" variant="dark" />
-      </div>
-    ),
+    loading: () => <FormCardSkeleton fields={4} />,
     ssr: false,
   },
 );
 
-export const metadata: Metadata = {
-  title: "AI trip planner",
+export const metadata: Metadata = buildMetadata({
+  title: "AI Pakistan Trip Planner",
   description:
-    "Plan your culture & history trip with AI — heritage cities, ancient sites, northern extensions, and real tours from our catalog.",
-};
+    "Describe your dates, budget and interests and get a draft Pakistan itinerary in seconds — heritage cities, ancient sites and northern valleys, refined by local experts.",
+  path: "/ai-planner",
+});
 
 export default function AiPlannerPage() {
   return (
@@ -36,7 +34,7 @@ export default function AiPlannerPage() {
               <Sparkles className="h-4 w-4" aria-hidden />
               AI concierge
             </p>
-            <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-white md:text-4xl lg:text-[2.75rem] lg:leading-tight">
+            <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl lg:text-[2.75rem] lg:leading-tight">
               Plan Your Trip with AI
             </h1>
             <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">

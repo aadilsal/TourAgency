@@ -1,24 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getSiteUrl } from "@/lib/site";
+import { buildMetadata } from "@/lib/seo";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
 
-export const metadata: Metadata = {
-  title: "Best tour operators in Pakistan",
+export const metadata: Metadata = buildMetadata({
+  title: "Best Tour Operators in Pakistan: How to Choose",
   description:
-    "How to evaluate tour operators in Pakistan — what to ask, common red flags, and how JunketTours runs culture, history, and northern heritage trips with clear itineraries and support.",
-  alternates: { canonical: "/best-tour-operators-in-pakistan" },
-  openGraph: {
-    title: "Best tour operators in Pakistan | JunketTours",
-    description:
-      "A buyer’s guide to Pakistan tour operators: pricing clarity, routing, hotels, safety, and support — plus how to book tours with JunketTours.",
-    url: `${getSiteUrl()}/best-tour-operators-in-pakistan`,
-    type: "article",
-  },
-};
+    "A buyer’s guide to Pakistan tour operators — licensing, pricing clarity, routing, hotels, safety and support — and how JunketTours runs heritage trips.",
+  path: "/best-tour-operators-in-pakistan",
+  type: "article",
+});
 
 const faqs = [
   {

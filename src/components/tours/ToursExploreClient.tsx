@@ -5,6 +5,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import Link from "next/link";
@@ -29,6 +30,8 @@ import { TourCard, type TourCardData } from "@/components/shared/TourCard";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Button } from "@/components/ui/Button";
 import { MotionSection } from "@/components/ui/MotionSection";
+import { useBodyScrollLock } from "@/components/ui/useBodyScrollLock";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { getProvince, tourMatchesProvince } from "@/lib/provinces-data";
 
 const PAGE_SIZE = 9;
@@ -46,7 +49,7 @@ type Props = {
 };
 
 const fieldClass =
-  "mt-1 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm font-medium text-havezic-accent shadow-sm focus:outline-none focus:ring-2 focus:ring-havezic-primary/25";
+  "mt-1 min-h-11 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm font-medium text-havezic-accent shadow-sm focus:outline-none focus:ring-2 focus:ring-havezic-primary/25";
 
 type FilterFormProps = {
   location: string;
@@ -293,14 +296,11 @@ export function ToursExploreClient({
     currentPage * PAGE_SIZE,
   );
 
-  useEffect(() => {
-    if (!filterDrawerOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = prev;
-    };
-  }, [filterDrawerOpen]);
+  // iOS-safe, reference-counted lock (plain overflow:hidden doesn't stop iOS scroll).
+  useBodyScrollLock(filterDrawerOpen);
+  const drawerRef = useRef<HTMLElement>(null);
+  const closeDrawer = useCallback(() => setFilterDrawerOpen(false), []);
+  useFocusTrap(drawerRef, filterDrawerOpen, closeDrawer);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -356,6 +356,7 @@ export function ToursExploreClient({
             <img
               src={heroImage}
               alt=""
+              aria-hidden
               className="h-full w-full object-cover opacity-70"
               loading="eager"
               decoding="async"
@@ -437,7 +438,7 @@ export function ToursExploreClient({
                 }}
                 placeholder="Search tours by name, place, or keyword…"
                 aria-label="Search tours"
-                className="w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-medium text-havezic-accent shadow-sm focus:outline-none focus:ring-2 focus:ring-havezic-primary/25"
+                className="min-h-11 w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-medium text-havezic-accent shadow-sm focus:outline-none focus:ring-2 focus:ring-havezic-primary/25"
               />
             </div>
             <div className="hidden items-center justify-between gap-4 lg:flex">
@@ -617,7 +618,9 @@ export function ToursExploreClient({
                 onClick={() => setFilterDrawerOpen(false)}
               />
               <motion.aside
+                ref={drawerRef}
                 className="absolute left-0 top-0 flex h-full w-full max-w-sm flex-col bg-white shadow-2xl"
+                style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
                 initial={{ x: "-100%" }}
                 animate={{ x: 0 }}
                 exit={{ x: "-100%" }}
@@ -629,13 +632,14 @@ export function ToursExploreClient({
                   </h2>
                   <button
                     type="button"
-                    className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+                    aria-label="Close filters"
+                    className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100"
                     onClick={() => setFilterDrawerOpen(false)}
                   >
-                    <X className="h-5 w-5" />
+                    <X className="h-5 w-5" aria-hidden />
                   </button>
                 </div>
-                <div className="flex-1 overflow-y-auto px-5 py-5">
+                <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-5" data-lenis-prevent>
                   <TourFiltersForm
                     {...filterFormProps}
                     footer={

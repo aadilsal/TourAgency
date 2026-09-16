@@ -7,6 +7,8 @@ import { ArrowLeft, Menu, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { LogoutButton } from "@/components/LogoutButton";
 import { PageContainer } from "@/components/ui/PageContainer";
+import { cn } from "@/lib/cn";
+import { isAdminNavLinkActive, visibleAdminNav } from "@/components/admin/shared/adminNav";
 
 type Props = {
   email: string;
@@ -31,54 +33,8 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
 
   const showBack = pathname.startsWith("/admin") && pathname !== "/admin";
 
-  const items = useMemo(() => {
-    return [
-      { href: "/admin", label: "Dashboard" },
-    ];
-  }, []);
-
-  const sections = useMemo(() => {
-    return [
-      {
-        id: "catalog",
-        label: "Catalog",
-        links: [
-          { href: "/admin/tours", label: "Tours" },
-          { href: "/admin/destinations", label: "Destinations" },
-        ],
-      },
-      {
-        id: "inbox",
-        label: "Inbox",
-        links: [
-          { href: "/admin/bookings", label: "Customisation" },
-          { href: "/admin/contact", label: "Leads" },
-        ],
-      },
-      {
-        id: "documents",
-        label: "Documents",
-        links: [
-          { href: "/admin/itineraries", label: "Itineraries" },
-          { href: "/admin/invoices", label: "Invoices" },
-        ],
-      },
-      {
-        id: "more",
-        label: "More",
-        links: [
-          { href: "/admin/users", label: "Users" },
-          { href: "/admin/blog", label: "Blog" },
-          { href: "/admin/analytics", label: "Analytics" },
-          { href: "/admin/settings", label: "Settings" },
-          ...(showManageAdmins ? [{ href: "/admin/manage-admins", label: "Admins 🔐" }] : []),
-        ],
-      },
-    ] as const;
-  }, [showManageAdmins]);
-
-  const shouldOpenSection = (links: readonly { href: string }[]) =>
-    links.some((l) => pathname === l.href || pathname.startsWith(`${l.href}/`));
+  // Same config as the desktop sidebar — the two menus can't drift apart.
+  const sections = useMemo(() => visibleAdminNav(showManageAdmins), [showManageAdmins]);
 
   useEffect(() => {
     // Close drawer on route change.
@@ -193,12 +149,15 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
                 onClick={() => setOpen(false)}
               />
               <div
-                className="absolute left-0 top-0 h-dvh w-[92vw] max-w-[420px] border-r border-border bg-panel shadow-xl overscroll-contain"
+                role="dialog"
+                aria-modal="true"
+                aria-label="Admin menu"
+                className="absolute left-0 top-0 flex h-dvh w-[92vw] max-w-[420px] flex-col border-r border-border bg-panel shadow-xl overscroll-contain"
                 onTouchMove={(e) => e.stopPropagation()}
                 onWheel={(e) => e.stopPropagation()}
               >
                 {/* Drawer header (fixed) */}
-                <div className="sticky top-0 z-10 border-b border-border bg-panel p-4">
+                <div className="shrink-0 border-b border-border bg-panel p-4">
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted">
                       Menu
@@ -233,61 +192,48 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
                 </div>
 
                 {/* Scrollable nav area */}
-                <nav className="h-[calc(100%-1px)] overflow-y-auto p-4 pt-3 overscroll-contain">
-                  <div className="grid gap-2 pb-6">
-                    {items.map((l) => {
-                      const active =
-                        pathname === l.href || pathname.startsWith(`${l.href}/`);
-                      return (
-                        <Link
-                          key={l.href}
-                          href={l.href}
-                          className={[
-                            "rounded-xl border px-3 py-2.5 text-sm font-semibold transition",
-                            active
-                              ? "border-brand-sun/30 bg-brand-sun/15 text-foreground"
-                              : "border-border bg-panel-elevated text-foreground hover:bg-black/5",
-                          ].join(" ")}
-                          onClick={() => setOpen(false)}
-                        >
-                          {l.label}
-                        </Link>
-                      );
-                    })}
-
-                    <div className="my-2 h-px w-full bg-border" aria-hidden />
-
+                <nav
+                  aria-label="Admin"
+                  className="min-h-0 flex-1 overflow-y-auto p-4 pt-3 overscroll-contain"
+                >
+                  <div className="grid gap-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
                     {sections.map((sec) => (
-                      <details
-                        key={sec.id}
-                        open={shouldOpenSection(sec.links)}
-                        className="rounded-xl border border-border bg-panel-elevated px-3 py-2"
-                      >
-                        <summary className="cursor-pointer list-none text-xs font-bold uppercase tracking-[0.2em] text-muted">
-                          {sec.label}
-                        </summary>
-                        <div className="mt-2 grid gap-2">
+                      <div key={sec.id}>
+                        {sec.id !== "overview" ? (
+                          <p className="px-1 pb-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                            {sec.label}
+                          </p>
+                        ) : null}
+                        <div className="grid grid-cols-2 gap-2">
                           {sec.links.map((l) => {
-                            const active =
-                              pathname === l.href || pathname.startsWith(`${l.href}/`);
+                            const active = isAdminNavLinkActive(pathname, l);
+                            const Icon = l.icon;
                             return (
                               <Link
                                 key={l.href}
                                 href={l.href}
-                                className={[
-                                  "rounded-xl border px-3 py-2.5 text-sm font-semibold transition",
+                                aria-current={active ? "page" : undefined}
+                                className={cn(
+                                  "flex min-h-11 items-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition",
                                   active
                                     ? "border-brand-sun/30 bg-brand-sun/15 text-foreground"
-                                    : "border-border bg-panel text-foreground hover:bg-black/5",
-                                ].join(" ")}
+                                    : "border-border bg-panel-elevated text-foreground hover:bg-black/5",
+                                )}
                                 onClick={() => setOpen(false)}
                               >
-                                {l.label}
+                                <Icon
+                                  className={cn(
+                                    "h-4 w-4 shrink-0",
+                                    active ? "text-brand-sun" : "opacity-70",
+                                  )}
+                                  aria-hidden
+                                />
+                                <span className="min-w-0 truncate">{l.label}</span>
                               </Link>
                             );
                           })}
                         </div>
-                      </details>
+                      </div>
                     ))}
                   </div>
                 </nav>

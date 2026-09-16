@@ -1,57 +1,74 @@
-import { mutation } from "./_generated/server.js";
+import { internalMutation } from "./_generated/server.js";
 import { v } from "convex/values";
-import { requireAdminFromSession } from "./lib/authHelpers.js";
 
 function roundUsdFromPkr(pkr: number, ratePkrPerUsd: number): number {
   const safeRate = Number.isFinite(ratePkrPerUsd) && ratePkrPerUsd > 0 ? ratePkrPerUsd : 280;
   return Math.max(1, Math.round(pkr / safeRate));
 }
 
-export const backfillTourUsdPrices = mutation({
+/**
+ * One-off maintenance: fill in `pricePkr` / `priceUsd` on legacy tours that
+ * have NEVER had them. Safety rules (this endpoint previously re-filled prices
+ * an admin had deliberately cleared, and wrote USD 1 for tours priced PKR 0):
+ *
+ * - Internal only: run it from the Convex dashboard or `npx convex run`, never from a browser.
+ * - Dry run unless `dryRun: false` is passed explicitly.
+ * - Fill-only: never overwrites or realigns an existing value.
+ * - Skips tours without a positive PKR price (free / "price on request").
+ * - Skips tours edited after they were created (`updatedAt` set): a missing
+ *   price there is treated as an explicit admin clear.
+ *
+ */
+export const backfillTourUsdPrices = internalMutation({
   args: {
-    sessionToken: v.string(),
     /** Conversion rate used only when `priceUsd` is missing. Default 280 PKR/USD. */
     ratePkrPerUsd: v.optional(v.number()),
-    /** If true, only reports what would change. */
+    /** Defaults to true — pass `false` to actually write. */
     dryRun: v.optional(v.boolean()),
     /** Safety: max tours to patch per run. */
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { sessionToken, ...args }) => {
-    await requireAdminFromSession(ctx, sessionToken);
-
-    const dryRun = args.dryRun ?? false;
+  handler: async (ctx, args) => {
+    const dryRun = args.dryRun ?? true;
     const limit = Math.max(1, Math.min(args.limit ?? 200, 2000));
     const rate = args.ratePkrPerUsd ?? 280;
 
-    // Tours table is typically small; if it grows large, move this to a batched component migration.
-    const tours = await ctx.db.query("tours").collect();
+    const tours = await ctx.db.query("tours").take(2000);
 
     let considered = 0;
     let patched = 0;
     let wouldPatch = 0;
+    let skipped = 0;
 
     for (const t of tours) {
       if (considered >= limit) break;
       considered++;
 
-      const pricePkr = Number.isFinite((t as any).pricePkr) ? (t as any).pricePkr : t.price;
-      const hasUsd = Number.isFinite((t as any).priceUsd);
-      const hasPkr = Number.isFinite((t as any).pricePkr);
+      const doc = t as typeof t & { updatedAt?: number };
+      if (typeof doc.updatedAt === "number") {
+        skipped++;
+        continue;
+      }
 
-      const nextUsd = hasUsd ? (t as any).priceUsd : roundUsdFromPkr(pricePkr, rate);
+      const legacyPkr = Number.isFinite(t.price) ? (t.price as number) : undefined;
+      const hasPkr = Number.isFinite(t.pricePkr);
+      const hasUsd = Number.isFinite(t.priceUsd);
+      const pricePkr = hasPkr ? (t.pricePkr as number) : legacyPkr;
 
-      const patch: Record<string, unknown> = {};
+      if (pricePkr === undefined || pricePkr <= 0) {
+        skipped++;
+        continue;
+      }
+
+      const patch: { pricePkr?: number; priceUsd?: number } = {};
       if (!hasPkr) patch.pricePkr = pricePkr;
-      if (!hasUsd) patch.priceUsd = nextUsd;
-      // Keep legacy field aligned to PKR.
-      if (t.price !== pricePkr) patch.price = pricePkr;
+      if (!hasUsd) patch.priceUsd = roundUsdFromPkr(pricePkr, rate);
 
       if (Object.keys(patch).length === 0) continue;
 
       wouldPatch++;
       if (!dryRun) {
-        await ctx.db.patch(t._id, patch as any);
+        await ctx.db.patch(t._id, patch);
         patched++;
       }
     }
@@ -61,9 +78,9 @@ export const backfillTourUsdPrices = mutation({
       ratePkrPerUsd: rate,
       scanned: tours.length,
       considered,
+      skipped,
       wouldPatch,
       patched,
     };
   },
 });
-

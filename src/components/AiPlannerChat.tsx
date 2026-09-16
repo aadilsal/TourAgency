@@ -3,9 +3,28 @@
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  FORM_MESSAGES,
+  focusFirstError,
+  isValidEmail,
+  isValidPhone,
+  thankYouHref,
+  type FieldErrorMap,
+} from "@/lib/formValidation";
+
+type LeadField = "name" | "phone" | "email" | "start" | "end" | "adults";
+
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { FieldLabel, TextInput } from "@/components/ui/FormField";
+import {
+  FieldError,
+  FieldLabel,
+  FormAlert,
+  TextInput,
+  fieldErrorId,
+  fieldErrorProps,
+} from "@/components/ui/FormField";
 import { cn } from "@/lib/cn";
 import { PLANNER_WELCOME_MESSAGE } from "@/lib/planner-welcome";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
@@ -77,6 +96,10 @@ export function AiPlannerChat({
   const [cChildren, setCChildren] = useState(0);
   const [customSending, setCustomSending] = useState(false);
   const [customDone, setCustomDone] = useState(false);
+  const [leadErrors, setLeadErrors] = useState<FieldErrorMap<LeadField>>({});
+  const [customErr, setCustomErr] = useState<string | null>(null);
+  const customSubmittingRef = useRef(false);
+  const router = useRouter();
   const didPrefill = useRef(false);
 
   useEffect(() => {
@@ -201,14 +224,44 @@ export function AiPlannerChat({
     }
   }
 
-  async function onSubmitCustom() {
-    if (!plan?.customPlanDraft.trim()) return;
-    if (!cName.trim() || !cPhone.trim() || !cEmail.trim()) {
-      setErr("Please add your name, phone, and email so our team can follow up.");
-      return;
+  function clearLeadError(field: LeadField) {
+    setLeadErrors((x) => ({ ...x, [field]: undefined }));
+  }
+
+  function validateCustomLead() {
+    const next: FieldErrorMap<LeadField> = {};
+    if (!cName.trim()) next.name = FORM_MESSAGES.nameRequired;
+    if (!cPhone.trim()) next.phone = FORM_MESSAGES.phoneRequired;
+    else if (!isValidPhone(cPhone)) next.phone = FORM_MESSAGES.phoneInvalid;
+    if (!cEmail.trim()) next.email = FORM_MESSAGES.emailRequired;
+    else if (!isValidEmail(cEmail)) next.email = FORM_MESSAGES.emailInvalid;
+    if (cPreferredStart && cPreferredStart < minDate) {
+      next.start = "Past dates can't be selected.";
     }
+    if (cPreferredEnd && cPreferredStart && cPreferredEnd < cPreferredStart) {
+      next.end = "End date must be on or after the start date.";
+    }
+    if (cAdults < 1) next.adults = "Add at least one adult.";
+    setLeadErrors(next);
+    focusFirstError([
+      next.name && "cp-name",
+      next.phone && "cp-phone",
+      next.email && "cp-email",
+      next.start && "cp-start",
+      next.end && "cp-end",
+      next.adults && "cp-adults",
+    ]);
+    return Object.keys(next).length === 0;
+  }
+
+  async function onSubmitCustom(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!plan?.customPlanDraft.trim()) return;
+    if (customSubmittingRef.current) return;
+    setCustomErr(null);
+    if (!validateCustomLead()) return;
+    customSubmittingRef.current = true;
     setCustomSending(true);
-    setErr(null);
     try {
       const summary = messages
         .filter((m) => m.role === "user")
@@ -231,12 +284,15 @@ export function AiPlannerChat({
         adults: cAdults > 0 ? cAdults : undefined,
         children: cChildren > 0 ? cChildren : undefined,
       });
-      setCustomDone(true);
     } catch (e) {
-      setErr(toUserFacingErrorMessage(e));
-    } finally {
+      setCustomErr(toUserFacingErrorMessage(e));
+      customSubmittingRef.current = false;
       setCustomSending(false);
+      return;
     }
+    // Saved: keep the button pending while we redirect to the confirmation page.
+    setCustomDone(true);
+    router.push(thankYouHref("itinerary"));
   }
 
   const waitingRemote =
@@ -309,11 +365,15 @@ export function AiPlannerChat({
             </p>
           </div>
           {customDone ? (
-            <p className="text-sm font-semibold text-emerald-700">
+            <p className="text-sm font-semibold text-emerald-700" role="status">
               Request sent. We&apos;ll review and contact you soon.
             </p>
           ) : (
-            <div className="space-y-3">
+            <form
+              noValidate
+              onSubmit={(e) => void onSubmitCustom(e)}
+              className="space-y-3"
+            >
               <div>
                 <FieldLabel htmlFor="cp-name" required>
                   Your name
@@ -322,8 +382,13 @@ export function AiPlannerChat({
                   id="cp-name"
                   placeholder={sessionToken ? undefined : "e.g. Aadil"}
                   value={cName}
-                  onChange={(e) => setCName(e.target.value)}
+                  onChange={(e) => {
+                    setCName(e.target.value);
+                    clearLeadError("name");
+                  }}
+                  {...fieldErrorProps("cp-name", leadErrors.name)}
                 />
+                <FieldError id={fieldErrorId("cp-name")}>{leadErrors.name}</FieldError>
               </div>
               <div>
                 <FieldLabel htmlFor="cp-phone" required>
@@ -334,8 +399,13 @@ export function AiPlannerChat({
                   type="tel"
                   placeholder={sessionToken ? undefined : "e.g. +92 300 1234567"}
                   value={cPhone}
-                  onChange={(e) => setCPhone(e.target.value)}
+                  onChange={(e) => {
+                    setCPhone(e.target.value);
+                    clearLeadError("phone");
+                  }}
+                  {...fieldErrorProps("cp-phone", leadErrors.phone)}
                 />
+                <FieldError id={fieldErrorId("cp-phone")}>{leadErrors.phone}</FieldError>
               </div>
               <div>
                 <FieldLabel htmlFor="cp-email" required>
@@ -346,8 +416,13 @@ export function AiPlannerChat({
                   type="email"
                   placeholder={sessionToken ? undefined : "e.g. name@email.com"}
                   value={cEmail}
-                  onChange={(e) => setCEmail(e.target.value)}
+                  onChange={(e) => {
+                    setCEmail(e.target.value);
+                    clearLeadError("email");
+                  }}
+                  {...fieldErrorProps("cp-email", leadErrors.email)}
                 />
+                <FieldError id={fieldErrorId("cp-email")}>{leadErrors.email}</FieldError>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
@@ -357,8 +432,13 @@ export function AiPlannerChat({
                     type="date"
                     min={minDate}
                     value={cPreferredStart}
-                    onChange={(e) => setCPreferredStart(e.target.value)}
+                    onChange={(e) => {
+                      setCPreferredStart(e.target.value);
+                      clearLeadError("start");
+                    }}
+                    {...fieldErrorProps("cp-start", leadErrors.start)}
                   />
+                  <FieldError id={fieldErrorId("cp-start")}>{leadErrors.start}</FieldError>
                 </div>
                 <div>
                   <FieldLabel htmlFor="cp-end">Trip end</FieldLabel>
@@ -367,8 +447,13 @@ export function AiPlannerChat({
                     type="date"
                     min={minDate}
                     value={cPreferredEnd}
-                    onChange={(e) => setCPreferredEnd(e.target.value)}
+                    onChange={(e) => {
+                      setCPreferredEnd(e.target.value);
+                      clearLeadError("end");
+                    }}
+                    {...fieldErrorProps("cp-end", leadErrors.end)}
                   />
+                  <FieldError id={fieldErrorId("cp-end")}>{leadErrors.end}</FieldError>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -379,10 +464,13 @@ export function AiPlannerChat({
                     type="number"
                     min={1}
                     value={cAdults}
-                    onChange={(e) =>
-                      setCAdults(Number.parseInt(e.target.value, 10) || 0)
-                    }
+                    onChange={(e) => {
+                      setCAdults(Number.parseInt(e.target.value, 10) || 0);
+                      clearLeadError("adults");
+                    }}
+                    {...fieldErrorProps("cp-adults", leadErrors.adults)}
                   />
+                  <FieldError id={fieldErrorId("cp-adults")}>{leadErrors.adults}</FieldError>
                 </div>
                 <div>
                   <FieldLabel htmlFor="cp-ch">Children</FieldLabel>
@@ -397,21 +485,22 @@ export function AiPlannerChat({
                   />
                 </div>
               </div>
+              <FormAlert>{customErr}</FormAlert>
               <Button
-                type="button"
+                type="submit"
                 variant="primary"
                 className="w-full py-2.5"
                 disabled={customSending}
-                onClick={() => void onSubmitCustom()}
+                aria-busy={customSending}
               >
                 {customSending ? "Sending…" : "Send to team for approval"}
               </Button>
-            </div>
+            </form>
           )}
         </Card>
       ) : null}
 
-      {err ? <p className="mt-2 text-sm text-red-600">{err}</p> : null}
+      {err ? <FormAlert className="mt-2">{err}</FormAlert> : null}
 
       <div className="mt-3 flex gap-2">
         <textarea
