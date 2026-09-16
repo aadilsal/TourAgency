@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { Button, ButtonLink } from "@/components/ui/Button";
+import { Button, buttonClass } from "@/components/ui/Button";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 
 /**
@@ -33,17 +33,39 @@ export default function AdminError({
         {isAuth ? "Your admin session has ended" : "This admin page hit an error"}
       </h1>
       <p className="mt-2 text-sm text-muted">{message}</p>
+      {!isAuth && error?.message ? (
+        <details className="mt-4 text-left text-xs text-slate-500">
+          <summary className="cursor-pointer select-none">Technical details (send to support)</summary>
+          <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3">
+            {error.message}
+            {error.digest ? `\nDigest: ${error.digest}` : ""}
+          </pre>
+        </details>
+      ) : null}
+      {/*
+        Recovery uses FULL page loads (plain <a> / location.reload), not client
+        navigation: after a render crash the in-memory router/React state can be
+        broken, which previously left every other admin page unable to open.
+      */}
       <div className="mt-6 flex flex-wrap justify-center gap-3">
         {isAuth ? (
-          <ButtonLink href="/login?next=/admin">Sign in again</ButtonLink>
+          <a href="/login?next=/admin" className={buttonClass("primary")}>
+            Sign in again
+          </a>
         ) : (
-          <Button type="button" onClick={() => reset()}>
-            Try again
+          <Button
+            type="button"
+            onClick={() => {
+              reset();
+              window.location.reload();
+            }}
+          >
+            Reload page
           </Button>
         )}
-        <ButtonLink href="/admin" variant="secondary">
+        <a href="/admin" className={buttonClass("secondary")}>
           Back to dashboard
-        </ButtonLink>
+        </a>
       </div>
     </div>
   );

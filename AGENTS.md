@@ -66,6 +66,11 @@ Use the shared building blocks instead of hand-rolling:
 | Popup editors | `<Modal confirmClose={dirty}>` |
 | Status / error UI | `SaveStatusPill`, `QueryErrorBanner` (`src/components/admin/shared/EditorStatus.tsx`) |
 
+- **Never use a Convex function reference (`api.x.y`) as a hook dependency.**
+  `api.x.y` returns a new proxy object on every access, so `useMemo`/`useEffect`
+  deps on it change every render. In `useSafeQuery` this caused an infinite
+  render loop ("Too many re-renders") that crashed every admin editor. Key on
+  `getFunctionName(ref)` instead.
 - **Hydrate forms once.** Convex queries are reactive: an effect like
   `useEffect(() => setForm(doc), [doc])` wipes the admin's typing whenever
   anyone (or any background job) writes that record. Load once, and only

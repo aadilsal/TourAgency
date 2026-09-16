@@ -2,6 +2,7 @@
 
 import { useQueries } from "convex/react";
 import type { RequestForQueries } from "convex/react";
+import { getFunctionName } from "convex/server";
 import type { FunctionReference, FunctionReturnType } from "convex/server";
 import { useMemo, useRef } from "react";
 
@@ -27,11 +28,27 @@ export function useSafeQuery<Q extends FunctionReference<"query">>(
   args: Q["_args"] | "skip",
 ): SafeQueryResult<FunctionReturnType<Q>> {
   const argsKey = args === "skip" ? "skip" : JSON.stringify(args);
+  // IMPORTANT: key the memo on the function NAME, never the reference object.
+  // `api.x.y` returns a fresh proxy on every access, so depending on `query`
+  // itself rebuilds the request every render → Convex re-subscribes → state
+  // update → re-render → "Maximum update depth exceeded" (crashed editors).
+  const queryName = getFunctionName(query);
+  const queryRef = useRef(query);
+  queryRef.current = query;
   const request = useMemo<RequestForQueries>(
     (): RequestForQueries =>
-      args === "skip" ? {} : { q: { query, args: args as Record<string, never> } },
+      argsKey === "skip"
+        ? {}
+        : {
+            q: {
+              query: queryRef.current,
+              args: JSON.parse(argsKey) as Record<string, never>,
+            },
+          },
+    // `queryName` IS required (see above) even though the linter can't tell.
+    // Do not replace it with `query` — that reintroduces the infinite render loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [query, argsKey],
+    [queryName, argsKey],
   );
   const results = useQueries(request);
   const raw = results.q as FunctionReturnType<Q> | Error | undefined;
