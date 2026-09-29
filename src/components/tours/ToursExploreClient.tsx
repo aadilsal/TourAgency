@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useCurrency } from "@/hooks/useCurrency";
+import type { CurrencyCode } from "@/lib/money";
 import {
   MapPinOff,
   SlidersHorizontal,
@@ -46,6 +47,8 @@ type Props = {
   initialLocation?: string | null;
   initialProvince?: string | null;
   initialQuery?: string | null;
+  /** Server-resolved currency, so the SSR render and hydration agree. */
+  initialCurrency?: CurrencyCode;
 };
 
 const fieldClass =
@@ -193,8 +196,9 @@ export function ToursExploreClient({
   initialLocation,
   initialProvince,
   initialQuery,
+  initialCurrency,
 }: Props) {
-  const currency = useCurrency();
+  const currency = useCurrency(initialCurrency);
   const [query, setQuery] = useState(initialQuery ?? "");
   const [location, setLocation] = useState(initialLocation ?? "");
   const [provinceSlug] = useState(initialProvince ?? "");
@@ -469,8 +473,6 @@ export function ToursExploreClient({
                   onChange={(e) => setSort(e.target.value as SortKey)}
                 >
                   <option value="popular">Popularity (newest)</option>
-                  <option value="price-asc">Price: low to high</option>
-                  <option value="price-desc">Price: high to low</option>
                   <option value="dur-asc">Duration: shortest</option>
                   <option value="dur-desc">Duration: longest</option>
                 </select>

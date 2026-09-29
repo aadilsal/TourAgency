@@ -25,6 +25,7 @@ import {
   thankYouHref,
   type FieldErrorMap,
 } from "@/lib/formValidation";
+import { withLeadSource } from "@/lib/attribution";
 
 type MemberField = "adults" | "children" | "start" | "end";
 
@@ -115,7 +116,7 @@ export function TourMemberBooking({
         sessionToken: token,
         tourId,
         peopleCount,
-        notes: notes.trim() || undefined,
+        notes: withLeadSource(notes),
         preferredStart: preferredStart.trim() || undefined,
         preferredEnd: preferredEnd.trim() || undefined,
         departureCity: departureCity.trim() || undefined,

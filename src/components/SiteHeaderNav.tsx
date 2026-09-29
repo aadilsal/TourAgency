@@ -848,24 +848,26 @@ export function SiteHeaderNav({
         <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 sm:gap-4 md:gap-6">
           <Link
             href="/"
-            className="group flex items-center gap-3 shrink-0 py-3 sm:py-5"
-            aria-label="JunketTours"
-            title="JunketTours"
+            className="group flex min-w-0 items-center gap-2.5 py-3 sm:gap-3 sm:py-5"
+            aria-label="Junket Tours"
+            title="Junket Tours"
           >
-            <span className="relative h-10 w-10 sm:h-12 sm:w-12 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/20">
+            <span className="relative h-10 w-10 shrink-0 sm:h-12 sm:w-12 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/20">
               <Image
                 src="/images-removebg-preview.png"
-                alt="JunketTours"
+                alt=""
                 fill
+                sizes="48px"
                 className="object-contain p-1.5"
                 priority
               />
             </span>
-            <span className="hidden sm:block leading-tight">
-              <span className="block text-lg font-semibold text-white">
+            {/* Brand name is shown on phones too; the tagline needs the extra width. */}
+            <span className="min-w-0 leading-tight">
+              <span className="block truncate text-base font-semibold text-white sm:text-lg">
                 Junket Tours
               </span>
-              <span className="block text-xs font-semibold uppercase tracking-[0.16em] text-white/65">
+              <span className="hidden text-xs font-semibold uppercase tracking-[0.16em] text-white/65 sm:block">
                 Pakistan, province by province
               </span>
             </span>

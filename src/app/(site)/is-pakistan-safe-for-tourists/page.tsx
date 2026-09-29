@@ -57,7 +57,7 @@ export default function IsPakistanSafeForTouristsPage() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-havezic-primary">
             Planning your trip
           </p>
-          <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
+          <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
             Is Pakistan safe for tourists?
           </h1>
           <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">
@@ -73,7 +73,7 @@ export default function IsPakistanSafeForTouristsPage() {
             <ButtonLink
               href="/contact"
               variant="secondary"
-              className="border-white/35 bg-white/10 py-3 text-white hover:bg-white/20"
+              className="py-3"
             >
               Ask us a question
             </ButtonLink>
@@ -104,7 +104,7 @@ export default function IsPakistanSafeForTouristsPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">
+          <h2 className="font-display text-2xl font-semibold text-foreground md:text-3xl">
             How a guided trip reduces the unknowns
           </h2>
           <div className="mt-6 grid gap-6">
@@ -132,11 +132,11 @@ export default function IsPakistanSafeForTouristsPage() {
           </div>
         </section>
 
-        <section className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-10">
-          <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">
+        <section className="mt-12 rounded-3xl border border-border bg-havezic-background-light p-6 md:p-10">
+          <h2 className="font-display text-2xl font-semibold text-foreground md:text-3xl">
             Also planning your visa?
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
             We prepare invitation letters for Pakistan tourist visa applications — see our{" "}
             <Link href="/pakistan-tourist-visa-guide" className="underline">
               visa guide
@@ -150,7 +150,7 @@ export default function IsPakistanSafeForTouristsPage() {
             <ButtonLink
               href="/ai-planner"
               variant="secondary"
-              className="border-white/35 bg-white/10 py-3 text-white hover:bg-white/20"
+              className="py-3"
             >
               Get my itinerary
             </ButtonLink>
@@ -158,7 +158,59 @@ export default function IsPakistanSafeForTouristsPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">FAQ</h2>
+          <Card className="p-6 md:p-8">
+            <h2 className="text-lg font-bold text-foreground">Official travel advice</h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              Read the current advice from your own government. It is updated as conditions
+              change, and it is the authority to follow over any operator&apos;s summary.
+            </p>
+            <ul className="mt-4 list-inside list-disc space-y-1.5 text-sm text-muted">
+              <li>
+                <a
+                  href="https://travel.state.gov/content/travel/en/traveladvisories/traveladvisories/pakistan-travel-advisory.html"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-havezic-primary underline"
+                >
+                  US Department of State: Pakistan travel advisory
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://www.gov.uk/foreign-travel-advice/pakistan"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-havezic-primary underline"
+                >
+                  UK FCDO: Pakistan travel advice
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://travel.gc.ca/destinations/pakistan"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-havezic-primary underline"
+                >
+                  Government of Canada: Pakistan travel advice
+                </a>
+              </li>
+              <li>
+                <a
+                  href="https://www.smartraveller.gov.au/destinations/asia/pakistan"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-havezic-primary underline"
+                >
+                  Australian Government Smartraveller: Pakistan
+                </a>
+              </li>
+            </ul>
+          </Card>
+        </section>
+
+        <section className="mt-12">
+          <h2 className="font-display text-2xl font-semibold text-foreground md:text-3xl">FAQ</h2>
           <div className="mt-6 grid gap-4">
             {faqs.map((f) => (
               <Card key={f.q} className="p-6 md:p-8">

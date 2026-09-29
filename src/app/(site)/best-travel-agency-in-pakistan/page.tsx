@@ -59,7 +59,7 @@ export default function BestTravelAgencyPakistanPage() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-havezic-primary">
             Pakistan travel planning
           </p>
-          <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
+          <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
             Best travel agency in Pakistan (how to choose + why JunketTours)
           </h1>
           <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">
@@ -75,7 +75,7 @@ export default function BestTravelAgencyPakistanPage() {
             <ButtonLink
               href="/contact"
               variant="secondary"
-              className="border-white/35 bg-white/10 py-3 text-white hover:bg-white/20"
+              className="py-3"
             >
               Talk to an agent
             </ButtonLink>
@@ -111,7 +111,7 @@ export default function BestTravelAgencyPakistanPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">
+          <h2 className="font-display text-2xl font-semibold text-foreground md:text-3xl">
             A simple checklist before you book
           </h2>
           <div className="mt-6 grid gap-6">
@@ -139,11 +139,11 @@ export default function BestTravelAgencyPakistanPage() {
           </div>
         </section>
 
-        <section className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-10">
-          <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">
+        <section className="mt-12 rounded-3xl border border-border bg-havezic-background-light p-6 md:p-10">
+          <h2 className="font-display text-2xl font-semibold text-foreground md:text-3xl">
             Start with a proven itinerary
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
             Browse verified tours or use the AI planner for an outline, then we’ll match tours and
             help you book.
           </p>
@@ -154,7 +154,7 @@ export default function BestTravelAgencyPakistanPage() {
             <ButtonLink
               href="/destinations"
               variant="secondary"
-              className="border-white/35 bg-white/10 py-3 text-white hover:bg-white/20"
+              className="py-3"
             >
               Explore destinations
             </ButtonLink>
@@ -168,7 +168,7 @@ export default function BestTravelAgencyPakistanPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">FAQ</h2>
+          <h2 className="font-display text-2xl font-semibold text-foreground md:text-3xl">FAQ</h2>
           <div className="mt-6 grid gap-4">
             {faqs.map((f) => (
               <Card key={f.q} className="p-6 md:p-8">

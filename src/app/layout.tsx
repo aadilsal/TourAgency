@@ -11,6 +11,8 @@ import { BUSINESS } from "@/config/business";
 import { OrganizationJsonLd } from "@/components/OrganizationJsonLd";
 import { WebVitalsReporter } from "@/components/analytics/WebVitalsReporter";
 import { AnalyticsScripts } from "@/components/analytics/AnalyticsScripts";
+import { AttributionCapture } from "@/components/analytics/AttributionCapture";
+import { ContactClickTracker } from "@/components/analytics/ContactClickTracker";
 import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 
 const geistSans = localFont({
@@ -84,9 +86,19 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [DEFAULT_OG_IMAGE.url],
   },
-  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
-    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
-    : undefined,
+  // Search Console + Bing Webmaster (Bing's index also feeds ChatGPT / Copilot).
+  verification:
+    process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ||
+    process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
+      ? {
+          ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+            ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+            : {}),
+          ...(process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
+            ? { other: { "msvalidate.01": process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION } }
+            : {}),
+        }
+      : undefined,
 };
 
 export const viewport: Viewport = {
@@ -115,7 +127,13 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} relative min-h-screen bg-background font-sans text-foreground antialiased`}
       >
         <WebVitalsReporter />
-        <AnalyticsScripts gaId={gaId} />
+        <AnalyticsScripts
+          gaId={gaId}
+          adsId={process.env.NEXT_PUBLIC_GOOGLE_ADS_ID}
+          metaPixelId={process.env.NEXT_PUBLIC_META_PIXEL_ID}
+        />
+        <AttributionCapture />
+        <ContactClickTracker />
         <OrganizationJsonLd />
         <div className="noise-overlay" aria-hidden />
         <AppProviders>{children}</AppProviders>

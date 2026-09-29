@@ -2,6 +2,7 @@ import { getSiteUrl } from "@/lib/site";
 import { BUSINESS } from "@/config/business";
 import { JsonLdScript } from "@/components/JsonLdScript";
 import { truncate } from "@/lib/seo";
+import type { TourDisplayRating } from "@/lib/tourRating";
 
 type TourLike = {
   title: string;
@@ -31,7 +32,14 @@ function pickOffer(tour: TourLike): { price: number; currency: "USD" | "PKR"; pe
   return null;
 }
 
-export function TourJsonLd({ tour }: { tour: TourLike }) {
+export function TourJsonLd({
+  tour,
+  rating,
+}: {
+  tour: TourLike;
+  /** Display rating (see lib/tourRating). Only real approved on-site reviews are emitted. */
+  rating?: TourDisplayRating | null;
+}) {
   const base = getSiteUrl();
   const url = `${base}/tours/${tour.slug}`;
   const offer = pickOffer(tour);
@@ -79,7 +87,7 @@ export function TourJsonLd({ tour }: { tour: TourLike }) {
       url,
       price: offer.price,
       priceCurrency: offer.currency,
-      availability: "https://schema.org/InStock",
+      // No `availability`: booking is by enquiry, so claiming InStock would misstate it.
       ...(offer.perPerson
         ? {
             priceSpecification: {
@@ -91,6 +99,18 @@ export function TourJsonLd({ tour }: { tour: TourLike }) {
           }
         : {}),
       offeredBy: { "@id": `${base}/#organization` },
+    };
+  }
+
+  // Only genuine approved reviews shown on the page (never the admin-typed
+  // fallback score) — Google penalises self-serving / invisible ratings.
+  if (rating && rating.source === "reviews" && rating.count >= 1 && rating.average > 0) {
+    data.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: Number(rating.average.toFixed(1)),
+      reviewCount: rating.count,
+      bestRating: 5,
+      worstRating: 1,
     };
   }
 

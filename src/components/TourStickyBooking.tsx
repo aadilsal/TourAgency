@@ -38,6 +38,7 @@ import {
   shortRef,
   thankYouHref,
 } from "@/lib/formValidation";
+import { withLeadSource } from "@/lib/attribution";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
@@ -170,7 +171,8 @@ export function TourStickyBooking({
         phone: phone.trim(),
         email: email.trim() || undefined,
         peopleCount,
-        notes: notes.trim() || undefined,
+        // Appends "[Lead source: …]" (campaign / referrer) for the admin.
+        notes: withLeadSource(notes),
         preferredStart: tourDate,
         currency,
         unitPrice: bookable ? unitPrice : undefined,

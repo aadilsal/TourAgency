@@ -57,7 +57,7 @@ export default function PakistanTouristVisaGuidePage() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-havezic-primary">
             Visa &amp; entry requirements
           </p>
-          <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
+          <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
             Pakistan tourist visa guide for foreigners
           </h1>
           <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">
@@ -72,7 +72,7 @@ export default function PakistanTouristVisaGuidePage() {
             <ButtonLink
               href="/contact"
               variant="secondary"
-              className="border-white/35 bg-white/10 py-3 text-white hover:bg-white/20"
+              className="py-3"
             >
               Ask us a question
             </ButtonLink>
@@ -103,11 +103,11 @@ export default function PakistanTouristVisaGuidePage() {
           </Card>
         </section>
 
-        <section className="mt-12 rounded-3xl border border-white/10 bg-white/5 p-6 md:p-10">
-          <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">
+        <section className="mt-12 rounded-3xl border border-border bg-havezic-background-light p-6 md:p-10">
+          <h2 className="font-display text-2xl font-semibold text-foreground md:text-3xl">
             How an invitation letter helps
           </h2>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-300">
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
             Immigration authorities often ask for a letter from a licensed local operator
             confirming your itinerary and purpose of visit. Submit each traveller&apos;s
             passport details and we&apos;ll prepare an official invitation letter to support
@@ -121,7 +121,7 @@ export default function PakistanTouristVisaGuidePage() {
             <ButtonLink
               href="/tours"
               variant="secondary"
-              className="border-white/35 bg-white/10 py-3 text-white hover:bg-white/20"
+              className="py-3"
             >
               Browse tours first
             </ButtonLink>
@@ -129,7 +129,7 @@ export default function PakistanTouristVisaGuidePage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">
+          <h2 className="font-display text-2xl font-semibold text-foreground md:text-3xl">
             Also wondering if Pakistan is safe to visit?
           </h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
@@ -142,7 +142,40 @@ export default function PakistanTouristVisaGuidePage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">FAQ</h2>
+          <Card className="p-6 md:p-8">
+            <h2 className="text-lg font-bold text-foreground">Check the official source</h2>
+            <p className="mt-3 text-sm leading-relaxed text-muted">
+              Visa rules, fees and eligibility change. Confirm current requirements for your
+              nationality on the official Pakistan Online Visa System before you apply, and
+              check the entry rules on your government&apos;s travel advice page.
+            </p>
+            <ul className="mt-4 list-inside list-disc space-y-1.5 text-sm text-muted">
+              <li>
+                <a
+                  href="https://visa.nadra.gov.pk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-havezic-primary underline"
+                >
+                  Pakistan Online Visa System (official)
+                </a>
+              </li>
+              <li>
+                <Link href="/is-pakistan-safe-for-tourists" className="font-semibold text-havezic-primary underline">
+                  Travel advisories and safety guide
+                </Link>
+              </li>
+              <li>
+                <Link href="/best-time-to-visit-pakistan" className="font-semibold text-havezic-primary underline">
+                  Best time to visit Pakistan
+                </Link>
+              </li>
+            </ul>
+          </Card>
+        </section>
+
+        <section className="mt-12">
+          <h2 className="font-display text-2xl font-semibold text-foreground md:text-3xl">FAQ</h2>
           <div className="mt-6 grid gap-4">
             {faqs.map((f) => (
               <Card key={f.q} className="p-6 md:p-8">

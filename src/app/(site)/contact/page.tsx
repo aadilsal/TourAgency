@@ -28,6 +28,7 @@ import {
   thankYouHref,
   type FieldErrorMap,
 } from "@/lib/formValidation";
+import { withLeadSource } from "@/lib/attribution";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { GovernmentLicenceText } from "@/components/GovernmentLicenceText";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
@@ -92,7 +93,7 @@ export default function ContactPage() {
         name: name.trim(),
         phone: phone.trim(),
         source: "Manual",
-        message: message.trim() || undefined,
+        message: withLeadSource(message),
       });
       // Keep the button disabled while we navigate away.
       router.push(thankYouHref("contact", shortRef(leadId)));

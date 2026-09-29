@@ -22,7 +22,9 @@ export function middleware(req: NextRequest) {
   const currency = country === "PK" ? "PKR" : "USD";
 
   const res = NextResponse.next();
-  // Always set so subsequent navigations stay consistent.
+  // Only write when it changes: a Set-Cookie on every HTML response makes pages
+  // uncacheable and adds needless work for crawlers.
+  if (req.cookies.get(COOKIE)?.value === currency) return res;
   res.cookies.set(COOKIE, currency, {
     path: "/",
     sameSite: "lax",
@@ -36,7 +38,7 @@ export function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     // Skip Next.js internals + static files
-    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|map)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml|llms.txt|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|map)$).*)",
   ],
 };
 

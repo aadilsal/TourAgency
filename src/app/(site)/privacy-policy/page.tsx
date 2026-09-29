@@ -105,7 +105,7 @@ export default async function PrivacyPolicyPage() {
               <li><span className={strong}>Keeping booking and accounting records</span> — compliance with legal obligations (e.g. tax and tourism licensing rules in Pakistan).</li>
               <li><span className={strong}>AI-assisted itinerary drafts</span> — performance of the service you request; your trip preferences (never passport or payment details) are sent to our AI provider to generate a draft.</li>
               <li><span className={strong}>Site security, fraud prevention and aggregated, cookieless performance statistics</span> — our legitimate interests in running a safe, fast website.</li>
-              <li><span className={strong}>Google Analytics</span> — only with your consent, which you can withdraw at any time.</li>
+              <li><span className={strong}>Google Analytics, Google Ads and Meta advertising measurement</span> — only with your consent, which you can withdraw at any time.</li>
             </ul>
             <p className={p}>We do not use your data for automated decisions with legal effects, and we do not sell personal data.</p>
           </Card>
@@ -114,7 +114,8 @@ export default async function PrivacyPolicyPage() {
             <h2 id="cookies" className={`${h2} scroll-mt-28`}>4. Cookies &amp; analytics</h2>
             <p className={p}>
               We ask for your choice with a cookie banner on your first visit. Non-essential
-              analytics cookies are only set if you click &ldquo;Accept all&rdquo;.
+              analytics and advertising cookies are only set if you click &ldquo;Accept all&rdquo;.
+              If you click &ldquo;Reject all&rdquo;, none of them are used.
             </p>
             <div className="mt-4 overflow-x-auto">
               <table className="w-full min-w-[520px] text-left text-sm text-muted">
@@ -131,6 +132,9 @@ export default async function PrivacyPolicyPage() {
                   <tr><td>jt_currency</td><td>Remembers your display currency (USD or PKR)</td><td>Essential</td><td>30 days</td></tr>
                   <tr><td>jt_cookie_consent (local storage)</td><td>Remembers your cookie choice</td><td>Essential</td><td>Until you clear it</td></tr>
                   <tr><td>_ga, _ga_*</td><td>Google Analytics 4 — how visitors use the site</td><td>Analytics (consent)</td><td>Up to 2 years</td></tr>
+                  <tr><td>_gcl_*, IDE (Google)</td><td>Google Ads — measuring which ads lead to enquiries</td><td>Advertising (consent)</td><td>Up to 13 months</td></tr>
+                  <tr><td>_fbp, _fbc (Meta)</td><td>Meta Pixel — measuring which Facebook/Instagram ads lead to enquiries</td><td>Advertising (consent)</td><td>Up to 3 months</td></tr>
+                  <tr><td>jt_attribution (session storage)</td><td>Remembers the campaign or website that brought you here, so we can tell which advertising works. Attached to your enquiry if you send one.</td><td>Essential</td><td>Until you close the tab</td></tr>
                 </tbody>
               </table>
             </div>
@@ -155,8 +159,8 @@ export default async function PrivacyPolicyPage() {
               <li><span className={strong}>Convex</span> — secure cloud database for enquiries, accounts and bookings.</li>
               <li><span className={strong}>Resend</span> — sending confirmation and notification emails.</li>
               <li><span className={strong}>Groq</span> (AI language-model provider) — generating draft itineraries from the trip details you enter.</li>
-              <li><span className={strong}>Google</span> — Analytics (with consent) and Maps (embedded office location; Google may set its own cookies when you interact with the map).</li>
-              <li><span className={strong}>WhatsApp / Meta</span> — when you choose to message us on WhatsApp.</li>
+              <li><span className={strong}>Google</span> — Analytics and Ads measurement (with consent) and Maps (embedded office location; Google may set its own cookies when you interact with the map).</li>
+              <li><span className={strong}>WhatsApp / Meta</span> — when you choose to message us on WhatsApp, and (only with your consent) the Meta Pixel and Conversions API, which receive your IP address, browser details and the fact that you sent an enquiry — never your name, phone number or message.</li>
               <li><span className={strong}>Hotels, transport operators, guides and permit authorities in Pakistan</span> — only for a trip you book, and Pakistani authorities where required for visas or by law.</li>
             </ul>
           </Card>

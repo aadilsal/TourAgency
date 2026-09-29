@@ -49,6 +49,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   add("/best-travel-agency-in-pakistan", "monthly", 0.6);
   add("/best-tour-operators-in-pakistan", "monthly", 0.6);
   add("/hunza-tour-operator", "monthly", 0.6);
+  add("/best-time-to-visit-pakistan", "monthly", 0.8);
+  add("/hunza-vs-skardu", "monthly", 0.7);
 
   for (const p of landingPages) add(landingPath(p.slug), "monthly", 0.6);
 

@@ -14,7 +14,7 @@ import {
 /**
  * GDPR / UK-GDPR / ePrivacy compliant consent banner:
  * - "Reject all" and "Accept all" are equally prominent (same size + weight).
- * - Nothing non-essential (GA4) loads until "Accept all".
+ * - Nothing non-essential (GA4, Google Ads, Meta Pixel) loads until "Accept all".
  * - Closing the banner (X) is treated as "Reject all".
  * - Re-openable any time via `openCookieSettings()` (footer "Cookie settings").
  */
@@ -73,15 +73,13 @@ export function CookieConsentBanner() {
             Your privacy
           </p>
           <p id="cookie-consent-desc" className="mt-1 text-sm leading-relaxed text-white/75">
-            We use essential cookies to run this site. With your permission we
-            also use Google Analytics cookies to understand how travellers use
-            it. You can change this any time.{" "}
+            We use cookies to improve your experience on our site.{" "}
             <Link href="/privacy-policy#cookies" className="font-semibold text-white underline underline-offset-2">
               Privacy &amp; cookies
             </Link>
             {current ? (
               <span className="block text-xs text-white/50">
-                Current choice: {current === "accepted" ? "analytics allowed" : "essential only"}
+                Current choice: {current === "accepted" ? "cookies accepted" : "essential only"}
               </span>
             ) : null}
           </p>

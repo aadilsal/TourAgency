@@ -28,7 +28,8 @@ import { TourHeroGallery } from "@/components/tours/TourHeroGallery";
 import { loadTourBySlug } from "@/lib/tours-server";
 import { getConvexServer } from "@/lib/convex-server";
 import { getServerCurrency } from "@/lib/currency-server";
-import { tourHasPrice } from "@/lib/tourPricing";
+import { formatTourPrice, getPerHeadOptions, tourHasPrice } from "@/lib/tourPricing";
+import { TourViewEvent } from "@/components/analytics/TourViewEvent";
 import { getTourDisplayRating } from "@/lib/tourRating";
 import { TourLivePrice, type TourPriceFields } from "@/components/tours/TourLivePrice";
 
@@ -181,6 +182,10 @@ export default async function TourDetailPage({ params }: Props) {
     perHeadPrices: tour.perHeadPrices ?? [],
   };
   const rating = getTourDisplayRating(tour);
+  const summaryPrice = tourHasPrice(initialPrices) ? formatTourPrice(initialPrices, currency) : null;
+  const summaryPerHead = getPerHeadOptions(initialPrices, currency)
+    .map((o) => `${o.label} each for ${o.persons} ${o.persons === 1 ? "traveller" : "travellers"}`)
+    .join("; ");
 
   const startCity = tour.itinerary[0]
     ? cleanPlace(tour.itinerary[0].title)
@@ -206,7 +211,8 @@ export default async function TourDetailPage({ params }: Props) {
 
   return (
     <main className="min-h-screen pb-28 lg:pb-16">
-      <TourJsonLd tour={tour} />
+      <TourJsonLd tour={tour} rating={rating} />
+      <TourViewEvent slug={tour.slug} title={tour.title} location={tour.location} />
       <BreadcrumbJsonLd
         items={[
           { name: "Home", path: "/" },
@@ -235,6 +241,21 @@ export default async function TourDetailPage({ params }: Props) {
             <TourHeroGallery images={tour.images} title={tour.title} />
 
             <section id="overview" className="mt-8 scroll-mt-28">
+              {/* Answer-first summary: plain, factual text that search engines and
+                  AI assistants can quote directly. */}
+              <p className="mb-4 rounded-xl bg-havezic-background-light px-4 py-3 text-sm leading-relaxed text-foreground">
+                <span className="font-semibold">{tour.title}</span> is a{" "}
+                {tour.durationDays}-day guided tour of {tour.location}, Pakistan, run by{" "}
+                <span className="font-semibold">Junket Tours</span>, a licensed operator based in
+                Lahore.{" "}
+                {summaryPrice
+                  ? `Listed price: ${summaryPrice} for the whole tour.`
+                  : summaryPerHead
+                    ? `Listed per-person prices: ${summaryPerHead}.`
+                    : "Pricing is a tailored quote on request."}{" "}
+                Send an enquiry online or on WhatsApp and the team replies with availability and
+                payment details.
+              </p>
               {tour.description.split("\n").filter(Boolean)[0] ? (
                 <p className="text-lg font-semibold text-foreground">
                   {tour.description.split("\n").filter(Boolean)[0]}
@@ -507,6 +528,25 @@ export default async function TourDetailPage({ params }: Props) {
 
         {/* Related */}
         <TourDetailRelatedCarousel tours={relatedCards} currentSlug={tour.slug} />
+        {/* The carousel is client-only; this puts the same links in the raw HTML
+            for crawlers that don't run JavaScript. */}
+        <noscript>
+          <nav aria-label="Related tours" className="mt-10">
+            <h2 className="text-xl font-bold text-foreground">More Pakistan tours</h2>
+            <ul className="mt-3 space-y-1">
+              {relatedCards
+                .filter((t) => t.slug !== tour.slug)
+                .slice(0, 8)
+                .map((t) => (
+                  <li key={t.slug}>
+                    <Link href={`/tours/${t.slug}`} className="text-havezic-primary underline">
+                      {t.title}
+                    </Link>
+                  </li>
+                ))}
+            </ul>
+          </nav>
+        </noscript>
       </PageContainer>
     </main>
   );

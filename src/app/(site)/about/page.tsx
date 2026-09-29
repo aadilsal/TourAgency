@@ -3,6 +3,7 @@ import { getConvexServer } from "@/lib/convex-server";
 import { api } from "@convex/_generated/api";
 import { AboutPageClient } from "@/components/about/AboutPageClient";
 import { FaqSection } from "@/components/about/FaqSection";
+import { FaqJsonLd } from "@/components/FaqJsonLd";
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 
@@ -25,6 +26,8 @@ export default async function AboutPage() {
     <main className="min-h-screen">
       <AboutPageClient team={team} content={content} />
       <FaqSection faqs={faqs} />
+      {/* The FAQs above are server-rendered and visible, as the markup requires. */}
+      <FaqJsonLd faqs={faqs} />
       <PageContainer className="sr-only">About page content</PageContainer>
     </main>
   );

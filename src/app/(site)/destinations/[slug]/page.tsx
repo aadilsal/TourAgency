@@ -9,6 +9,7 @@ import { getProvince } from "@/lib/provinces-data";
 import { RelatedToursCarousel } from "@/components/destinations/RelatedToursCarousel";
 import { getServerCurrency } from "@/lib/currency-server";
 import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { DestinationJsonLd } from "@/components/DestinationJsonLd";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -43,6 +44,13 @@ export default async function DestinationPage({ params }: Props) {
 
   return (
     <main className="min-h-screen">
+      <DestinationJsonLd
+        name={d.name}
+        slug={params.slug}
+        description={d.description}
+        image={d.heroUrl}
+        provinceName={provinceName}
+      />
       <BreadcrumbJsonLd
         items={[
           { name: "Home", path: "/" },

@@ -53,7 +53,7 @@ export default function HunzaTourOperatorPage() {
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-havezic-primary">
             Hunza Valley
           </p>
-          <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
+          <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground md:text-4xl">
             Hunza tour operator (how to choose + book with JunketTours)
           </h1>
           <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">
@@ -68,7 +68,7 @@ export default function HunzaTourOperatorPage() {
             <ButtonLink
               href="/contact"
               variant="secondary"
-              className="border-white/35 bg-white/10 py-3 text-white hover:bg-white/20"
+              className="py-3"
             >
               WhatsApp / call support
             </ButtonLink>
@@ -103,7 +103,7 @@ export default function HunzaTourOperatorPage() {
               <ButtonLink
                 href="/ai-planner"
                 variant="secondary"
-                className="border-white/35 bg-white/10 py-2.5 text-white hover:bg-white/20"
+                className="py-2.5"
               >
                 Use AI planner
               </ButtonLink>
@@ -112,7 +112,7 @@ export default function HunzaTourOperatorPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">
+          <h2 className="font-display text-2xl font-semibold text-foreground md:text-3xl">
             Packages vs custom trips
           </h2>
           <div className="mt-6 grid gap-4">
@@ -144,7 +144,7 @@ export default function HunzaTourOperatorPage() {
         </section>
 
         <section className="mt-12">
-          <h2 className="font-display text-2xl font-semibold text-white md:text-3xl">FAQ</h2>
+          <h2 className="font-display text-2xl font-semibold text-foreground md:text-3xl">FAQ</h2>
           <div className="mt-6 grid gap-4">
             {faqs.map((f) => (
               <Card key={f.q} className="p-6 md:p-8">
