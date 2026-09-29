@@ -5,8 +5,8 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Pencil, Plus, Search } from "lucide-react";
+import { IconAction, IconActionLink } from "@/components/admin/shared/IconAction";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/cn";
@@ -234,16 +234,13 @@ export function AdminToursPanel() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex flex-wrap justify-end gap-1">
-                    <Link
+                    <IconActionLink
                       href={`/admin/tours/${t._id}/edit`}
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-brand-primary hover:bg-slate-50"
-                    >
-                      <Pencil className="h-3.5 w-3.5" aria-hidden />
-                      Edit
-                    </Link>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
+                      label="Edit tour"
+                      icon={Pencil}
+                    />
+                    <IconAction
+                      label="Delete tour"
                       onClick={() => {
                         if (
                           confirm(
@@ -253,10 +250,7 @@ export function AdminToursPanel() {
                           void removeTour(t._id);
                         }
                       }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                      Delete
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>

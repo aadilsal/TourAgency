@@ -5,9 +5,9 @@ import { useSafePaginatedQuery } from "@/hooks/useSafePaginatedQuery";
 import { QueryErrorBanner } from "@/components/admin/shared/EditorStatus";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import Link from "next/link";
 import { useState, useEffect } from "react";
-import { FileText, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, FileText, Pencil, Plus } from "lucide-react";
+import { IconAction, IconActionLink } from "@/components/admin/shared/IconAction";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -315,32 +315,21 @@ export function AdminBlogPanel() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex flex-wrap justify-end gap-1">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-brand-primary hover:bg-slate-50"
+                    <IconAction
+                      label="Edit post"
+                      icon={Pencil}
+                      tone="neutral"
                       onClick={() => openEdit(p)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" aria-hidden />
-                      Edit
-                    </button>
-                    <Link
-                      href={`/blog/${p.slug}`}
-                      className="inline-flex items-center rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-slate-50"
-                    >
-                      View
-                    </Link>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
+                    />
+                    <IconActionLink href={`/blog/${p.slug}`} label="View post on site" icon={Eye} />
+                    <IconAction
+                      label="Delete post"
                       onClick={() => {
                         if (confirm(`Delete "${p.title}"? This cannot be undone.`)) {
                           void removePost(p._id);
                         }
                       }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                      Delete
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>

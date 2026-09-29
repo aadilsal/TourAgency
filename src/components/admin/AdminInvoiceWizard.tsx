@@ -25,6 +25,7 @@ import {
   TextInput,
 } from "@/components/ui/FormField";
 import { Button } from "@/components/ui/Button";
+import { IconAction } from "@/components/admin/shared/IconAction";
 import { Modal } from "@/components/ui/Modal";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
 import { toAbsoluteUrl } from "@/lib/absoluteUrl";
@@ -658,18 +659,14 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                           {money(currency, (it.quantity || 0) * (it.price || 0))}
                         </span>
                       </p>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        className="rounded-lg px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
+                      <IconAction
+                        label="Remove item"
                         onClick={() => {
                           const hasContent = it.name.trim() || it.description?.trim() || it.price;
                           if (hasContent && !window.confirm(`Remove "${it.name || "this item"}"?`)) return;
                           updateItems(items.filter((_, i) => i !== idx));
                         }}
-                      >
-                        Remove
-                      </Button>
+                      />
                     </div>
                   </div>
                 );

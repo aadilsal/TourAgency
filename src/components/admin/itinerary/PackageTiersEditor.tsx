@@ -1,6 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
+import { IconAction } from "@/components/admin/shared/IconAction";
 import { FieldLabel, TextInput } from "@/components/ui/FormField";
 import type { PackageStay } from "@/lib/itineraryPackageMatrix";
 import {
@@ -84,19 +85,15 @@ export function PackageTiersEditor({
             >
               Duplicate tier
             </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              className="border-red-500/40 text-red-600 hover:border-red-400/60 hover:bg-red-500/10"
+            <IconAction
+              label={tiers.length <= 1 ? "At least one tier is required" : "Remove tier"}
               disabled={tiers.length <= 1}
               onClick={() => {
                 const label = tier.name.trim() || `tier ${tIdx + 1}`;
                 if (!window.confirm(`Remove ${label} and its hotel rows?`)) return;
                 onChange((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== tIdx)));
               }}
-            >
-              Remove tier
-            </Button>
+            />
           </div>
 
           <div className="mt-3 space-y-3">
@@ -167,9 +164,8 @@ export function PackageTiersEditor({
                   </div>
                   <div className="flex items-center justify-end">
                     {tier.stays.length > 1 ? (
-                      <button
-                        type="button"
-                        className="text-xs font-semibold text-red-600"
+                      <IconAction
+                        label="Remove stay"
                         onClick={() =>
                           onChange((prev) =>
                             prev.map((x, i) =>
@@ -177,9 +173,7 @@ export function PackageTiersEditor({
                             ),
                           )
                         }
-                      >
-                        Remove
-                      </button>
+                      />
                     ) : (
                       <span className="hidden md:block" />
                     )}

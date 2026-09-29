@@ -7,6 +7,7 @@ import { api } from "@convex/_generated/api";
 import type { Doc, Id } from "@convex/_generated/dataModel";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { IconAction } from "@/components/admin/shared/IconAction";
 import {
   FieldError,
   FieldLabel,
@@ -133,13 +134,7 @@ function TabImageUploader({
           />
         </label>
         {displayUrl ? (
-          <button
-            type="button"
-            className="text-xs font-semibold text-red-600 hover:underline"
-            onClick={onRemove}
-          >
-            Remove
-          </button>
+          <IconAction label="Remove image" onClick={onRemove} />
         ) : null}
       </div>
     </div>

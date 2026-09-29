@@ -5,6 +5,7 @@ import { api } from "@convex/_generated/api";
 import { useCallback, useEffect, useState } from "react";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { useSafeQuery } from "@/hooks/useSafeQuery";
+import { IconAction } from "@/components/admin/shared/IconAction";
 import { PENDING_IMAGE_PREFIX, type TourFormPatch, type TourFormValues } from "./model";
 
 /** Some browsers/OSes leave `File.type` empty even for real images from “Choose file”. */
@@ -218,13 +219,11 @@ export function MediaSection({
                   <span className="break-all font-mono text-slate-700">
                     {isPending ? "Uploading…" : ref.length > 64 ? `${ref.slice(0, 64)}…` : ref}
                   </span>
-                  <button
-                    type="button"
-                    className="mt-1 block text-red-600 hover:underline"
+                  <IconAction
+                    label="Remove image"
+                    className="mt-1"
                     onClick={() => removeImageAt(i)}
-                  >
-                    Remove
-                  </button>
+                  />
                 </div>
               </li>
             );

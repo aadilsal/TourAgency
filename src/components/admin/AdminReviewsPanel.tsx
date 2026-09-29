@@ -7,6 +7,7 @@ import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/Button";
+import { IconAction } from "@/components/admin/shared/IconAction";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 
@@ -175,19 +176,15 @@ export function AdminReviewsPanel() {
                     Reject
                   </Button>
                 ) : null}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="!px-3 !py-1.5 !text-xs text-red-700 hover:bg-red-50"
+                <IconAction
+                  label="Delete review"
                   onClick={() => {
                     if (!window.confirm("Delete this review permanently?")) return;
                     void act(() =>
                       remove({ sessionToken, reviewId: r._id as Id<"tourReviews"> }),
                     );
                   }}
-                >
-                  Delete
-                </Button>
+                />
               </div>
             </li>
           ))}

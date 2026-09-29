@@ -5,9 +5,10 @@ import { api } from "@convex/_generated/api";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import type { Id } from "@convex/_generated/dataModel";
 import { useMemo, useRef, useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
+import { IconAction } from "@/components/admin/shared/IconAction";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { confirmDiscard } from "@/hooks/useUnsavedChangesGuard";
 import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
@@ -340,17 +341,14 @@ export function AdminDestinationsPanel() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex flex-wrap justify-end gap-1">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-brand-primary hover:bg-slate-50"
+                    <IconAction
+                      label="Edit destination"
+                      icon={Pencil}
+                      tone="neutral"
                       onClick={() => openEdit(d)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" aria-hidden />
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
+                    />
+                    <IconAction
+                      label="Delete destination"
                       onClick={() => {
                         if (confirm("Delete this destination? Tours assigned to it will be unassigned.")) {
                           if (!canMutate) {
@@ -363,10 +361,7 @@ export function AdminDestinationsPanel() {
                           }).catch((e) => setMsg(toUserFacingErrorMessage(e)));
                         }
                       }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                      Delete
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>
@@ -460,13 +455,7 @@ export function AdminDestinationsPanel() {
                 {heroUploading ? "Uploading…" : heroPreviewUrl ? "Replace image" : "Upload image"}
               </label>
               {heroPreviewUrl ? (
-                <button
-                  type="button"
-                  className="text-xs font-semibold text-red-600 hover:underline"
-                  onClick={onRemoveHero}
-                >
-                  Remove
-                </button>
+                <IconAction label="Remove hero image" onClick={onRemoveHero} />
               ) : null}
             </div>
           </div>

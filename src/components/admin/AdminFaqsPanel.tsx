@@ -6,7 +6,8 @@ import { useSafePaginatedQuery } from "@/hooks/useSafePaginatedQuery";
 import { QueryErrorBanner } from "@/components/admin/shared/EditorStatus";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
-import { Plus, Trash2, Pencil, HelpCircle } from "lucide-react";
+import { Plus, Pencil, HelpCircle } from "lucide-react";
+import { IconAction } from "@/components/admin/shared/IconAction";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
@@ -362,17 +363,14 @@ export function AdminFaqsPanel() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex flex-wrap justify-end gap-1">
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-brand-primary hover:bg-slate-50"
+                    <IconAction
+                      label="Edit FAQ"
+                      icon={Pencil}
+                      tone="neutral"
                       onClick={() => openEdit(row)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" aria-hidden />
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 hover:underline"
+                    />
+                    <IconAction
+                      label="Delete FAQ"
                       onClick={() => {
                         if (confirm("Delete this FAQ? This cannot be undone.")) {
                           void runListAction(() =>
@@ -380,10 +378,7 @@ export function AdminFaqsPanel() {
                           ).catch(() => undefined);
                         }
                       }}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                      Delete
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>

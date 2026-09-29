@@ -14,6 +14,7 @@ import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { useLocalDraft } from "@/hooks/useLocalDraft";
 import { DraftRestoreBanner, QueryErrorBanner } from "@/components/admin/shared/EditorStatus";
 import { FormSaveBar } from "@/components/admin/shared/FormSaveBar";
+import { IconAction } from "@/components/admin/shared/IconAction";
 import { useServerForm } from "@/components/admin/shared/useServerForm";
 
 type PaymentTerm = { percent: number; title: string; description: string };
@@ -259,10 +260,8 @@ export function AdminItineraryTemplatePanel() {
                 />
               </div>
               <div className="flex items-end sm:col-span-1">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full text-red-700"
+                <IconAction
+                  label="Remove payment row"
                   onClick={() => {
                     const hasContent = t.title.trim() || t.description.trim();
                     if (hasContent && !window.confirm(`Remove payment row "${t.title || "untitled"}"?`)) {
@@ -270,9 +269,7 @@ export function AdminItineraryTemplatePanel() {
                     }
                     setPaymentTerms((prev) => prev.filter((_, i) => i !== idx));
                   }}
-                >
-                  Remove
-                </Button>
+                />
               </div>
             </div>
           ))}
@@ -361,10 +358,9 @@ export function AdminItineraryTemplatePanel() {
                   }}
                 />
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                className="mt-2 text-red-700"
+              <IconAction
+                label="Remove terms block"
+                className="mt-2"
                 onClick={() => {
                   const hasContent = b.title.trim() || b.body.trim();
                   if (hasContent && !window.confirm(`Remove terms block "${b.title || "untitled"}"?`)) {
@@ -372,9 +368,7 @@ export function AdminItineraryTemplatePanel() {
                   }
                   setTermsBlocks((prev) => prev.filter((_, i) => i !== idx));
                 }}
-              >
-                Remove block
-              </Button>
+              />
             </div>
           ))}
           <Button

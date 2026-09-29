@@ -18,6 +18,7 @@ import { TextInput } from "@/components/ui/FormField";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { cn } from "@/lib/cn";
 import { PopoverMenu } from "@/components/ui/PopoverMenu";
+import { IconAction } from "@/components/admin/shared/IconAction";
 
 type Row = {
   _id: Id<"invoices">;
@@ -290,9 +291,8 @@ export function AdminInvoicesTable() {
                     >
                       {r.status === "paid" ? "Mark draft" : "Mark paid"}
                     </button>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-red-600 hover:bg-panel-elevated"
+                    <IconAction
+                      label="Delete invoice"
                       onClick={() => {
                         if (!canQuery) return;
                         const ok = window.confirm(
@@ -311,9 +311,7 @@ export function AdminInvoicesTable() {
                           }
                         })();
                       }}
-                    >
-                      Delete
-                    </button>
+                    />
                   </div>
                 </td>
               </tr>
