@@ -35,6 +35,7 @@ import type * as lib_parseTourPdfTemplate from "../lib/parseTourPdfTemplate.js";
 import type * as lib_resolveTourImages from "../lib/resolveTourImages.js";
 import type * as lib_sitesSeed from "../lib/sitesSeed.js";
 import type * as lib_syncTourImageAssets from "../lib/syncTourImageAssets.js";
+import type * as lib_tourSlug from "../lib/tourSlug.js";
 import type * as lib_visaValidation from "../lib/visaValidation.js";
 import type * as media from "../media.js";
 import type * as mediaActions from "../mediaActions.js";
@@ -87,6 +88,7 @@ declare const fullApi: ApiFromModules<{
   "lib/resolveTourImages": typeof lib_resolveTourImages;
   "lib/sitesSeed": typeof lib_sitesSeed;
   "lib/syncTourImageAssets": typeof lib_syncTourImageAssets;
+  "lib/tourSlug": typeof lib_tourSlug;
   "lib/visaValidation": typeof lib_visaValidation;
   media: typeof media;
   mediaActions: typeof mediaActions;

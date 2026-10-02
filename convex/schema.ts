@@ -174,6 +174,19 @@ export default defineSchema({
     .index("by_isActive_and_createdAt", ["isActive", "createdAt"])
     .searchIndex("search_title", { searchField: "title" }),
 
+  /**
+   * Old tour slugs, so links shared before a rename (WhatsApp, Google, ads)
+   * redirect to the tour instead of 404ing. A live tour slug always wins over
+   * an alias with the same value.
+   */
+  tourSlugAliases: defineTable({
+    slug: v.string(),
+    tourId: v.id("tours"),
+    createdAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_tourId", ["tourId"]),
+
   /** Cached Google Places reviews for the business (refreshed on a schedule). */
   googleReviewsCache: defineTable({
     key: v.string(),

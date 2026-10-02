@@ -10,6 +10,7 @@ import {
   deleteTourImageAssetsForTour,
   syncTourImageAssetIndex,
 } from "./lib/syncTourImageAssets.js";
+import { legacyNormalizeTourSlug, normalizeTourSlug } from "./lib/tourSlug.js";
 
 const MAX_TOURS_RETURNED = 500;
 
@@ -26,9 +27,7 @@ export const TOUR_CONFLICT_MESSAGE =
   "This tour was changed by someone else since you opened it. Copy your changes, reload, and try again.";
 export const TOUR_SLUG_TAKEN_MESSAGE = "That URL slug is already used by another tour";
 
-export function normalizeTourSlug(raw: string): string {
-  return raw.trim().toLowerCase().replace(/\s+/g, "-");
-}
+export { normalizeTourSlug };
 
 /**
  * Revision token for optimistic concurrency. Tours written before `updatedAt`
@@ -47,6 +46,63 @@ async function findTourBySlug(
     .query("tours")
     .withIndex("by_slug", (q) => q.eq("slug", slug))
     .first();
+}
+
+async function findTourBySlugAlias(
+  ctx: QueryCtx | MutationCtx,
+  slug: string,
+): Promise<Doc<"tours"> | null> {
+  const alias = await ctx.db
+    .query("tourSlugAliases")
+    .withIndex("by_slug", (q) => q.eq("slug", slug))
+    .first();
+  return alias ? await ctx.db.get(alias.tourId) : null;
+}
+
+/**
+ * Public-URL lookup: the live slug first, then the cleaned-up form of what was
+ * typed, then old slugs from renames. The caller compares `tour.slug` with what
+ * it asked for and redirects when they differ.
+ */
+async function findTourForUrlSlug(
+  ctx: QueryCtx | MutationCtx,
+  slug: string,
+): Promise<Doc<"tours"> | null> {
+  const candidates = Array.from(new Set([slug, normalizeTourSlug(slug)])).filter(Boolean);
+  for (const s of candidates) {
+    const tour = await findTourBySlug(ctx, s);
+    if (tour) return tour;
+  }
+  for (const s of candidates) {
+    const tour = await findTourBySlugAlias(ctx, s);
+    if (tour) return tour;
+  }
+  return null;
+}
+
+/** Keeps `oldSlug` pointing at the tour so links shared before a rename still work. */
+async function rememberOldTourSlug(
+  ctx: MutationCtx,
+  tourId: Id<"tours">,
+  oldSlug: string,
+): Promise<void> {
+  if (!oldSlug) return;
+  const existing = await ctx.db
+    .query("tourSlugAliases")
+    .withIndex("by_slug", (q) => q.eq("slug", oldSlug))
+    .take(10);
+  if (existing.some((a) => a.tourId === tourId)) return;
+  for (const a of existing) await ctx.db.delete(a._id);
+  await ctx.db.insert("tourSlugAliases", { slug: oldSlug, tourId, createdAt: Date.now() });
+}
+
+/** A live tour now owns `slug`, so any old-slug redirect with that value is dropped. */
+async function releaseTourSlugAliases(ctx: MutationCtx, slug: string): Promise<void> {
+  const aliases = await ctx.db
+    .query("tourSlugAliases")
+    .withIndex("by_slug", (q) => q.eq("slug", slug))
+    .take(10);
+  for (const a of aliases) await ctx.db.delete(a._id);
 }
 
 async function assertTourSlugAvailable(
@@ -228,10 +284,14 @@ export const listToursForAi = internalQuery({
   },
 });
 
+/**
+ * Also resolves old or un-cleaned slugs; the returned `slug` is the live one,
+ * so the page can redirect when it differs from the requested URL.
+ */
 export const getTourBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    const tour = await findTourBySlug(ctx, slug);
+    const tour = await findTourForUrlSlug(ctx, slug);
     if (!tour) return null;
     return {
       ...tour,
@@ -251,7 +311,7 @@ export const getTourBySlug = query({
 export const getTourPricingBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, { slug }) => {
-    const tour = await findTourBySlug(ctx, slug);
+    const tour = await findTourForUrlSlug(ctx, slug);
     if (!tour || !tour.isActive) return null;
     return {
       price: tour.price,
@@ -330,6 +390,7 @@ export const createTour = mutation({
     const now = Date.now();
     const normalizedSlug = normalizeTourSlug(args.slug);
     await assertTourSlugAvailable(ctx, normalizedSlug);
+    await releaseTourSlugAliases(ctx, normalizedSlug);
     const imageFolderKey = `tours/${normalizedSlug}`;
     const id = await ctx.db.insert("tours", {
       ...args,
@@ -453,6 +514,8 @@ export const updateTour = mutation({
       next.slug = normalizeTourSlug(next.slug);
       if (next.slug !== tour.slug) {
         await assertTourSlugAvailable(ctx, next.slug as string, tourId);
+        await releaseTourSlugAliases(ctx, next.slug as string);
+        await rememberOldTourSlug(ctx, tourId, tour.slug);
       }
     }
     const finalSlug =
@@ -536,6 +599,11 @@ export const deleteTour = mutation({
       );
     }
     await deleteTourImageAssetsForTour(ctx, tourId);
+    const aliases = await ctx.db
+      .query("tourSlugAliases")
+      .withIndex("by_tourId", (q) => q.eq("tourId", tourId))
+      .take(100);
+    for (const a of aliases) await ctx.db.delete(a._id);
     await ctx.db.delete(tourId);
     await ctx.db.insert("adminLogs", {
       action: "delete_tour",
@@ -625,7 +693,15 @@ export const bulkUpsert = mutation({
             `More than one tour uses the slug "${normalizedSlug}" — fix the duplicate in the editor first`,
           );
         }
-        const existing = matches[0] ?? null;
+        // A spreadsheet exported before a slug was cleaned up or renamed still
+        // carries the old slug: match it to the same tour instead of creating a
+        // duplicate.
+        const legacySlug = legacyNormalizeTourSlug(row.slug);
+        const existing =
+          matches[0] ??
+          (legacySlug !== normalizedSlug ? await findTourBySlug(ctx, legacySlug) : null) ??
+          (await findTourBySlugAlias(ctx, normalizedSlug)) ??
+          (legacySlug !== normalizedSlug ? await findTourBySlugAlias(ctx, legacySlug) : null);
         // Older importers send `price: 0` for a blank cell; on UPDATE that must
         // not wipe a real price, so a zero legacy price counts as "not provided".
         const legacyPrice = existing && row.price === 0 ? undefined : row.price;
@@ -690,6 +766,7 @@ export const bulkUpsert = mutation({
           if (!row.itinerary || row.itinerary.length === 0) {
             throw new Error("itinerary is required for new tours");
           }
+          await releaseTourSlugAliases(ctx, normalizedSlug);
           const imageFolderKey = `tours/${normalizedSlug}`;
           const images = row.images ?? [];
           const id = await ctx.db.insert("tours", {

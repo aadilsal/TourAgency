@@ -3,7 +3,7 @@
 import type { Id } from "@convex/_generated/dataModel";
 import { TOUR_TYPE_OPTIONS } from "@/lib/tour-filters";
 import { CheckboxGroupField, TextAreaField, TextField, inputClass } from "./fields";
-import type { TourFormPatch, TourFormValues } from "./model";
+import { slugify, type TourFormPatch, type TourFormValues } from "./model";
 
 type Option<T> = { _id: T; name: string };
 
@@ -29,6 +29,9 @@ export function BasicsSection({
           onChange={(slug) => onChange({ slug })}
         />
       </div>
+      <p className="-mt-1 break-all text-xs text-slate-500">
+        Page URL: /tours/{slugify(values.slug || values.title) || "…"}
+      </p>
       <TextAreaField
         label="Description"
         required

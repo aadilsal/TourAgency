@@ -1,4 +1,5 @@
 import type { Doc, Id } from "@convex/_generated/dataModel";
+import { normalizeTourSlug } from "@convex/lib/tourSlug";
 import { parseTourType } from "@/lib/tour-filters";
 import type { TourPdfImportDraft } from "@/lib/tourPdf/types";
 
@@ -74,8 +75,9 @@ export const defaultItinerary: ItineraryDay[] = [
 const DEFAULT_TIME_SLOTS = "08:00\n10:00\n12:00";
 const DEFAULT_TICKET_GROUPS = "Adult (18+)\nYouth (13-17)\nChildren (0-12)";
 
+/** Same rule the backend applies on save, so the preview matches the live URL. */
 export function slugify(value: string): string {
-  return value.trim().toLowerCase().replace(/\s+/g, "-");
+  return normalizeTourSlug(value);
 }
 
 function toNumberInput(n: number | undefined | null): NumberInput {

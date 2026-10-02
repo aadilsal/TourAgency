@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import Link from "next/link";
 import { api } from "@convex/_generated/api";
 import type { Metadata } from "next";
@@ -25,7 +25,7 @@ import { TourDetailTabs } from "@/components/tours/TourDetailTabs";
 import { TourReviews } from "@/components/tours/TourReviews";
 import { TourItineraryAccordion } from "@/components/tours/TourItineraryAccordion";
 import { TourHeroGallery } from "@/components/tours/TourHeroGallery";
-import { loadTourBySlug } from "@/lib/tours-server";
+import { decodeSlugParam, loadTourBySlug } from "@/lib/tours-server";
 import { getConvexServer } from "@/lib/convex-server";
 import { getServerCurrency } from "@/lib/currency-server";
 import { formatTourPrice, getPerHeadOptions, tourHasPrice } from "@/lib/tourPricing";
@@ -154,6 +154,11 @@ export default async function TourDetailPage({ params }: Props) {
     tour = null;
   }
   if (!tour || !tour.isActive) notFound();
+  // Old (renamed) or un-cleaned slug: send visitors and search engines to the
+  // live URL. Outside the try above, since redirect() works by throwing.
+  if (tour.slug !== decodeSlugParam(params.slug)) {
+    permanentRedirect(`/tours/${tour.slug}`);
+  }
 
   const whatsappUrl = await getWhatsAppClickUrl(
     `Hi JunketTours — I'm interested in: ${tour.title}`,

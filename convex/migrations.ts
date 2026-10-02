@@ -1,5 +1,6 @@
 import { internalMutation } from "./_generated/server.js";
 import { v } from "convex/values";
+import { isCleanTourSlug, normalizeTourSlug } from "./lib/tourSlug.js";
 
 function roundUsdFromPkr(pkr: number, ratePkrPerUsd: number): number {
   const safeRate = Number.isFinite(ratePkrPerUsd) && ratePkrPerUsd > 0 ? ratePkrPerUsd : 280;
@@ -82,5 +83,62 @@ export const backfillTourUsdPrices = internalMutation({
       wouldPatch,
       patched,
     };
+  },
+});
+
+/**
+ * One-off maintenance: rewrite tour slugs that aren't URL-safe (e.g. a raw `&`,
+ * which made a live tour 404) into the clean form `normalizeTourSlug` produces.
+ *
+ * - Internal only, dry run unless `dryRun: false` is passed.
+ * - Patches ONLY `slug`. Images, prices and `updatedAt` are left alone, so an
+ *   admin's open editor isn't knocked into a save conflict.
+ * - The old slug is kept in `tourSlugAliases`, so existing links redirect.
+ * - Skips a tour when its clean slug is already used by another tour.
+ */
+export const normalizeTourSlugs = internalMutation({
+  args: {
+    /** Defaults to true — pass `false` to actually write. */
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const dryRun = args.dryRun ?? true;
+    const tours = await ctx.db.query("tours").take(2000);
+    const changes: Array<{ tourId: string; from: string; to: string; status: string }> = [];
+
+    for (const t of tours) {
+      if (isCleanTourSlug(t.slug)) continue;
+      const to = normalizeTourSlug(t.slug);
+      if (!to) {
+        changes.push({ tourId: t._id, from: t.slug, to, status: "skipped: empty after cleaning" });
+        continue;
+      }
+      const taken = await ctx.db
+        .query("tours")
+        .withIndex("by_slug", (q) => q.eq("slug", to))
+        .first();
+      if (taken && taken._id !== t._id) {
+        changes.push({ tourId: t._id, from: t.slug, to, status: "skipped: slug used by another tour" });
+        continue;
+      }
+      if (!dryRun) {
+        const stale = await ctx.db
+          .query("tourSlugAliases")
+          .withIndex("by_slug", (q) => q.eq("slug", to))
+          .take(10);
+        for (const a of stale) await ctx.db.delete(a._id);
+        const oldAlias = await ctx.db
+          .query("tourSlugAliases")
+          .withIndex("by_slug", (q) => q.eq("slug", t.slug))
+          .first();
+        if (!oldAlias) {
+          await ctx.db.insert("tourSlugAliases", { slug: t.slug, tourId: t._id, createdAt: Date.now() });
+        }
+        await ctx.db.patch(t._id, { slug: to });
+      }
+      changes.push({ tourId: t._id, from: t.slug, to, status: dryRun ? "would rename" : "renamed" });
+    }
+
+    return { dryRun, scanned: tours.length, changes };
   },
 });
