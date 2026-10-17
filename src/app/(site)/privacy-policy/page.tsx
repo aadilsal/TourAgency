@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getSiteUrl } from "@/lib/site";
-import { getConvexServer } from "@/lib/convex-server";
+import { getConvexServer } from "@/lib/server/convex-server";
 import { api } from "@convex/_generated/api";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
-import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
 import { CookieSettingsLink } from "@/components/analytics/CookieSettingsLink";
 import { BUSINESS, formatBusinessAddress } from "@/config/business";
 import { buildMetadata } from "@/lib/seo";

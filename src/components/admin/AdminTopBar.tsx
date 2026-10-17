@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Menu, X } from "lucide-react";
 import { createPortal } from "react-dom";
-import { LogoutButton } from "@/components/LogoutButton";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { cn } from "@/lib/cn";
 import { isAdminNavLinkActive, visibleAdminNav } from "@/components/admin/shared/adminNav";

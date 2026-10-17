@@ -1,6 +1,6 @@
 import { api } from "@convex/_generated/api";
 import { BUSINESS, BUSINESS_SAME_AS, formatBusinessAddress } from "@/config/business";
-import { getConvexServer } from "@/lib/convex-server";
+import { getConvexServer } from "@/lib/server/convex-server";
 import { getSiteUrl } from "@/lib/site";
 
 /**

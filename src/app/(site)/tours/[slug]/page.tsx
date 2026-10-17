@@ -3,10 +3,10 @@ import Link from "next/link";
 import { api } from "@convex/_generated/api";
 import type { Metadata } from "next";
 import nextDynamic from "next/dynamic";
-import { TourJsonLd } from "@/components/TourJsonLd";
-import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { TourJsonLd } from "@/components/seo/TourJsonLd";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
 import { buildMetadata } from "@/lib/seo";
-import { getWhatsAppClickUrl } from "@/lib/whatsapp-server";
+import { getWhatsAppClickUrl } from "@/lib/server/whatsapp-server";
 import type { Id } from "@convex/_generated/dataModel";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -25,12 +25,12 @@ import { TourDetailTabs } from "@/components/tours/TourDetailTabs";
 import { TourReviews } from "@/components/tours/TourReviews";
 import { TourItineraryAccordion } from "@/components/tours/TourItineraryAccordion";
 import { TourHeroGallery } from "@/components/tours/TourHeroGallery";
-import { decodeSlugParam, loadTourBySlug } from "@/lib/tours-server";
-import { getConvexServer } from "@/lib/convex-server";
-import { getServerCurrency } from "@/lib/currency-server";
-import { formatTourPrice, getPerHeadOptions, tourHasPrice } from "@/lib/tourPricing";
+import { decodeSlugParam, loadTourBySlug } from "@/lib/server/tours-server";
+import { getConvexServer } from "@/lib/server/convex-server";
+import { getServerCurrency } from "@/lib/server/currency-server";
+import { formatTourPrice, getPerHeadOptions, tourHasPrice } from "@/lib/tours/tourPricing";
 import { TourViewEvent } from "@/components/analytics/TourViewEvent";
-import { getTourDisplayRating } from "@/lib/tourRating";
+import { getTourDisplayRating } from "@/lib/tours/tourRating";
 import { TourLivePrice, type TourPriceFields } from "@/components/tours/TourLivePrice";
 
 function lazyBlock(label: string, minH: string) {
@@ -49,7 +49,7 @@ function lazyBlock(label: string, minH: string) {
 
 const TourStickyBooking = nextDynamic(
   () =>
-    import("@/components/TourStickyBooking").then((m) => ({
+    import("@/components/tours/TourStickyBooking").then((m) => ({
       default: m.TourStickyBooking,
     })),
   { loading: lazyBlock("Loading booking…", "min-h-[200px]"), ssr: false },
@@ -532,7 +532,11 @@ export default async function TourDetailPage({ params }: Props) {
         <TourReviews tourId={tour._id} />
 
         {/* Related */}
-        <TourDetailRelatedCarousel tours={relatedCards} currentSlug={tour.slug} />
+        <TourDetailRelatedCarousel
+          tours={relatedCards}
+          currentSlug={tour.slug}
+          initialCurrency={currency}
+        />
         {/* The carousel is client-only; this puts the same links in the raw HTML
             for crawlers that don't run JavaScript. */}
         <noscript>

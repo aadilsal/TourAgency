@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/lib/session";
-import { DashboardLayoutClient } from "@/components/DashboardLayoutClient";
+import { DashboardLayoutClient } from "@/components/dashboard/DashboardLayoutClient";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {

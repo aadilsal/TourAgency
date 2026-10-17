@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getCountryByCode, isValidCountryCode } from "@/lib/countries";
+import { getCountryByCode, isValidCountryCode } from "@/lib/data/countries";
 
 export type VisaSex = "male" | "female" | "other";
 

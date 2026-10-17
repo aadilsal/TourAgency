@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getConvexServer } from "@/lib/convex-server";
+import { getConvexServer } from "@/lib/server/convex-server";
 import { api } from "@convex/_generated/api";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 

@@ -25,12 +25,13 @@ import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
 import { MotionSection } from "@/components/ui/MotionSection";
 import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
-import { blogCoverImage } from "@/lib/blog-covers";
+import { blogCoverImage } from "@/lib/data/blog-covers";
 import { SceneCut } from "@/components/ui/SceneCut";
 import { ProvinceJourney } from "./ProvinceJourney";
+import type { CurrencyCode } from "@/lib/money";
 import { NewsletterSection } from "@/components/landing/havezic/NewsletterSection";
 import { VisaInvitationSection } from "@/components/visa/VisaInvitationSection";
-import { getHomepageDestinations } from "@/lib/destinations-data";
+import { getHomepageDestinations } from "@/lib/data/destinations-data";
 
 type BlogPostInput = {
   slug: string;
@@ -43,6 +44,7 @@ type Props = {
   tours: FeaturedTour[];
   blogPosts: BlogPostInput[];
   whatsappUrl: string | null;
+  initialCurrency?: CurrencyCode;
 };
 
 const DESTINATIONS: { name: string; slug: string; blurb: string; image: string }[] =
@@ -80,7 +82,12 @@ const FALLBACK_GUIDES: GuideItem[] = [
   },
 ];
 
-export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
+export function HomeLandingBelowFold({
+  tours,
+  blogPosts,
+  whatsappUrl,
+  initialCurrency,
+}: Props) {
   const fromCms: GuideItem[] = blogPosts.map((p) => ({
     href: `/blog/${p.slug}`,
     title: p.title,
@@ -114,7 +121,7 @@ export function HomeLandingBelowFold({ tours, blogPosts, whatsappUrl }: Props) {
 
       <SceneCut />
       <TourTypesCarousel />
-      <FeaturedToursCarousel tours={tours} />
+      <FeaturedToursCarousel tours={tours} initialCurrency={initialCurrency} />
 
       <SceneCut />
       <MotionSection className="py-10 md:py-14">

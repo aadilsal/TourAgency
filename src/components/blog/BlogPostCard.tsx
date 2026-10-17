@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
-import { blogCoverImage } from "@/lib/blog-covers";
+import { blogCoverImage } from "@/lib/data/blog-covers";
 
 export type BlogPostCardData = {
   slug: string;

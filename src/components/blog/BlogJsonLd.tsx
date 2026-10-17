@@ -1,6 +1,6 @@
 import { getSiteUrl } from "@/lib/site";
 import { BUSINESS } from "@/config/business";
-import { JsonLdScript } from "@/components/JsonLdScript";
+import { JsonLdScript } from "@/components/seo/JsonLdScript";
 
 type Props = {
   title: string;

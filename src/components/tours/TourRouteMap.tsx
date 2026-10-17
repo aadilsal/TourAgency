@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { deriveTourRoute, type CityPoint } from "@/lib/pakistan-cities";
+import { deriveTourRoute, type CityPoint } from "@/lib/data/pakistan-cities";
 import {
   PAKISTAN_MAP_WIDTH,
   PAKISTAN_MAP_HEIGHT,

@@ -1,9 +1,9 @@
 import { PageContainer } from "@/components/ui/PageContainer";
-import { getConvexServer } from "@/lib/convex-server";
+import { getConvexServer } from "@/lib/server/convex-server";
 import { api } from "@convex/_generated/api";
 import { AboutPageClient } from "@/components/about/AboutPageClient";
 import { FaqSection } from "@/components/about/FaqSection";
-import { FaqJsonLd } from "@/components/FaqJsonLd";
+import { FaqJsonLd } from "@/components/seo/FaqJsonLd";
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 

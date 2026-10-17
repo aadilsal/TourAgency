@@ -2,13 +2,17 @@
 
 import { EmblaRow } from "@/components/ui/EmblaRow";
 import { TourCard, type TourCardData } from "@/components/shared/TourCard";
+import { useCurrency } from "@/hooks/useCurrency";
+import type { CurrencyCode } from "@/lib/money";
 
 type Props = {
   tours: TourCardData[];
   currentSlug: string;
+  initialCurrency?: CurrencyCode;
 };
 
-export function TourDetailRelatedCarousel({ tours, currentSlug }: Props) {
+export function TourDetailRelatedCarousel({ tours, currentSlug, initialCurrency }: Props) {
+  const currency = useCurrency(initialCurrency);
   const list = tours.filter((t) => t.slug !== currentSlug).slice(0, 8);
   if (list.length === 0) return null;
 
@@ -29,6 +33,7 @@ export function TourDetailRelatedCarousel({ tours, currentSlug }: Props) {
           <TourCard
             key={t.slug}
             tour={t}
+            currency={currency}
             badge={
               i % 3 === 0
                 ? "Popular"

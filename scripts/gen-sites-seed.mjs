@@ -1,5 +1,5 @@
 import { writeFileSync } from "fs";
-import { SITES_BY_PROVINCE } from "../src/lib/sites-data.ts";
+import { SITES_BY_PROVINCE } from "../src/lib/data/sites-data.ts";
 
 const rows = [];
 for (const [provinceSlug, sites] of Object.entries(SITES_BY_PROVINCE)) {
@@ -24,6 +24,6 @@ for (const [provinceSlug, sites] of Object.entries(SITES_BY_PROVINCE)) {
 
 writeFileSync(
   "convex/lib/sitesSeed.ts",
-  `/** Auto-generated from src/lib/sites-data.ts — run: npx tsx scripts/gen-sites-seed.mjs */\nexport const SITES_SEED_ROWS = ${JSON.stringify(rows, null, 2)} as const;\n`,
+  `/** Auto-generated from src/lib/data/sites-data.ts — run: npx tsx scripts/gen-sites-seed.mjs */\nexport const SITES_SEED_ROWS = ${JSON.stringify(rows, null, 2)} as const;\n`,
 );
 console.log(`Wrote ${rows.length} site seed rows`);

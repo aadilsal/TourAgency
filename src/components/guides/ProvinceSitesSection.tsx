@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { SiteGuideCard } from "./SiteGuideCard";
-import type { ProvinceSiteRow } from "@/lib/provinces-server";
-import type { SiteType } from "@/lib/sites-data";
+import type { ProvinceSiteRow } from "@/lib/server/provinces-server";
+import type { SiteType } from "@/lib/data/sites-data";
 import { cn } from "@/lib/cn";
 
 const TABS: Array<{ id: "all" | SiteType; label: string }> = [

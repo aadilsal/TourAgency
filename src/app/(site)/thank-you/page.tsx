@@ -18,7 +18,7 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink, buttonClass } from "@/components/ui/Button";
 import { LeadConversionEvent } from "@/components/analytics/LeadConversionEvent";
-import { getWhatsAppClickUrl } from "@/lib/whatsapp-server";
+import { getWhatsAppClickUrl } from "@/lib/server/whatsapp-server";
 import { cn } from "@/lib/cn";
 
 export const metadata: Metadata = {

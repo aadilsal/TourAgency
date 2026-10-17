@@ -3,7 +3,7 @@
 import { useCallback } from "react";
 import { useConvex } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { openWhatsAppChat } from "@/lib/tourCustomisationWhatsApp";
+import { openWhatsAppChat } from "@/lib/tours/tourCustomisationWhatsApp";
 
 export function useOpenTourCustomisationWhatsApp() {
   const convex = useConvex();

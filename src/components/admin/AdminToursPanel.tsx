@@ -16,7 +16,7 @@ import { TourPdfImportButton } from "@/components/admin/TourPdfImportButton";
 import { adminErrorMessage } from "@/components/admin/tour-form/errors";
 import { asBoolean, asJson, asNumber, asString, asStringArray } from "@/lib/bulkUpload/coerce";
 import { importInBatches } from "@/lib/bulkUpload/importInBatches";
-import { TOUR_PDF_DRAFT_STORAGE_KEY } from "@/lib/tour-draft";
+import { TOUR_PDF_DRAFT_STORAGE_KEY } from "@/lib/tours/tour-draft";
 
 const PAGE_SIZE = 50;
 

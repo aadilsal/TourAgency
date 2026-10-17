@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useMemo, useTransition } from "react";
 import { Mail, Lock, User, Phone } from "lucide-react";
-import { AuthSplitShell } from "@/components/AuthSplitShell";
+import { AuthSplitShell } from "@/components/auth/AuthSplitShell";
 import { Button } from "@/components/ui/Button";
 import {
   FieldLabel,

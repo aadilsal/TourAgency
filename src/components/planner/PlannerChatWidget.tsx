@@ -15,7 +15,7 @@ import { useBodyScrollLock } from "@/components/ui/useBodyScrollLock";
 import { useFocusTrap } from "@/components/ui/useFocusTrap";
 
 const AiPlannerChat = dynamic(
-  () => import("@/components/AiPlannerChat").then((m) => m.AiPlannerChat),
+  () => import("@/components/planner/AiPlannerChat").then((m) => m.AiPlannerChat),
   {
     ssr: false,
     loading: () => (

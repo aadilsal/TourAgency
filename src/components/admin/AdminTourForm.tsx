@@ -18,8 +18,8 @@ import {
   SaveStatusPill,
 } from "@/components/admin/shared/EditorStatus";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
-import { TOUR_PDF_DRAFT_STORAGE_KEY } from "@/lib/tour-draft";
-import type { TourPdfImportDraft } from "@/lib/tourPdf/types";
+import { TOUR_PDF_DRAFT_STORAGE_KEY } from "@/lib/tours/tour-draft";
+import type { TourPdfImportDraft } from "@/lib/tours/pdf/types";
 import { BasicsSection } from "@/components/admin/tour-form/BasicsSection";
 import { PricingSection } from "@/components/admin/tour-form/PricingSection";
 import { DetailsSection } from "@/components/admin/tour-form/DetailsSection";

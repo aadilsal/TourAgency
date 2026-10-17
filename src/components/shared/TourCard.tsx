@@ -9,7 +9,7 @@ import {
   getPerHeadOptions,
   tourHasPrice,
   type PerHeadPrice,
-} from "@/lib/tourPricing";
+} from "@/lib/tours/tourPricing";
 
 export type TourCardData = {
   slug: string;

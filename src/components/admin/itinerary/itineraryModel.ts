@@ -14,7 +14,7 @@ import {
   tiersToPackagesForPdf,
   type PackageStay,
   type PackageTier,
-} from "@/lib/itineraryPackageMatrix";
+} from "@/lib/tours/itineraryPackageMatrix";
 
 export type Theme = "luxury" | "minimal" | "adventure";
 export type ActivityIcon = "flight" | "hotel" | "food" | "sightseeing";

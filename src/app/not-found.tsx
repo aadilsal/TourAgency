@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Compass, FileText, Home, MessageCircle, Search, Sparkles } from "lucide-react";
-import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
+import { SiteHeader } from "@/components/layout/SiteHeader";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { ButtonLink, buttonClass } from "@/components/ui/Button";
-import { getWhatsAppClickUrl } from "@/lib/whatsapp-server";
-import { getConvexServer } from "@/lib/convex-server";
+import { getWhatsAppClickUrl } from "@/lib/server/whatsapp-server";
+import { getConvexServer } from "@/lib/server/convex-server";
 import { api } from "@convex/_generated/api";
 import { BUSINESS, formatBusinessAddress } from "@/config/business";
 import { cn } from "@/lib/cn";

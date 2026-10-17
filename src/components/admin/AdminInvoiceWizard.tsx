@@ -32,7 +32,7 @@ import { toAbsoluteUrl } from "@/lib/absoluteUrl";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
 import { InvoicePdf, type InvoicePdfModel } from "@/documents/invoice/InvoicePdf";
-import type { PackageTier } from "@/lib/itineraryPackageMatrix";
+import type { PackageTier } from "@/lib/tours/itineraryPackageMatrix";
 import { normalizePackageTier } from "@/components/admin/itinerary/itineraryModel";
 
 type Currency = "PKR" | "USD";

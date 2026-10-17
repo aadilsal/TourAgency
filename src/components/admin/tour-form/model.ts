@@ -1,7 +1,7 @@
 import type { Doc, Id } from "@convex/_generated/dataModel";
 import { normalizeTourSlug } from "@convex/lib/tourSlug";
-import { parseTourType } from "@/lib/tour-filters";
-import type { TourPdfImportDraft } from "@/lib/tourPdf/types";
+import { parseTourType } from "@/lib/tours/tour-filters";
+import type { TourPdfImportDraft } from "@/lib/tours/pdf/types";
 
 /**
  * Pure state model for the admin tour editor. Everything that decides WHAT gets

@@ -2,13 +2,13 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 import { MapPin, ArrowRight } from "lucide-react";
-import { loadDestinationIndexRows } from "@/lib/destinations-server";
+import { loadDestinationIndexRows } from "@/lib/server/destinations-server";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
 import Image from "next/image";
-import { getServerCurrency } from "@/lib/currency-server";
-import { formatTourPriceSummary } from "@/lib/tourPricing";
+import { getServerCurrency } from "@/lib/server/currency-server";
+import { formatTourPriceSummary } from "@/lib/tours/tourPricing";
 
 export const revalidate = 0;
 

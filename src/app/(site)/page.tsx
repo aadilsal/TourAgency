@@ -1,7 +1,8 @@
-import { getConvexServer } from "@/lib/convex-server";
+import { getConvexServer } from "@/lib/server/convex-server";
 import { api } from "@convex/_generated/api";
-import { getWhatsAppClickUrl } from "@/lib/whatsapp-server";
-import { blogCoverImage } from "@/lib/blog-covers";
+import { getWhatsAppClickUrl } from "@/lib/server/whatsapp-server";
+import { getServerCurrency } from "@/lib/server/currency-server";
+import { blogCoverImage } from "@/lib/data/blog-covers";
 import { HomeLandingBelowFold } from "@/components/landing/HomeLandingBelowFold";
 import { HomeHero } from "@/components/landing/havezic/HomeHero";
 import type { FeaturedTour } from "@/components/landing/FeaturedToursCarousel";
@@ -80,7 +81,14 @@ async function HomePageDeferred() {
     blogPosts = [];
   }
 
-  return <HomeLandingBelowFold tours={tours} blogPosts={blogPosts} whatsappUrl={whatsappUrl} />;
+  return (
+    <HomeLandingBelowFold
+      tours={tours}
+      blogPosts={blogPosts}
+      whatsappUrl={whatsappUrl}
+      initialCurrency={getServerCurrency()}
+    />
+  );
 }
 
 export default async function HomePage() {

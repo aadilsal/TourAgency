@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { getConvexServer } from "./convex-server";
+import { getConvexServer } from "./server/convex-server";
 import { api } from "@convex/_generated/api";
 
 export type ServerSession = NonNullable<

@@ -8,7 +8,7 @@ import { FormCardSkeleton } from "@/components/skeletons/PageSkeletons";
 
 const AiPlannerPageClient = dynamic(
   () =>
-    import("@/components/AiPlannerPageClient").then((m) => ({
+    import("@/components/planner/AiPlannerPageClient").then((m) => ({
       default: m.AiPlannerPageClient,
     })),
   {

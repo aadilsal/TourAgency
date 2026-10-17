@@ -4,16 +4,16 @@ import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
-import { AppProviders } from "@/components/AppProviders";
+import { AppProviders } from "@/components/providers/AppProviders";
 import { getSiteUrl } from "@/lib/site";
 import { DEFAULT_OG_IMAGE, SITE_NAME } from "@/lib/seo";
 import { BUSINESS } from "@/config/business";
-import { OrganizationJsonLd } from "@/components/OrganizationJsonLd";
+import { OrganizationJsonLd } from "@/components/seo/OrganizationJsonLd";
 import { WebVitalsReporter } from "@/components/analytics/WebVitalsReporter";
 import { AnalyticsScripts } from "@/components/analytics/AnalyticsScripts";
 import { AttributionCapture } from "@/components/analytics/AttributionCapture";
 import { ContactClickTracker } from "@/components/analytics/ContactClickTracker";
-import { CookieConsentBanner } from "@/components/CookieConsentBanner";
+import { CookieConsentBanner } from "@/components/layout/CookieConsentBanner";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { COUNTRIES } from "@/lib/countries";
+import { COUNTRIES } from "@/lib/data/countries";
 import {
   FieldLabel,
   FieldError,

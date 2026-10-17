@@ -8,7 +8,7 @@ import {
   getPerHeadOptions,
   tourHasPrice,
   type PerHeadPrice,
-} from "@/lib/tourPricing";
+} from "@/lib/tours/tourPricing";
 
 export type TourPriceFields = {
   price?: number;

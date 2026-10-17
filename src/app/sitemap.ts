@@ -1,10 +1,10 @@
 import type { MetadataRoute } from "next";
-import { getConvexServer } from "@/lib/convex-server";
+import { getConvexServer } from "@/lib/server/convex-server";
 import { api } from "@convex/_generated/api";
 import { getSiteUrl } from "@/lib/site";
 import { landingPages, landingPath } from "@/config/programmatic-seo";
-import { DESTINATION_SLUGS } from "@/lib/destinations-data";
-import { loadProvinceSlugs } from "@/lib/provinces-server";
+import { DESTINATION_SLUGS } from "@/lib/data/destinations-data";
+import { loadProvinceSlugs } from "@/lib/server/provinces-server";
 
 export const dynamic = "force-dynamic";
 

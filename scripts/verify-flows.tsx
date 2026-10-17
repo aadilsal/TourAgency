@@ -27,7 +27,7 @@ import { api } from "../convex/_generated/api.js";
 import type { Id } from "../convex/_generated/dataModel.js";
 import { ItineraryPdf, type ItineraryPdfModel } from "../src/documents/itinerary/ItineraryPdf";
 import { InvoicePdf, type InvoicePdfModel } from "../src/documents/invoice/InvoicePdf";
-import { alignHotelsToRows, tiersToPackagesForPdf } from "../src/lib/itineraryPackageMatrix";
+import { alignHotelsToRows, tiersToPackagesForPdf } from "../src/lib/tours/itineraryPackageMatrix";
 
 // ── setup ────────────────────────────────────────────────────────────────────
 

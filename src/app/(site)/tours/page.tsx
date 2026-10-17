@@ -2,11 +2,11 @@ import Link from "next/link";
 import { api } from "@convex/_generated/api";
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
-import { getConvexServer } from "@/lib/convex-server";
-import { getServerCurrency } from "@/lib/currency-server";
+import { getConvexServer } from "@/lib/server/convex-server";
+import { getServerCurrency } from "@/lib/server/currency-server";
 import { getSiteUrl } from "@/lib/site";
-import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
-import { JsonLdScript } from "@/components/JsonLdScript";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
+import { JsonLdScript } from "@/components/seo/JsonLdScript";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { ToursExploreClient } from "@/components/tours/ToursExploreClient";
 

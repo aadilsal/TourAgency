@@ -3,7 +3,7 @@ import { TourCardCompact } from "@/components/shared/TourCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import type { CurrencyCode } from "@/lib/money";
-import type { PerHeadPrice } from "@/lib/tourPricing";
+import type { PerHeadPrice } from "@/lib/tours/tourPricing";
 
 type Tour = {
   slug: string;

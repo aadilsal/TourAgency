@@ -4,6 +4,8 @@ import { EmblaRow } from "@/components/ui/EmblaRow";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { TourCard } from "@/components/shared/TourCard";
+import { useCurrency } from "@/hooks/useCurrency";
+import type { CurrencyCode } from "@/lib/money";
 
 export type FeaturedTour = {
   _id: string;
@@ -17,9 +19,10 @@ export type FeaturedTour = {
   images: string[];
 };
 
-type Props = { tours: FeaturedTour[] };
+type Props = { tours: FeaturedTour[]; initialCurrency?: CurrencyCode };
 
-export function FeaturedToursCarousel({ tours }: Props) {
+export function FeaturedToursCarousel({ tours, initialCurrency }: Props) {
+  const currency = useCurrency(initialCurrency);
   if (tours.length === 0) return null;
 
   return (
@@ -36,6 +39,7 @@ export function FeaturedToursCarousel({ tours }: Props) {
               <TourCard
                 key={t._id}
                 tour={t}
+                currency={currency}
                 badge={
                   i % 3 === 0
                     ? "Most popular"

@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useCurrency } from "@/hooks/useCurrency";
 import { formatMoney } from "@/lib/money";
-import { getTourUnitPrice } from "@/lib/tourPricing";
+import { getTourUnitPricing } from "@/lib/tours/tourPricing";
 
 function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -35,11 +35,15 @@ export function TourCalendarPrices({
   priceUsd?: number;
   className?: string;
 }) {
-  const currency = useCurrency();
-  const basePrice = useMemo(
-    () => getTourUnitPrice({ price, pricePkr, priceUsd }, currency),
-    [price, pricePkr, priceUsd, currency],
+  const preferred = useCurrency();
+  // Format in the currency the price is actually in (USD fallback when a
+  // tour has no PKR price), never the bare preference.
+  const unitPricing = useMemo(
+    () => getTourUnitPricing({ price, pricePkr, priceUsd }, preferred),
+    [price, pricePkr, priceUsd, preferred],
   );
+  const basePrice = unitPricing?.amount ?? 0;
+  const currency = unitPricing?.currency ?? preferred;
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
 
   const grid = useMemo(() => {

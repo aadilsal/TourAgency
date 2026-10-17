@@ -5,8 +5,8 @@ import { useAction } from "convex/react";
 import { FileUp } from "lucide-react";
 import { api } from "@convex/_generated/api";
 import { Button } from "@/components/ui/Button";
-import { extractDocumentText } from "@/lib/tourPdf/extractDocumentText";
-import type { TourPdfImportDraft } from "@/lib/tourPdf/types";
+import { extractDocumentText } from "@/lib/tours/pdf/extractDocumentText";
+import type { TourPdfImportDraft } from "@/lib/tours/pdf/types";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 
 const LOG_PREFIX = "[TourPdfImport]";

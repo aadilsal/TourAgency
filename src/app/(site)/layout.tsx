@@ -1,9 +1,9 @@
-import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
-import { WhatsAppFloat } from "@/components/WhatsAppFloat";
-import { MobileStickyCta } from "@/components/MobileStickyCta";
-import { getWhatsAppClickUrl } from "@/lib/whatsapp-server";
-import { getConvexServer } from "@/lib/convex-server";
+import { SiteHeader } from "@/components/layout/SiteHeader";
+import { SiteFooter } from "@/components/layout/SiteFooter";
+import { WhatsAppFloat } from "@/components/layout/WhatsAppFloat";
+import { MobileStickyCta } from "@/components/layout/MobileStickyCta";
+import { getWhatsAppClickUrl } from "@/lib/server/whatsapp-server";
+import { getConvexServer } from "@/lib/server/convex-server";
 import { api } from "@convex/_generated/api";
 import { Suspense } from "react";
 

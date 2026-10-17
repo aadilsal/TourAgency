@@ -5,7 +5,7 @@ import Link from "next/link";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
-import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
 
 export const metadata: Metadata = buildMetadata({
   title: "Cancellation & Refund Policy",

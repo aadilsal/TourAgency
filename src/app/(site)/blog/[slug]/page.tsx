@@ -9,10 +9,10 @@ import { Card } from "@/components/ui/Card";
 import { BlogPostBody } from "@/components/blog/BlogPostBody";
 import { BlogPostCard } from "@/components/blog/BlogPostCard";
 import { BlogArticleJsonLd } from "@/components/blog/BlogJsonLd";
-import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
-import { blogCoverImage } from "@/lib/blog-covers";
-import { loadBlogPostBySlug } from "@/lib/blog-server";
-import { getConvexServer } from "@/lib/convex-server";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
+import { blogCoverImage } from "@/lib/data/blog-covers";
+import { loadBlogPostBySlug } from "@/lib/server/blog-server";
+import { getConvexServer } from "@/lib/server/convex-server";
 import Image from "next/image";
 
 export const revalidate = 0;

@@ -30,7 +30,7 @@ import {
 } from "@/lib/formValidation";
 import { withLeadSource } from "@/lib/attribution";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
-import { GovernmentLicenceText } from "@/components/GovernmentLicenceText";
+import { GovernmentLicenceText } from "@/components/layout/GovernmentLicenceText";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { normalizeGoogleMapsEmbedUrl } from "@/lib/googleMapsEmbed";
 

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 import { Card } from "@/components/ui/Card";
-import type { SiteType } from "@/lib/sites-data";
+import type { SiteType } from "@/lib/data/sites-data";
 
 const TYPE_LABELS: Record<SiteType, string> = {
   historical: "Historical",

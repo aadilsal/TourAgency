@@ -15,7 +15,7 @@ import {
   fieldErrorProps,
 } from "@/components/ui/FormField";
 import { shortRef, thankYouHref } from "@/lib/formValidation";
-import { GovernmentLicenceText } from "@/components/GovernmentLicenceText";
+import { GovernmentLicenceText } from "@/components/layout/GovernmentLicenceText";
 import { TravelerCard } from "@/components/visa/TravelerCard";
 import { useVisaInvitation } from "@/components/visa/VisaInvitationContext";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";

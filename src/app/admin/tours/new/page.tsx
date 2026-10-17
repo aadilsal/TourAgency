@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { AdminTourForm } from "@/components/admin/AdminTourForm";
-import { TOUR_PDF_DRAFT_STORAGE_KEY } from "@/lib/tour-draft";
-import type { TourPdfImportDraft } from "@/lib/tourPdf/types";
+import { TOUR_PDF_DRAFT_STORAGE_KEY } from "@/lib/tours/tour-draft";
+import type { TourPdfImportDraft } from "@/lib/tours/pdf/types";
 
 export default function NewTourPage() {
   const [draft, setDraft] = useState<TourPdfImportDraft | null>(null);

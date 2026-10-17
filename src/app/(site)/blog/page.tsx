@@ -1,4 +1,4 @@
-import { getConvexServer } from "@/lib/convex-server";
+import { getConvexServer } from "@/lib/server/convex-server";
 import { api } from "@convex/_generated/api";
 import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";

@@ -1,5 +1,5 @@
-import { PROVINCES } from "@/lib/provinces-data";
-import { getFeaturedSitesForProvince } from "@/lib/sites-data";
+import { PROVINCES } from "@/lib/data/provinces-data";
+import { getFeaturedSitesForProvince } from "@/lib/data/sites-data";
 
 export type ScrollyPalette = {
   from: string;

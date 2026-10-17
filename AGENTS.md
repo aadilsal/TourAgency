@@ -20,9 +20,12 @@ client data loss. CI (`.github/workflows/ci.yml`) runs `npm run typecheck`,
 
 ## Deployment
 
-- **There is ONE Convex deployment and it is production.** `npx convex dev` and
-  `npx convex deploy` publish straight to the live site. Run `npm run typecheck`
-  and `npm test` first.
+- **Dev and prod are separate Convex deployments.** `.env.local` points at the
+  dev deployment, so `npx convex dev` never touches the live site. Production
+  is changed only with `npx convex deploy --env-file .env.convex-prod.local`
+  (gitignored prod deploy key). Run `npm run typecheck` and `npm test` first.
+- **Vercel does not deploy Convex.** Its build is plain `next build`, so changes
+  under `convex/` reach the live site only through the prod deploy above.
 - **Deploy Convex before the Vercel frontend**, and keep Convex functions
   backward compatible: never remove/rename a public function, never make an
   existing arg required or change its type. Add new args/fields as optional.

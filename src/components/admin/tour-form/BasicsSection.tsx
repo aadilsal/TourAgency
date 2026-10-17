@@ -1,7 +1,7 @@
 "use client";
 
 import type { Id } from "@convex/_generated/dataModel";
-import { TOUR_TYPE_OPTIONS } from "@/lib/tour-filters";
+import { TOUR_TYPE_OPTIONS } from "@/lib/tours/tour-filters";
 import { CheckboxGroupField, TextAreaField, TextField, inputClass } from "./fields";
 import { slugify, type TourFormPatch, type TourFormValues } from "./model";
 

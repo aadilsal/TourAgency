@@ -1,4 +1,4 @@
-/** Auto-generated from src/lib/sites-data.ts — run: npx tsx scripts/gen-sites-seed.mjs */
+/** Auto-generated from src/lib/data/sites-data.ts — run: npx tsx scripts/gen-sites-seed.mjs */
 export const SITES_SEED_ROWS = [
   {
     "provinceSlug": "sindh",

@@ -3,7 +3,7 @@
 import { Button } from "@/components/ui/Button";
 import { IconAction } from "@/components/admin/shared/IconAction";
 import { FieldLabel, TextInput } from "@/components/ui/FormField";
-import type { PackageStay } from "@/lib/itineraryPackageMatrix";
+import type { PackageStay } from "@/lib/tours/itineraryPackageMatrix";
 import {
   blankPackageTier,
   type EditablePackageTier,

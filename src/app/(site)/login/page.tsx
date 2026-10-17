@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useRef, useState, useTransition } from "react";
 import { Mail, Lock } from "lucide-react";
-import { AuthSplitShell } from "@/components/AuthSplitShell";
+import { AuthSplitShell } from "@/components/auth/AuthSplitShell";
 import { Button } from "@/components/ui/Button";
 import {
   FieldLabel,

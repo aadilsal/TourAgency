@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 import Link from "next/link";
 import Image from "next/image";
-import { loadProvinceIndexRows } from "@/lib/provinces-server";
+import { loadProvinceIndexRows } from "@/lib/server/provinces-server";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Card } from "@/components/ui/Card";
-import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
 
 export const metadata: Metadata = buildMetadata({
   title: "Pakistan Travel Guides by Province",

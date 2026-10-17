@@ -2,15 +2,15 @@ import type { Metadata } from "next";
 import { buildMetadata } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { loadProvinceGuidePageData, loadProvinceSlugs } from "@/lib/provinces-server";
+import { loadProvinceGuidePageData, loadProvinceSlugs } from "@/lib/server/provinces-server";
 import { ProvinceGuideHero } from "@/components/guides/ProvinceGuideHero";
 import { ProvinceSitesSection } from "@/components/guides/ProvinceSitesSection";
 import { ProvinceToursPanel } from "@/components/guides/ProvinceToursPanel";
-import { getServerCurrency } from "@/lib/currency-server";
+import { getServerCurrency } from "@/lib/server/currency-server";
 import { ProvinceCityDestinations } from "@/components/guides/ProvinceCityDestinations";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { ButtonLink } from "@/components/ui/Button";
-import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
 import { Card } from "@/components/ui/Card";
 
 export const revalidate = 0;

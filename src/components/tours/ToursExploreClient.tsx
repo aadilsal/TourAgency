@@ -21,19 +21,19 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import type { TourTypeFilter } from "@/lib/tour-filters";
+import type { TourTypeFilter } from "@/lib/tours/tour-filters";
 import {
   parseTourType,
   TOUR_TYPE_OPTIONS,
   tourMatchesType,
-} from "@/lib/tour-filters";
+} from "@/lib/tours/tour-filters";
 import { TourCard, type TourCardData } from "@/components/shared/TourCard";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Button } from "@/components/ui/Button";
 import { MotionSection } from "@/components/ui/MotionSection";
 import { useBodyScrollLock } from "@/components/ui/useBodyScrollLock";
 import { useFocusTrap } from "@/components/ui/useFocusTrap";
-import { getProvince, tourMatchesProvince } from "@/lib/provinces-data";
+import { getProvince, tourMatchesProvince } from "@/lib/data/provinces-data";
 
 const PAGE_SIZE = 9;
 

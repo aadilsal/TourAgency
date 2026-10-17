@@ -4,7 +4,7 @@ import { buildMetadata } from "@/lib/seo";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
-import { BreadcrumbJsonLd } from "@/components/BreadcrumbJsonLd";
+import { BreadcrumbJsonLd } from "@/components/seo/BreadcrumbJsonLd";
 
 export const metadata: Metadata = buildMetadata({
   title: "Is Pakistan Safe for Tourists? (2026 Guide)",

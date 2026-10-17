@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { PROVINCES } from "@/lib/provinces-data";
+import { PROVINCES } from "@/lib/data/provinces-data";
 import { PakistanMapSvg } from "@/components/scrolly/PakistanMapSvg";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { cn } from "@/lib/cn";

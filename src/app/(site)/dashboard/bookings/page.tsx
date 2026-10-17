@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DashboardBookings } from "@/components/DashboardBookings";
+import { DashboardBookings } from "@/components/dashboard/DashboardBookings";
 
 // robots noindex is inherited from dashboard/layout.tsx
 export const metadata: Metadata = { title: "My Bookings" };
