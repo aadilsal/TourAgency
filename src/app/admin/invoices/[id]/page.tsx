@@ -1,4 +1,4 @@
-import { AdminInvoiceWizard } from "@/components/admin/AdminInvoiceWizard";
+import { AdminInvoiceWizard } from "@/components/admin/LazyDocumentEditors";
 
 export default function AdminInvoiceDetailPage({
   params,

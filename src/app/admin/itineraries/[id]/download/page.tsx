@@ -1,4 +1,4 @@
-import { AdminItineraryPdfDownload } from "@/components/admin/AdminItineraryPdfDownload";
+import { AdminItineraryPdfDownload } from "@/components/admin/LazyDocumentEditors";
 
 export default function AdminItineraryDownloadPage({
   params,

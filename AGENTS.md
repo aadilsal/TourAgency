@@ -30,6 +30,19 @@ client data loss. CI (`.github/workflows/ci.yml`) runs `npm run typecheck`,
   backward compatible: never remove/rename a public function, never make an
   existing arg required or change its type. Add new args/fields as optional.
 
+## Redirects and SEO
+
+- **Never call `redirect()` / `permanentRedirect()` from a page that sits under a
+  `loading.tsx`.** The page streams, so Next can only answer HTTP 200 +
+  `<meta refresh>` (Google sees no real redirect, and the client-side redirect
+  races the refresh — it crashed `/admin/ai-planner` with React #310). Put fixed
+  redirects in `next.config.mjs` `redirects()`, request-dependent ones (login,
+  renamed tour slugs) in `src/middleware.ts`.
+- **Client components that import `@react-pdf/renderer` must be loaded with
+  `ssr: false`** (see `src/components/admin/LazyDocumentEditors.tsx`). Next
+  loads that ESM-only package as an async external on the server, so the
+  component is `undefined` during SSR (React #419).
+
 ## Convex mutations
 
 - **Patch only what the caller sent.** In update mutations `undefined` means

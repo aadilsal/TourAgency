@@ -1,4 +1,4 @@
-import { AdminItinerarySimpleBuilder } from "@/components/admin/AdminItinerarySimpleBuilder";
+import { AdminItinerarySimpleBuilder } from "@/components/admin/LazyDocumentEditors";
 
 type Props = {
   searchParams: {

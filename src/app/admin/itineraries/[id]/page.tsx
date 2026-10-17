@@ -1,4 +1,4 @@
-import { AdminItineraryEditorGate } from "@/components/admin/AdminItineraryEditorGate";
+import { AdminItineraryEditorGate } from "@/components/admin/LazyDocumentEditors";
 
 export default function AdminItineraryDetailPage({
   params,

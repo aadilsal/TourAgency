@@ -58,6 +58,31 @@ function check(area: string, name: string, ok: boolean, detail?: string) {
   console.log(`  ${ok ? "PASS" : "FAIL"}  ${name}${!ok && detail ? ` — ${detail}` : ""}`);
 }
 
+/**
+ * Text of a rendered PDF, read with the same modern pdf.js the app ships.
+ * (pdf-parse bundled pdf.js 1.10 from 2017: it read the whole pooled
+ * ArrayBuffer behind renderToBuffer's Buffer and failed with "bad XRef entry"
+ * on valid PDFs, so the checks below this point never ran.)
+ */
+async function pdfText(buf: Buffer): Promise<string> {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const doc = await pdfjs.getDocument({
+    data: new Uint8Array(buf), // exact bytes, not the pooled ArrayBuffer
+    isEvalSupported: false,
+    verbosity: 0,
+  }).promise;
+  let text = "";
+  for (let n = 1; n <= doc.numPages; n++) {
+    const content = await (await doc.getPage(n)).getTextContent();
+    for (const item of content.items) {
+      if ("str" in item) text += item.str + (item.hasEOL ? " " : "");
+    }
+    text += " ";
+  }
+  await doc.destroy();
+  return text.replace(/\s+/g, " ");
+}
+
 /** Runs the Convex CLI directly (no shell) so JSON args survive Windows quoting. */
 function convexCli(fn: string, args: unknown): string {
   const cli = path.resolve("node_modules/convex/bin/main.js");
@@ -267,10 +292,7 @@ async function main() {
       packages: tiersToPackagesForPdf(rows, tiers),
     };
     const itinPdf = await renderToBuffer(<ItineraryPdf model={model} />);
-    const pdfParse = (await import("pdf-parse/lib/pdf-parse.js")).default as (
-      b: Buffer,
-    ) => Promise<{ text: string; numpages: number }>;
-    const itinText = (await pdfParse(itinPdf)).text.replace(/\s+/g, " ");
+    const itinText = await pdfText(itinPdf);
     check("itinerary pdf", "renders a non-trivial file", itinPdf.length > 5000, `${itinPdf.length} bytes`);
     check("itinerary pdf", "contains day 1 detail", itinText.includes("Day 1: drive, sightseeing"));
     check("itinerary pdf", "contains day 6 detail", itinText.includes("Day 6: drive, sightseeing"));
@@ -331,7 +353,7 @@ async function main() {
       payment: { method: "bank", details: "" },
     };
     const invPdf = await renderToBuffer(<InvoicePdf model={invModel} />);
-    const invText = (await pdfParse(invPdf)).text.replace(/\s+/g, " ");
+    const invText = await pdfText(invPdf);
     check("invoice pdf", "renders a non-trivial file", invPdf.length > 3000, `${invPdf.length} bytes`);
     check("invoice pdf", "contains the invoice number", invText.includes(inv?.invoiceNumber ?? "###"));
     check("invoice pdf", "contains the client name", invText.includes("__verify"));

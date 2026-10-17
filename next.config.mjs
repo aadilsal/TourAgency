@@ -77,6 +77,21 @@ const nextConfig = {
       { protocol: "http", hostname: "**" },
     ],
   },
+  // Fixed redirects live here, not in pages: a page-level redirect() under a
+  // loading.tsx boundary streams, so Next can only answer HTTP 200 + a
+  // <meta refresh> (bad for SEO, and the client-side redirect races the
+  // refresh — which crashed /admin/ai-planner with React #310). These run
+  // before rendering and send a real 3xx.
+  async redirects() {
+    return [
+      // FAQs were merged into the About page.
+      { source: "/faqs", destination: "/about#faqs", permanent: true },
+      // AI-planner requests were merged into Trip requests.
+      { source: "/admin/ai-planner", destination: "/admin/custom-itineraries", permanent: true },
+      // The dashboard has no index page of its own.
+      { source: "/dashboard", destination: "/dashboard/bookings", permanent: false },
+    ];
+  },
   async rewrites() {
     return landingSlugs.map((slug) => ({
       source: `/${slug}`,

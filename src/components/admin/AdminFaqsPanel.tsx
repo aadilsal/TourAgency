@@ -279,7 +279,7 @@ export function AdminFaqsPanel() {
           Seed sample FAQs
         </Button>
         <p className="text-xs text-slate-500">
-          Tip: use sort order to control how items appear on `/faqs`. Press Enter or click away to save it.
+          Tip: use sort order to control how items appear in the FAQ section of the About page. Press Enter or click away to save it.
         </p>
       </div>
 
@@ -473,7 +473,7 @@ export function AdminFaqsPanel() {
                 Visible on FAQs page
               </span>
               <span className="text-xs text-slate-500">
-                When on, this item is shown on `/faqs`.
+                When on, this item is shown in the FAQ section of the About page.
               </span>
             </span>
             <button
