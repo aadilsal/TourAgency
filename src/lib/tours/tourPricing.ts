@@ -56,6 +56,18 @@ function formatPair(
   return picked ? formatMoney(picked.amount, picked.currency) : null;
 }
 
+/**
+ * Whether the tour is priced in both USD and PKR (total or per-head). Only
+ * then is a USD/PKR switch meaningful — single-currency tours always show
+ * the one price they have.
+ */
+export function tourHasBothCurrencies(tour: TourWithPrices): boolean {
+  const rows = tour.perHeadPrices ?? [];
+  const hasUsd = isPositive(tour.priceUsd) || rows.some((r) => isPositive(r.priceUsd));
+  const hasPkr = isPositive(tour.pricePkr) || rows.some((r) => isPositive(r.pricePkr));
+  return hasUsd && hasPkr;
+}
+
 /** Whether a total (whole-tour) price is published. */
 export function tourHasTotalPrice(tour: TourWithPrices): boolean {
   return isPositive(tour.priceUsd) || isPositive(tour.pricePkr);

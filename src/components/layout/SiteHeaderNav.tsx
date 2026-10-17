@@ -23,8 +23,6 @@ import { useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { LogoutButton } from "../auth/LogoutButton";
 import { SiteSearch } from "./SiteSearch";
-import { CurrencySwitch } from "./CurrencySwitch";
-import type { CurrencyCode } from "@/lib/money";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/cn";
@@ -748,10 +746,8 @@ function MobileNavSheet({
 
 export function SiteHeaderNav({
   initialSession,
-  initialCurrency,
 }: {
   initialSession: SessionInfo;
-  initialCurrency: CurrencyCode;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -915,7 +911,6 @@ export function SiteHeaderNav({
           </nav>
 
           <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
-            <CurrencySwitch initialCurrency={initialCurrency} />
             <div className="hidden items-center gap-2 md:flex">
               <SiteSearch variant="icon" />
               <button

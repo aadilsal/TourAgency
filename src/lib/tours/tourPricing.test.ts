@@ -6,7 +6,30 @@ import {
   getPerHeadOptions,
   getTourUnitPrice,
   getTourUnitPricing,
+  tourHasBothCurrencies,
 } from "@/lib/tours/tourPricing";
+
+describe("USD/PKR switch only for tours priced in both currencies", () => {
+  test("single-currency tours get no switch", () => {
+    expect(tourHasBothCurrencies({ price: 0, priceUsd: 1870 })).toBe(false);
+    expect(tourHasBothCurrencies({ price: 0, pricePkr: 98000 })).toBe(false);
+    expect(tourHasBothCurrencies({ price: 50000 })).toBe(false); // legacy PKR only
+  });
+
+  test("total price in both currencies gets the switch", () => {
+    expect(tourHasBothCurrencies({ price: 0, priceUsd: 500, pricePkr: 140000 })).toBe(true);
+  });
+
+  test("per-head rates count too", () => {
+    expect(
+      tourHasBothCurrencies({
+        price: 0,
+        priceUsd: 1870,
+        perHeadPrices: [{ persons: 2, pricePkr: 250000 }],
+      }),
+    ).toBe(true);
+  });
+});
 
 // Shape of the live tours today: USD only, no PKR price.
 const usdOnly = { price: 0, priceUsd: 1870 };

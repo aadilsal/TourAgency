@@ -56,8 +56,10 @@ import {
   formatTourPrice,
   getPerHeadOptions,
   getTourUnitPricing,
+  tourHasBothCurrencies,
   tourHasPrice,
 } from "@/lib/tours/tourPricing";
+import { TourCurrencySwitch } from "@/components/tours/TourCurrencySwitch";
 
 type FieldErrors = {
   name?: string;
@@ -213,9 +215,15 @@ export function TourStickyBooking({
     <>
       <Card className="overflow-hidden p-6 ring-1 ring-border">
         <div id="book" className="scroll-mt-28">
-          <h2 className="text-lg font-bold text-foreground">
-            {bookable ? "Book this tour" : "Customise your tour"}
-          </h2>
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-lg font-bold text-foreground">
+              {bookable ? "Book this tour" : "Customise your tour"}
+            </h2>
+            {/* Only tours priced in both currencies offer a choice. */}
+            {tourHasBothCurrencies(prices) ? (
+              <TourCurrencySwitch initialCurrency={currency} className="shrink-0" />
+            ) : null}
+          </div>
           <p className="mt-1 text-sm text-muted">
             {durationDays} days · {location}
           </p>
