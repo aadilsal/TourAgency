@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(npx convex *)",
+      "Bash(node -e 'let s=\"\";process.stdin.on\\(\"data\",d=>s+=d\\).on\\(\"end\",\\(\\)=>{let n=0;for\\(const l of s.split\\(\"\\\\n\"\\)\\){try{const o=JSON.parse\\(l\\);n++;console.log\\(o.slug,\"| sort\",o.sortOrder,\"| hero:\",\\(o.heroExternalUrl||o.heroStorageId||\"-\"\\).slice\\(0,32\\)\\)}catch{}}console.log\\(\"TOTAL\",n\\)}\\)')",
+      "Bash(node -e 'let s=\"\";process.stdin.on\\(\"data\",d=>s+=d\\).on\\(\"end\",\\(\\)=>{let n=0;for\\(const l of s.split\\(\"\\\\n\"\\)\\){try{JSON.parse\\(l\\);n++}catch{}}console.log\\(\"TOURS\",n\\)}\\)')",
+      "Bash(git push *)",
+      "Bash(npx --no-install vercel ls)",
+      "Bash(npx --no-install vercel inspect https://touragency-hwpc8cg3r-aadilsals-projects.vercel.app --wait --timeout 8m)"
+    ]
+  }
+}
