@@ -20,11 +20,14 @@ import {
   X as XIcon,
   MapPin,
   Utensils,
+  Info,
 } from "lucide-react";
 import { TourDetailTabs } from "@/components/tours/TourDetailTabs";
 import { TourReviews } from "@/components/tours/TourReviews";
 import { TourItineraryAccordion } from "@/components/tours/TourItineraryAccordion";
 import { TourHeroGallery } from "@/components/tours/TourHeroGallery";
+import { KnowBeforeYouGoContent } from "@/components/tours/KnowBeforeYouGo";
+import { parseKnowBeforeYouGo } from "@/lib/tours/knowBeforeYouGo";
 import { decodeSlugParam, loadTourBySlug } from "@/lib/server/tours-server";
 import { getConvexServer } from "@/lib/server/convex-server";
 import { getServerCurrency } from "@/lib/server/currency-server";
@@ -78,6 +81,7 @@ type TourDetail = {
   title: string;
   slug: string;
   description: string;
+  knowBeforeYouGo?: string;
   price: number;
   pricePkr?: number;
   priceUsd?: number;
@@ -205,12 +209,16 @@ export default async function TourDetailPage({ params }: Props) {
     tour.included && tour.included.length > 0 ? tour.included : [];
   const excluded =
     tour.excluded && tour.excluded.length > 0 ? tour.excluded : [];
+  const knowBeforeYouGo = parseKnowBeforeYouGo(tour.knowBeforeYouGo);
   const tripCode = tour.slug.replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase();
 
   const tabs = [
     { id: "overview", label: "About the trip" },
     { id: "tour-plan", label: "Itinerary" },
     { id: "inclusions", label: "Inclusions" },
+    ...(knowBeforeYouGo.length > 0
+      ? [{ id: "know-before-you-go", label: "Know before you go" }]
+      : []),
     { id: "reviews", label: "Reviews" },
   ];
 
@@ -481,6 +489,22 @@ export default async function TourDetailPage({ params }: Props) {
             </div>
           </div>
         </section>
+
+        {/* Know before you go */}
+        {knowBeforeYouGo.length > 0 ? (
+          <section id="know-before-you-go" className="mt-12 scroll-mt-32 md:mt-16">
+            <h2 className="text-2xl font-bold text-foreground md:text-3xl">Know before you go</h2>
+            <div className="mt-6 flex gap-4 rounded-3xl border border-border bg-panel p-6 md:gap-5 md:p-8">
+              <Info
+                className="mt-0.5 hidden h-6 w-6 shrink-0 text-havezic-primary sm:block"
+                aria-hidden
+              />
+              <div className="min-w-0 max-w-3xl flex-1">
+                <KnowBeforeYouGoContent blocks={knowBeforeYouGo} />
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {/* Dates and prices / booking */}
         <section id="book" className="mt-12 scroll-mt-32 md:mt-16">

@@ -29,6 +29,7 @@ export type ItineraryDay = Doc<"tours">["itinerary"][number];
 export type TourFormValues = {
   title: string;
   slug: string;
+  knowBeforeYouGo: string;
   description: string;
   /** Kept as raw strings so unknown/legacy type values survive a save. */
   types: string[];
@@ -95,6 +96,7 @@ export function emptyTourForm(): TourFormValues {
   return {
     title: "",
     slug: "",
+    knowBeforeYouGo: "",
     description: "",
     types: [],
     destinationIds: [],
@@ -129,6 +131,7 @@ export function tourDocToForm(t: Doc<"tours">): TourFormValues {
   return {
     title: t.title,
     slug: t.slug,
+    knowBeforeYouGo: t.knowBeforeYouGo ?? "",
     description: t.description,
     types: Array.isArray(t.types) ? [...t.types] : [],
     destinationIds: [
@@ -242,6 +245,7 @@ export function toServerFields(values: TourFormValues) {
   return {
     title: values.title.trim(),
     slug: slugify(values.slug || values.title),
+    knowBeforeYouGo: textOrNull(values.knowBeforeYouGo),
     description: values.description,
     types: values.types,
     destinationIds,
@@ -308,6 +312,7 @@ export function buildCreateArgs(values: TourFormValues) {
   const orUndef = <T,>(v: T | null) => (v === null ? undefined : v);
   return {
     ...f,
+    knowBeforeYouGo: orUndef(f.knowBeforeYouGo),
     destinationId: orUndef(f.destinationId),
     pricePkr: orUndef(f.pricePkr),
     priceUsd: orUndef(f.priceUsd),
@@ -336,6 +341,7 @@ export function withoutPendingImages(values: TourFormValues): TourFormValues {
 const FIELD_LABELS: Record<keyof TourFormValues, string> = {
   title: "Title",
   slug: "Slug",
+  knowBeforeYouGo: "Know before you go",
   description: "Description",
   types: "Tour types",
   destinationIds: "Destinations",

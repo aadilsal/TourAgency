@@ -204,3 +204,37 @@ test("syncDefaultCatalog only inserts missing defaults", async () => {
   const all = await t.run((ctx) => ctx.db.query("destinations").collect());
   expect(all.length).toBeGreaterThan(1);
 });
+
+test("addMissingDefaultDestinations adds the heritage circuit without touching existing rows", async () => {
+  const t = newTest();
+  const destinationId = await insertDestination(t, {
+    slug: "multan",
+    name: "Multan",
+    description: "Admin-written description.",
+  });
+  const first = await t.mutation(internal.destinations.addMissingDefaultDestinations, {});
+  const d = await t.run((ctx) => ctx.db.get(destinationId));
+  expect(d!.description).toBe("Admin-written description.");
+  const slugs = (await t.run((ctx) => ctx.db.query("destinations").collect())).map((x) => x.slug);
+  for (const slug of [
+    "taxila",
+    "islamabad",
+    "takht-i-bahi",
+    "chitral",
+    "kalash",
+    "harappa",
+    "uch-sharif",
+    "bahawalpur",
+    "sukkur",
+    "sehwan",
+    "hyderabad",
+    "karachi",
+  ]) {
+    expect(slugs).toContain(slug);
+  }
+  expect(slugs.filter((s) => s === "multan")).toHaveLength(1);
+  // Running it again is a no-op.
+  const again = await t.mutation(internal.destinations.addMissingDefaultDestinations, {});
+  expect(first.created).toBeGreaterThan(0);
+  expect(again.created).toBe(0);
+});

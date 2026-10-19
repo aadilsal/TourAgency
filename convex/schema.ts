@@ -99,6 +99,12 @@ export default defineSchema({
     title: v.string(),
     slug: v.string(),
     description: v.string(),
+    /**
+     * "Know before you go" notes (fitness, documents, weather, dress code…).
+     * Free text; `- ` lines are bullets, `1. ` numbered, `…:` headings
+     * (see src/lib/tours/knowBeforeYouGo.ts).
+     */
+    knowBeforeYouGo: v.optional(v.string()),
     /** Business-defined tour categories used by homepage/type filtering. */
     types: v.optional(v.array(v.string())),
     /** Optional explicit destination assignments for admin-managed grouping. */

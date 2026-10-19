@@ -2,6 +2,8 @@
 
 import type { Id } from "@convex/_generated/dataModel";
 import { TOUR_TYPE_OPTIONS } from "@/lib/tours/tour-filters";
+import { parseKnowBeforeYouGo } from "@/lib/tours/knowBeforeYouGo";
+import { KnowBeforeYouGoContent } from "@/components/tours/KnowBeforeYouGo";
 import { CheckboxGroupField, TextAreaField, TextField, inputClass } from "./fields";
 import { slugify, type TourFormPatch, type TourFormValues } from "./model";
 
@@ -18,6 +20,7 @@ export function BasicsSection({
   destinations: ReadonlyArray<Option<Id<"destinations">>> | undefined;
   provinces: ReadonlyArray<Option<Id<"provinces">>> | undefined;
 }) {
+  const knowBeforeYouGoBlocks = parseKnowBeforeYouGo(values.knowBeforeYouGo);
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -32,6 +35,30 @@ export function BasicsSection({
       <p className="-mt-1 break-all text-xs text-slate-500">
         Page URL: /tours/{slugify(values.slug || values.title) || "…"}
       </p>
+      <div>
+        <TextAreaField
+          label="Know before you go"
+          rows={6}
+          placeholder={
+            "Documents:\n- Carry your original CNIC or passport for checkpoints\n- Foreign guests need a valid Pakistan visa\n\nFitness:\n- Moderate fitness needed for short hikes\n\nDress modestly at shrines and mosques."
+          }
+          value={values.knowBeforeYouGo}
+          onChange={(knowBeforeYouGo) => onChange({ knowBeforeYouGo })}
+        />
+        <p className="mt-1 text-xs text-slate-500">
+          Start a line with <code>-</code> for a bullet point or <code>1.</code> for a numbered
+          point. End a line with <code>:</code> to make it a heading. Other lines show as
+          paragraphs. Leave empty to hide the section.
+        </p>
+        {knowBeforeYouGoBlocks.length > 0 ? (
+          <div className="mt-2 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-3">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+              Preview
+            </p>
+            <KnowBeforeYouGoContent blocks={knowBeforeYouGoBlocks} compact />
+          </div>
+        ) : null}
+      </div>
       <TextAreaField
         label="Description"
         required

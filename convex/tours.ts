@@ -347,6 +347,7 @@ export const createTour = mutation({
     title: v.string(),
     slug: v.string(),
     description: v.string(),
+    knowBeforeYouGo: v.optional(v.string()),
     types: v.optional(v.array(v.string())),
     destinationIds: v.optional(v.array(v.id("destinations"))),
     destinationId: v.optional(v.id("destinations")),
@@ -432,6 +433,8 @@ export const updateTour = mutation({
     title: v.optional(v.string()),
     slug: v.optional(v.string()),
     description: v.optional(v.string()),
+    /** `null` clears the notes. */
+    knowBeforeYouGo: v.optional(v.union(v.string(), v.null())),
     types: v.optional(v.array(v.string())),
     destinationIds: v.optional(v.array(v.id("destinations"))),
     /** `null` clears the legacy single destination. */

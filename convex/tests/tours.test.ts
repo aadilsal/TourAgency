@@ -303,3 +303,18 @@ test("admin tour list is newest first and paginated", async () => {
   expect(first.page.map((r) => r.slug)).toEqual(["tour-4", "tour-3"]);
   expect(first.isDone).toBe(false);
 });
+
+test("know-before-you-go notes survive unrelated saves and clear with null", async () => {
+  const t = newTest();
+  const sessionToken = await signIn(t);
+  const tourId = await createTour(t, sessionToken, {
+    knowBeforeYouGo: "Carry your passport\nModerate fitness needed",
+  });
+  // A save from a screen that doesn't send the field must leave it alone.
+  await t.mutation(api.tours.updateTour, { sessionToken, tourId, title: "Renamed" });
+  expect((await t.run((ctx) => ctx.db.get(tourId)))!.knowBeforeYouGo).toBe(
+    "Carry your passport\nModerate fitness needed",
+  );
+  await t.mutation(api.tours.updateTour, { sessionToken, tourId, knowBeforeYouGo: null });
+  expect((await t.run((ctx) => ctx.db.get(tourId)))!.knowBeforeYouGo).toBeUndefined();
+});
