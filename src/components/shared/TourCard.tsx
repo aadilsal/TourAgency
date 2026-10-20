@@ -10,6 +10,23 @@ import {
   tourHasPrice,
   type PerHeadPrice,
 } from "@/lib/tours/tourPricing";
+import { tourAudienceBadge } from "@/lib/tours/tourAudience";
+
+/** "International tour" / "Pakistani tour" pill on the card photo (top-right). */
+function AudienceBadge({ audience, className }: { audience?: string; className?: string }) {
+  const label = tourAudienceBadge(audience);
+  if (!label) return null;
+  return (
+    <span
+      className={cn(
+        "absolute right-3 top-3 rounded-full bg-white/95 px-2.5 py-0.5 text-xs font-bold text-havezic-primary shadow-sm ring-1 ring-black/5",
+        className,
+      )}
+    >
+      {label}
+    </span>
+  );
+}
 
 export type TourCardData = {
   slug: string;
@@ -24,6 +41,8 @@ export type TourCardData = {
   durationDays: number;
   location: string;
   images: string[];
+  /** "foreigners" | "pakistanis"; absent = for everyone (no badge). */
+  audience?: string;
 };
 
 type Props = {
@@ -70,6 +89,7 @@ export function TourCard({ tour, badge, className, currency = "USD" }: Props) {
             {badge}
           </span>
         ) : null}
+        <AudienceBadge audience={tour.audience} />
       </div>
       <div className="flex flex-1 flex-col p-5">
         <h3 className="line-clamp-2 text-lg font-semibold text-foreground">
@@ -150,6 +170,7 @@ export function TourCardCompact({
             Photo soon
           </div>
         )}
+        <AudienceBadge audience={tour.audience} className="right-2 top-2 px-2 text-[11px]" />
       </div>
       <div className="p-4 text-left">
         <p className="font-semibold text-foreground">{tour.title}</p>

@@ -18,7 +18,12 @@ import {
   QueryErrorBanner,
   SaveStatusPill,
 } from "@/components/admin/shared/EditorStatus";
-import { FieldHint, FieldLabel, SelectField, TextAreaField, TextInput } from "@/components/ui/FormField";
+import { FieldHint, SelectField, TextAreaField, TextInput } from "@/components/ui/FormField";
+import {
+  AdminField,
+  RequiredFieldsNote,
+  useRequiredFields,
+} from "@/components/admin/shared/AdminField";
 import { Button } from "@/components/ui/Button";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
 import { toAbsoluteUrl } from "@/lib/absoluteUrl";
@@ -260,6 +265,18 @@ export function AdminItinerarySimpleBuilder({
   /** One-time legacy migration patch, sent right after hydration. */
   const migrationPatchRef = useRef<ItineraryPatch | null>(null);
   const lastAutoNights = useRef<number>(1);
+
+  // api.itineraries.createDraft requires title + clientName (v.string()). Only
+  // the explicit "Create itinerary draft" button is guarded — never autosave.
+  const req = useRequiredFields(
+    [
+      { name: "title", label: "Trip title", value: title },
+      { name: "clientName", label: "Client name", value: clientName },
+    ],
+    { idPrefix: "itinerary" },
+  );
+  const titleError = req.errorFor("title");
+  const clientNameError = req.errorFor("clientName");
 
   const safeDays = clamp(dayCount, 1, MAX_DAYS);
   const nights = Math.max(0, safeDays - 1);
@@ -889,36 +906,78 @@ export function AdminItinerarySimpleBuilder({
 
           <div className="rounded-2xl border border-border bg-panel-elevated p-4">
             <p className="text-xs font-bold uppercase tracking-wide text-muted">Trip</p>
+            <RequiredFieldsNote className="mt-1" />
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2">
-                <FieldLabel required>Trip title</FieldLabel>
-                <TextInput value={title} onChange={(e) => setTitle(e.target.value)} />
-              </div>
-              <div className="sm:col-span-2">
-                <FieldLabel required>Client name</FieldLabel>
-                <TextInput value={clientName} onChange={(e) => setClientName(e.target.value)} />
-              </div>
-              <div>
-                <FieldLabel>Start date (optional)</FieldLabel>
+              <AdminField
+                className="sm:col-span-2"
+                label="Trip title"
+                htmlFor={req.id("title")}
+                required
+                tip="Main title on the PDF cover and the file name of the download."
+                error={titleError}
+              >
                 <TextInput
+                  {...req.fieldProps("title")}
+                  error={Boolean(titleError)}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. 7 Days Hunza & Skardu Family Tour"
+                />
+              </AdminField>
+              <AdminField
+                className="sm:col-span-2"
+                label="Client name"
+                htmlFor={req.id("clientName")}
+                required
+                tip="Who this itinerary is for. Printed on the PDF cover and used in the WhatsApp blurb."
+                error={clientNameError}
+              >
+                <TextInput
+                  {...req.fieldProps("clientName")}
+                  error={Boolean(clientNameError)}
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  placeholder="e.g. Ahmed Ali & family"
+                />
+              </AdminField>
+              <AdminField
+                label="Start date (optional)"
+                htmlFor="itinerary-start-date"
+                tip="First travel day, printed on the cover. Leave blank to hide dates."
+              >
+                <TextInput
+                  id="itinerary-start-date"
                   type="date"
                   min={itineraryId ? undefined : minDate}
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                 />
-              </div>
-              <div>
-                <FieldLabel>End date (optional)</FieldLabel>
+              </AdminField>
+              <AdminField
+                label="End date (optional)"
+                htmlFor="itinerary-end-date"
+                tip="Last travel day. Updated automatically when you change the day count and dates are set."
+              >
                 <TextInput
+                  id="itinerary-end-date"
                   type="date"
                   min={startDate || (itineraryId ? undefined : minDate)}
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                 />
-              </div>
-              <div>
-                <FieldLabel required>Number of days</FieldLabel>
+              </AdminField>
+              <AdminField
+                label="Number of days"
+                htmlFor="itinerary-day-count"
+                tip={`How many day rows the itinerary has (1–${MAX_DAYS}). Hotel nights default to days − 1.`}
+                hint={
+                  computedDaysFromDates != null && computedDaysFromDates !== safeDays
+                    ? `Date range spans ${computedDaysFromDates} days — day count is set independently.`
+                    : "Leave dates blank to hide them on the PDF."
+                }
+              >
                 <TextInput
+                  id="itinerary-day-count"
                   type="number"
                   min={1}
                   max={MAX_DAYS}
@@ -929,35 +988,44 @@ export function AdminItinerarySimpleBuilder({
                     setDayCountAndSync(Math.floor(n));
                   }}
                 />
-                <FieldHint>
-                  {computedDaysFromDates != null && computedDaysFromDates !== safeDays
-                    ? `Date range spans ${computedDaysFromDates} days — day count is set independently.`
-                    : "Leave dates blank to hide them on the PDF."}
-                </FieldHint>
-              </div>
-              <div>
-                <FieldLabel>Theme</FieldLabel>
-                <SelectField value={theme} onChange={(e) => setTheme(e.target.value as Theme)}>
+              </AdminField>
+              <AdminField
+                label="Theme"
+                htmlFor="itinerary-theme"
+                tip="Colour and style of the PDF and Word export."
+              >
+                <SelectField id="itinerary-theme" value={theme} onChange={(e) => setTheme(e.target.value as Theme)}>
                   <option value="luxury">Luxury</option>
                   <option value="minimal">Minimal</option>
                   <option value="adventure">Adventure</option>
                 </SelectField>
-              </div>
-              <div className="sm:col-span-2">
-                <FieldLabel>Pickup &amp; drop-off</FieldLabel>
+              </AdminField>
+              <AdminField
+                className="sm:col-span-2"
+                label="Pickup & drop-off"
+                htmlFor="itinerary-pickup"
+                tip="Where the trip starts and ends. Printed on the PDF; also picks the map used as a fallback cover."
+              >
                 <TextInput
+                  id="itinerary-pickup"
                   value={pickupDropoff}
                   onChange={(e) => setPickupDropoff(e.target.value)}
-                  placeholder="Pickup & drop-off at Skardu Airport"
+                  placeholder="e.g. Pickup & drop-off at Skardu Airport"
                 />
-              </div>
+              </AdminField>
             </div>
             {!itineraryId ? (
               <div className="mt-4">
                 <Button
                   type="button"
-                  disabled={creatingDraft || !title.trim() || !clientName.trim()}
-                  onClick={() => void handleCreateDraft()}
+                  {...req.submitProps}
+                  disabled={creatingDraft}
+                  onClick={() => {
+                    // Same rule as before (button was disabled without title/client),
+                    // but a click now highlights and focuses the missing field.
+                    if (!req.guardSubmit()) return;
+                    void handleCreateDraft();
+                  }}
                 >
                   {creatingDraft ? "Creating…" : "Create itinerary draft"}
                 </Button>
@@ -970,20 +1038,47 @@ export function AdminItinerarySimpleBuilder({
               <div className="rounded-2xl border border-border bg-panel-elevated p-4">
                 <p className="text-xs font-bold uppercase tracking-wide text-muted">Cover lines</p>
                 <div className="mt-3 grid gap-3">
-                  <div>
-                    <FieldLabel>Headline</FieldLabel>
-                    <TextInput value={headline} onChange={(e) => setHeadline(e.target.value)} />
-                  </div>
-                  <div>
-                    <FieldLabel>Variant label</FieldLabel>
-                    <TextInput value={variantLabel} onChange={(e) => setVariantLabel(e.target.value)} />
-                  </div>
-                  <div>
-                    <FieldLabel>Cover subtitle</FieldLabel>
-                    <TextInput value={coverSubtitle} onChange={(e) => setCoverSubtitle(e.target.value)} />
-                  </div>
-                  <div>
-                    <FieldLabel>Cover image</FieldLabel>
+                  <AdminField
+                    label="Headline"
+                    htmlFor="itinerary-headline"
+                    tip="Large line at the top of the PDF cover, above the trip title."
+                  >
+                    <TextInput
+                      id="itinerary-headline"
+                      value={headline}
+                      onChange={(e) => setHeadline(e.target.value)}
+                      placeholder={`e.g. ${DEFAULT_HEADLINE}`}
+                    />
+                  </AdminField>
+                  <AdminField
+                    label="Variant label"
+                    htmlFor="itinerary-variant"
+                    tip="Small tag on the cover describing the trip type."
+                  >
+                    <TextInput
+                      id="itinerary-variant"
+                      value={variantLabel}
+                      onChange={(e) => setVariantLabel(e.target.value)}
+                      placeholder="e.g. Customised, Honeymoon, Family"
+                    />
+                  </AdminField>
+                  <AdminField
+                    label="Cover subtitle"
+                    htmlFor="itinerary-cover-subtitle"
+                    tip="Optional line under the title on the cover. Leave blank to hide it."
+                  >
+                    <TextInput
+                      id="itinerary-cover-subtitle"
+                      value={coverSubtitle}
+                      onChange={(e) => setCoverSubtitle(e.target.value)}
+                      placeholder="e.g. Lahore → Hunza → Skardu by road"
+                    />
+                  </AdminField>
+                  <AdminField
+                    label="Cover image"
+                    htmlFor="cover-upload"
+                    tip="Photo on the PDF cover. Saved as soon as it uploads. Without one, a map of the region is used."
+                  >
                     <div className="mt-2 flex items-center gap-3">
                       {coverStorageId ? (
                         <img src={coverPreviewSrc} alt="Cover preview" className="h-16 w-28 rounded-md object-cover" />
@@ -1033,11 +1128,20 @@ export function AdminItinerarySimpleBuilder({
                         </Button>
                       </div>
                     </div>
-                  </div>
-                  <div>
-                    <FieldLabel>Compliance line</FieldLabel>
-                    <TextAreaField rows={2} value={complianceLine} onChange={(e) => setComplianceLine(e.target.value)} />
-                  </div>
+                  </AdminField>
+                  <AdminField
+                    label="Compliance line"
+                    htmlFor="itinerary-compliance"
+                    tip="Registration / licence line printed in small text on the PDF."
+                  >
+                    <TextAreaField
+                      id="itinerary-compliance"
+                      rows={2}
+                      value={complianceLine}
+                      onChange={(e) => setComplianceLine(e.target.value)}
+                      placeholder={`e.g. ${DEFAULT_COMPLIANCE_LINE}`}
+                    />
+                  </AdminField>
                 </div>
               </div>
 
@@ -1089,18 +1193,34 @@ export function AdminItinerarySimpleBuilder({
               <div className="rounded-2xl border border-border bg-panel-elevated p-4">
                 <p className="text-xs font-bold uppercase tracking-wide text-muted">Included / Not included</p>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <div>
-                    <FieldLabel>Included (one per line)</FieldLabel>
-                    <TextAreaField rows={8} value={includedInput} onChange={(e) => setIncludedInput(e.target.value)} />
-                  </div>
-                  <div>
-                    <FieldLabel>Not included (one per line)</FieldLabel>
+                  <AdminField
+                    label="Included (one per line)"
+                    htmlFor="itinerary-included"
+                    tip="Bullet list of what the price covers, printed on the PDF."
+                    hint="One item per line."
+                  >
                     <TextAreaField
+                      id="itinerary-included"
+                      rows={8}
+                      value={includedInput}
+                      onChange={(e) => setIncludedInput(e.target.value)}
+                      placeholder={"e.g. Prado 4x4 with driver\nHotel stay (double sharing)\nBreakfast & dinner"}
+                    />
+                  </AdminField>
+                  <AdminField
+                    label="Not included (one per line)"
+                    htmlFor="itinerary-not-included"
+                    tip="Bullet list of what the client pays for separately, printed on the PDF."
+                    hint="One item per line."
+                  >
+                    <TextAreaField
+                      id="itinerary-not-included"
                       rows={8}
                       value={notIncludedInput}
                       onChange={(e) => setNotIncludedInput(e.target.value)}
+                      placeholder={"e.g. Flights to Skardu\nLunch\nEntry tickets & personal expenses"}
                     />
-                  </div>
+                  </AdminField>
                 </div>
                 {(!includedInput.trim() && adminSettings?.defaultIncluded?.length) ||
                 (!notIncludedInput.trim() && adminSettings?.defaultNotIncluded?.length) ? (

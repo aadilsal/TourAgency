@@ -178,6 +178,7 @@ export const listToursForAdmin = query({
         title: t.title,
         slug: t.slug,
         location: t.location,
+        audience: t.audience,
         destinationIds: t.destinationIds,
         destinationId: t.destinationId,
         types: t.types,
@@ -212,6 +213,7 @@ export const listActiveToursForExplore = query({
         perHeadPrices: (t as { perHeadPrices?: PerHeadPrice[] }).perHeadPrices ?? [],
         durationDays: t.durationDays,
         location: t.location,
+        audience: t.audience,
         isActive: t.isActive,
         images: await resolveTourImageUrls(ctx, t.images),
       })),
@@ -276,6 +278,7 @@ export const listToursForAi = internalQuery({
         slug: t.slug,
         types: t.types ?? [],
         location: t.location,
+        audience: t.audience,
         durationDays: t.durationDays,
         pricePkr: (t as { pricePkr?: number }).pricePkr ?? t.price,
         priceUsd: (t as { priceUsd?: number }).priceUsd ?? null,
@@ -341,6 +344,8 @@ export const getTourForAdmin = query({
   },
 });
 
+const tourAudienceValidator = v.union(v.literal("foreigners"), v.literal("pakistanis"));
+
 export const createTour = mutation({
   args: {
     sessionToken: v.string(),
@@ -348,6 +353,8 @@ export const createTour = mutation({
     slug: v.string(),
     description: v.string(),
     knowBeforeYouGo: v.optional(v.string()),
+    audience: v.optional(tourAudienceValidator),
+    relatedBlogPostIds: v.optional(v.array(v.id("blogPosts"))),
     types: v.optional(v.array(v.string())),
     destinationIds: v.optional(v.array(v.id("destinations"))),
     destinationId: v.optional(v.id("destinations")),
@@ -435,6 +442,10 @@ export const updateTour = mutation({
     description: v.optional(v.string()),
     /** `null` clears the notes. */
     knowBeforeYouGo: v.optional(v.union(v.string(), v.null())),
+    /** `null` = for everyone (no badge). */
+    audience: v.optional(v.union(tourAudienceValidator, v.null())),
+    /** Send `[]` to unlink all blog posts. */
+    relatedBlogPostIds: v.optional(v.array(v.id("blogPosts"))),
     types: v.optional(v.array(v.string())),
     destinationIds: v.optional(v.array(v.id("destinations"))),
     /** `null` clears the legacy single destination. */

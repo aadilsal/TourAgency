@@ -4,6 +4,7 @@ import type { Id } from "@convex/_generated/dataModel";
 import { TOUR_TYPE_OPTIONS } from "@/lib/tours/tour-filters";
 import { parseKnowBeforeYouGo } from "@/lib/tours/knowBeforeYouGo";
 import { KnowBeforeYouGoContent } from "@/components/tours/KnowBeforeYouGo";
+import { TOUR_AUDIENCE_OPTIONS, parseTourAudience } from "@/lib/tours/tourAudience";
 import { CheckboxGroupField, TextAreaField, TextField, inputClass } from "./fields";
 import { slugify, type TourFormPatch, type TourFormValues } from "./model";
 
@@ -14,15 +15,32 @@ export function BasicsSection({
   onChange,
   destinations,
   provinces,
+  blogPosts,
 }: {
   values: TourFormValues;
   onChange: TourFormPatch;
   destinations: ReadonlyArray<Option<Id<"destinations">>> | undefined;
   provinces: ReadonlyArray<Option<Id<"provinces">>> | undefined;
+  blogPosts: ReadonlyArray<{ _id: Id<"blogPosts">; title: string; published: boolean }> | undefined;
 }) {
   const knowBeforeYouGoBlocks = parseKnowBeforeYouGo(values.knowBeforeYouGo);
   return (
     <>
+      <label className="block text-xs font-semibold text-slate-600">
+        Tour for
+        <select
+          className={inputClass}
+          value={values.audience}
+          onChange={(e) => onChange({ audience: parseTourAudience(e.target.value) ?? "" })}
+        >
+          <option value="">Everyone (no badge)</option>
+          {TOUR_AUDIENCE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label} — badge “{o.badge}”
+            </option>
+          ))}
+        </select>
+      </label>
       <div className="grid gap-3 sm:grid-cols-2">
         <TextField label="Title" required value={values.title} onChange={(title) => onChange({ title })} />
         <TextField
@@ -85,6 +103,17 @@ export function BasicsSection({
         selected={values.provinceIds}
         onChange={(provinceIds) => onChange({ provinceIds })}
         showUnknown={provinces !== undefined}
+      />
+      <CheckboxGroupField
+        legend="Related blog posts (shown on the tour page)"
+        options={(blogPosts ?? []).map((p) => ({
+          value: p._id,
+          label: p.published ? p.title : `${p.title} (draft — hidden until published)`,
+        }))}
+        selected={values.relatedBlogPostIds}
+        onChange={(relatedBlogPostIds) => onChange({ relatedBlogPostIds })}
+        showUnknown={blogPosts !== undefined}
+        emptyHint="No blog posts yet — add them in Admin → Blog."
       />
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-xs font-semibold text-slate-600">

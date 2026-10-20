@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Menu, X } from "lucide-react";
 import { createPortal } from "react-dom";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { cn } from "@/lib/cn";
+import { useBodyScrollLock } from "@/components/ui/useBodyScrollLock";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { isAdminNavLinkActive, visibleAdminNav } from "@/components/admin/shared/adminNav";
 
 type Props = {
@@ -22,6 +24,7 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const drawerRef = useRef<HTMLDivElement>(null);
 
   const closeHref = useMemo(() => {
     // On mobile, provide a quick "close" affordance for create flows.
@@ -45,43 +48,22 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
     setMounted(true);
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
-    // Robust scroll lock (incl. iOS): freeze body at current scrollY.
-    const scrollY = window.scrollY;
-    const prev = {
-      overflow: document.body.style.overflow,
-      position: document.body.style.position,
-      top: document.body.style.top,
-      width: document.body.style.width,
-      paddingRight: document.body.style.paddingRight,
-    };
-    const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = "hidden";
-    document.body.style.position = "fixed";
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = "100%";
-    if (scrollBarWidth > 0) {
-      document.body.style.paddingRight = `${scrollBarWidth}px`;
-    }
-    return () => {
-      document.body.style.overflow = prev.overflow;
-      document.body.style.position = prev.position;
-      document.body.style.top = prev.top;
-      document.body.style.width = prev.width;
-      document.body.style.paddingRight = prev.paddingRight;
-      window.scrollTo(0, scrollY);
-    };
-  }, [open]);
+  // Shared, reference-counted lock (same one Modal uses) so a modal opened
+  // from the drawer can't unlock the page early.
+  useBodyScrollLock(open);
+  const closeDrawer = useCallback(() => setOpen(false), []);
+  // Tab stays inside the drawer, Escape closes it, focus returns to the
+  // menu button afterwards.
+  useFocusTrap(drawerRef, open && mounted, closeDrawer);
 
   return (
     <header className="sticky top-0 z-[90] border-b border-border bg-panel shadow-sm backdrop-blur-xl">
-      <PageContainer className="flex flex-wrap items-center justify-between gap-3 py-3.5 md:py-4">
+      <PageContainer className="flex items-center justify-between gap-3 py-2.5 md:py-3">
         <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           {showBack ? (
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-xl border border-border bg-panel-elevated p-2 text-foreground shadow-sm hover:bg-black/5"
+              className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-panel-elevated text-foreground shadow-sm hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-sun"
               aria-label="Back"
               onClick={() => router.back()}
             >
@@ -90,8 +72,9 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
           ) : null}
           <button
             type="button"
-            className="inline-flex items-center justify-center rounded-xl border border-border bg-panel-elevated p-2 text-foreground shadow-sm hover:bg-black/5 md:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-panel-elevated text-foreground shadow-sm hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-sun lg:hidden"
             aria-label="Open menu"
+            aria-expanded={open}
             onClick={() => setOpen(true)}
           >
             <Menu className="h-5 w-5" />
@@ -106,42 +89,42 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
             className="hidden h-5 w-px shrink-0 bg-border sm:block"
             aria-hidden
           />
-          <span className="rounded-lg bg-brand-sun/20 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-brand-sun ring-1 ring-brand-sun/30 sm:text-xs">
+          <span className="hidden rounded-lg bg-brand-sun/20 px-2.5 py-1 text-xs font-bold uppercase tracking-widest text-brand-sun ring-1 ring-brand-sun/30 min-[420px]:inline">
             Admin
           </span>
         </div>
-        <div className="flex max-w-full flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex max-w-full items-center gap-2 sm:gap-3">
           {closeHref ? (
             <Link
               href={closeHref}
-              className="md:hidden inline-flex items-center justify-center rounded-xl border border-border bg-panel-elevated p-2 text-foreground shadow-sm hover:bg-black/5"
+              className="lg:hidden inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-panel-elevated text-foreground shadow-sm hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-sun"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
             </Link>
           ) : null}
           <span
-            className="max-w-[140px] truncate text-xs text-muted sm:max-w-[220px] sm:text-sm"
+            className="hidden max-w-[220px] truncate text-sm text-muted md:inline"
             title={email}
           >
             {email}
           </span>
-          <span className="rounded-full bg-brand-forest/12 px-2 py-0.5 text-[10px] font-bold capitalize text-brand-forest ring-1 ring-brand-forest/25 sm:text-xs">
+          <span className="hidden rounded-full bg-brand-forest/12 px-2 py-0.5 text-xs font-bold capitalize text-brand-forest ring-1 ring-brand-forest/25 sm:inline">
             {roleLabel}
           </span>
           <Link
             href="/"
-            className="text-xs font-semibold text-brand-cta underline-offset-2 hover:underline sm:text-sm"
+            className="hidden text-xs font-semibold sm:inline text-brand-cta underline-offset-2 hover:underline sm:text-sm"
           >
             View site
           </Link>
-          <LogoutButton />
+          <LogoutButton className="inline-flex min-h-11 items-center rounded-xl px-2 hover:bg-black/5" />
         </div>
       </PageContainer>
 
       {open && mounted
         ? createPortal(
-            <div className="fixed inset-0 z-[200] md:hidden">
+            <div className="fixed inset-0 z-[200] lg:hidden">
               <button
                 type="button"
                 className="absolute inset-0 bg-slate-950/80"
@@ -149,9 +132,11 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
                 onClick={() => setOpen(false)}
               />
               <div
+                ref={drawerRef}
                 role="dialog"
                 aria-modal="true"
                 aria-label="Admin menu"
+                data-lenis-prevent
                 className="absolute left-0 top-0 flex h-dvh w-[92vw] max-w-[420px] flex-col border-r border-border bg-panel shadow-xl overscroll-contain"
                 onTouchMove={(e) => e.stopPropagation()}
                 onWheel={(e) => e.stopPropagation()}
@@ -164,7 +149,7 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
                     </p>
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-xl border border-border bg-panel-elevated p-2 text-foreground shadow-sm hover:bg-black/5"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-panel-elevated text-foreground shadow-sm hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-sun"
                       aria-label="Close menu"
                       onClick={() => setOpen(false)}
                     >

@@ -77,6 +77,10 @@ export function AdminTourForm({
 
   const destinations = useQuery(api.destinations.listForTourAssignment, {});
   const provinces = useQuery(api.provinces.listForTourAssignment, {});
+  const blogPostsQuery = useSafeQuery(
+    api.blog.listForTourAssignment,
+    hasConvexSessionToken ? { sessionToken } : "skip",
+  );
   const createTour = useMutation(api.tours.createTour);
   const updateTour = useMutation(api.tours.updateTour);
 
@@ -394,6 +398,7 @@ export function AdminTourForm({
           onChange={onChange}
           destinations={destinations}
           provinces={provinces}
+          blogPosts={blogPostsQuery.data}
         />
         <PricingSection values={values} onChange={onChange} />
         <DetailsSection

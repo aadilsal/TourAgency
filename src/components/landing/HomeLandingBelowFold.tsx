@@ -12,6 +12,7 @@ import {
   FeaturedToursCarousel,
   type FeaturedTour,
 } from "./FeaturedToursCarousel";
+import { InternationalToursSection } from "./InternationalToursSection";
 import { TourTypesCarousel } from "./TourTypesCarousel";
 import { TestimonialsCarousel } from "./TestimonialsCarousel";
 import { PlanByBudgetCarousel } from "./PlanByBudgetCarousel";
@@ -122,6 +123,7 @@ export function HomeLandingBelowFold({
       <SceneCut />
       <TourTypesCarousel />
       <FeaturedToursCarousel tours={tours} initialCurrency={initialCurrency} />
+      <InternationalToursSection tours={tours} initialCurrency={initialCurrency} />
 
       <SceneCut />
       <MotionSection className="py-10 md:py-14">

@@ -28,6 +28,8 @@ import { TourItineraryAccordion } from "@/components/tours/TourItineraryAccordio
 import { TourHeroGallery } from "@/components/tours/TourHeroGallery";
 import { KnowBeforeYouGoContent } from "@/components/tours/KnowBeforeYouGo";
 import { parseKnowBeforeYouGo } from "@/lib/tours/knowBeforeYouGo";
+import { tourAudienceBadge } from "@/lib/tours/tourAudience";
+import { BlogPostCard, type BlogPostCardData } from "@/components/blog/BlogPostCard";
 import { decodeSlugParam, loadTourBySlug } from "@/lib/server/tours-server";
 import { getConvexServer } from "@/lib/server/convex-server";
 import { getServerCurrency } from "@/lib/server/currency-server";
@@ -82,6 +84,8 @@ type TourDetail = {
   slug: string;
   description: string;
   knowBeforeYouGo?: string;
+  audience?: string;
+  relatedBlogPostIds?: Id<"blogPosts">[];
   price: number;
   pricePkr?: number;
   priceUsd?: number;
@@ -178,8 +182,22 @@ export default async function TourDetailPage({ params }: Props) {
     perHeadPrices: t.perHeadPrices ?? [],
     durationDays: t.durationDays,
     location: t.location,
+    audience: t.audience,
     images: t.images,
   }));
+
+  // Admin-picked blog posts; a failure here must never break the tour page.
+  let relatedPosts: BlogPostCardData[] = [];
+  if (tour.relatedBlogPostIds && tour.relatedBlogPostIds.length > 0) {
+    try {
+      relatedPosts = await getConvexServer().query(api.blog.listPublishedByIds, {
+        ids: tour.relatedBlogPostIds,
+      });
+    } catch {
+      relatedPosts = [];
+    }
+  }
+  const audienceBadge = tourAudienceBadge(tour.audience);
 
   const currency = getServerCurrency();
   const bookable = tourHasPrice(tour);
@@ -244,7 +262,16 @@ export default async function TourDetailPage({ params }: Props) {
           <span className="font-semibold text-foreground">{tour.title}</span>
         </nav>
 
-        <h1 className="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl">
+        {audienceBadge ? (
+          <p className="mt-4">
+            <span className="inline-flex items-center rounded-full bg-havezic-primary/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-havezic-primary">
+              {audienceBadge}
+            </span>
+          </p>
+        ) : null}
+        <h1
+          className={`${audienceBadge ? "mt-2" : "mt-4"} font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl md:text-5xl`}
+        >
           {tour.title}
         </h1>
 
@@ -554,6 +581,25 @@ export default async function TourDetailPage({ params }: Props) {
 
         {/* Reviews */}
         <TourReviews tourId={tour._id} />
+
+        {/* Related blog posts (picked in the admin tour editor) */}
+        {relatedPosts.length > 0 ? (
+          <section id="blog" className="mt-12 scroll-mt-32 md:mt-16">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h2 className="text-2xl font-bold text-foreground md:text-3xl">
+                Read more on our blog
+              </h2>
+              <Link href="/blog" className="text-sm font-semibold text-havezic-primary hover:underline">
+                All blog posts
+              </Link>
+            </div>
+            <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {relatedPosts.map((p) => (
+                <BlogPostCard key={p.slug} post={p} />
+              ))}
+            </div>
+          </section>
+        ) : null}
 
         {/* Related */}
         <TourDetailRelatedCarousel

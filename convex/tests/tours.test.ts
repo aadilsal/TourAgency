@@ -318,3 +318,49 @@ test("know-before-you-go notes survive unrelated saves and clear with null", asy
   await t.mutation(api.tours.updateTour, { sessionToken, tourId, knowBeforeYouGo: null });
   expect((await t.run((ctx) => ctx.db.get(tourId)))!.knowBeforeYouGo).toBeUndefined();
 });
+
+test("audience and related blog posts survive unrelated saves; null/[] clear them", async () => {
+  const t = newTest();
+  const sessionToken = await signIn(t);
+  const postId = await t.run((ctx) =>
+    ctx.db.insert("blogPosts", {
+      title: "Hunza guide",
+      slug: "hunza-guide",
+      content: "…",
+      published: true,
+      createdAt: 1,
+    }),
+  );
+  const draftId = await t.run((ctx) =>
+    ctx.db.insert("blogPosts", {
+      title: "Draft",
+      slug: "draft",
+      content: "…",
+      published: false,
+      createdAt: 2,
+    }),
+  );
+  const tourId = await createTour(t, sessionToken, {
+    audience: "foreigners",
+    relatedBlogPostIds: [postId, draftId],
+  });
+  await t.mutation(api.tours.updateTour, { sessionToken, tourId, title: "Renamed" });
+  let tour = await t.run((ctx) => ctx.db.get(tourId));
+  expect(tour!.audience).toBe("foreigners");
+  expect(tour!.relatedBlogPostIds).toEqual([postId, draftId]);
+
+  // Public read only returns published posts and tolerates deleted ones.
+  await t.run((ctx) => ctx.db.delete(postId));
+  const visible = await t.query(api.blog.listPublishedByIds, { ids: [postId, draftId] });
+  expect(visible).toEqual([]);
+
+  await t.mutation(api.tours.updateTour, {
+    sessionToken,
+    tourId,
+    audience: null,
+    relatedBlogPostIds: [],
+  });
+  tour = await t.run((ctx) => ctx.db.get(tourId));
+  expect(tour!.audience).toBeUndefined();
+  expect(tour!.relatedBlogPostIds).toEqual([]);
+});

@@ -46,6 +46,7 @@ async function HomePageDeferred() {
       durationDays: number;
       location: string;
       images: string[];
+      audience?: string;
       isActive: boolean;
     }>;
     tours = raw.map((t) => ({
@@ -60,6 +61,7 @@ async function HomePageDeferred() {
         perHeadPrices: t.perHeadPrices ?? [],
         durationDays: t.durationDays,
         location: t.location,
+        audience: t.audience,
         images: t.images ?? [],
       }));
   } catch {

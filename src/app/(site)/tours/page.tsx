@@ -22,6 +22,8 @@ export const metadata: Metadata = buildMetadata({
 
 type Search = {
   type?: string;
+  /** "foreigners" | "pakistanis" — the "Tour for" filter. */
+  audience?: string;
   max?: string;
   min?: string;
   location?: string;
@@ -49,6 +51,7 @@ export default async function ToursPage({
     durationDays: number;
     location: string;
     images: string[];
+    audience?: string;
     isActive: boolean;
   }> = [];
 
@@ -99,6 +102,7 @@ export default async function ToursPage({
       <ToursExploreClient
         initialTours={tours}
         initialType={searchParams.type}
+        initialAudience={searchParams.audience}
         initialLocation={searchParams.location}
         initialProvince={searchParams.province}
         initialQuery={searchParams.q}

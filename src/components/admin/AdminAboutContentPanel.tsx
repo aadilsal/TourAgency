@@ -27,6 +27,12 @@ import {
   QueryErrorBanner,
   SaveStatusPill,
 } from "@/components/admin/shared/EditorStatus";
+import {
+  AdminField,
+  InfoTip,
+  RequiredFieldsNote,
+  useRequiredFields,
+} from "@/components/admin/shared/AdminField";
 
 type TabKey = "explore" | "mission" | "vision";
 
@@ -102,7 +108,12 @@ function TabImageUploader({
 }) {
   return (
     <div>
-      <FieldLabel>Image</FieldLabel>
+      <div className="relative flex items-center gap-1">
+        <FieldLabel>Image</FieldLabel>
+        <InfoTip label="About Image">
+          Shown beside this tab&apos;s text on the About Us page. A landscape photo (about 1400px wide) works best.
+        </InfoTip>
+      </div>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-border bg-havezic-background-light">
           {displayUrl ? (
@@ -157,6 +168,18 @@ export function AdminAboutContentPanel() {
   const form = useEditorForm<AboutForm>(DEFAULT_ABOUT_FORM);
   const { values, setField, reset: resetForm } = form;
 
+  // about.upsertAdmin accepts empty strings, so nothing here may block a save
+  // (the live document could already have a blank field). Ids/markup only.
+  const req = useRequiredFields(
+    [
+      { name: "heading", label: "Heading", value: values.heading, when: false },
+      { name: "exploreTitle", label: "Explore tab title", value: values.exploreTitle, when: false },
+      { name: "missionTitle", label: "Mission tab title", value: values.missionTitle, when: false },
+      { name: "visionTitle", label: "Vision tab title", value: values.visionTitle, when: false },
+    ],
+    { idPrefix: "about" },
+  );
+
   // Tab images are upload-only. `undefined` = leave unchanged; `null` = clear; id = new upload.
   const [tabImageIds, setTabImageIds] = useState<Record<TabKey, Id<"_storage"> | null | undefined>>({
     explore: undefined,
@@ -184,6 +207,15 @@ export function AdminAboutContentPanel() {
   const [partnerName, setPartnerName] = useState("");
   const [partnerFile, setPartnerFile] = useState<File | null>(null);
   const [addingPartner, setAddingPartner] = useState(false);
+
+  // Partner name + logo are both checked by onAddPartner before addPartner runs.
+  const partnerReq = useRequiredFields(
+    [
+      { name: "partnerName", label: "Partner name", value: partnerName },
+      { name: "partnerLogo", label: "Logo", value: partnerFile, message: "Choose a logo image" },
+    ],
+    { idPrefix: "about-partner" },
+  );
 
   const partners = useMemo(() => snap?.partners ?? [], [snap?.partners]);
 
@@ -413,6 +445,7 @@ export function AdminAboutContentPanel() {
       await addPartner({ sessionToken, name, logoStorageId: storageId });
       setPartnerName("");
       setPartnerFile(null);
+      partnerReq.reset();
       setMsg("Partner added.");
     } catch (e) {
       setErr(toUserFacingErrorMessage(e));
@@ -472,32 +505,67 @@ export function AdminAboutContentPanel() {
           </div>
         ) : null}
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <div>
-            <FieldLabel>Eyebrow</FieldLabel>
-            <TextInput value={values.eyebrow} onChange={(e) => setField("eyebrow", e.target.value)} />
-          </div>
-          <div>
-            <FieldLabel>Heading</FieldLabel>
-            <TextInput value={values.heading} onChange={(e) => setField("heading", e.target.value)} />
-          </div>
+        <RequiredFieldsNote className="mt-4" />
+
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <AdminField
+            label="Eyebrow"
+            htmlFor="about-eyebrow"
+            tip="Small line shown above the main heading on the About Us page."
+          >
+            <TextInput
+              id="about-eyebrow"
+              placeholder="e.g. Community friendly"
+              value={values.eyebrow}
+              onChange={(e) => setField("eyebrow", e.target.value)}
+            />
+          </AdminField>
+          <AdminField
+            label="Heading"
+            htmlFor={req.id("heading")}
+            tip="The main section heading on the About Us page, under the eyebrow."
+            error={req.errorFor("heading")}
+          >
+            <TextInput
+              {...req.fieldProps("heading")}
+              placeholder="e.g. Your Reliable Travel Partner"
+              value={values.heading}
+              onChange={(e) => setField("heading", e.target.value)}
+            />
+          </AdminField>
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-3">
           <div className="lg:col-span-2 space-y-4">
             <h3 className="text-sm font-bold text-foreground">Explore tab</h3>
-            <div>
-              <FieldLabel>Title</FieldLabel>
-              <TextInput value={values.exploreTitle} onChange={(e) => setField("exploreTitle", e.target.value)} />
-            </div>
-            <div>
-              <FieldLabel>Body (one paragraph per line)</FieldLabel>
+            <AdminField
+              label="Title"
+              htmlFor={req.id("exploreTitle")}
+              tip="Heading shown when visitors open the Explore tab on the About Us page."
+              error={req.errorFor("exploreTitle")}
+            >
+              <TextInput
+                {...req.fieldProps("exploreTitle")}
+                placeholder="e.g. JunketTours is your reliable travel partner"
+                value={values.exploreTitle}
+                onChange={(e) => setField("exploreTitle", e.target.value)}
+              />
+            </AdminField>
+            <AdminField
+              label="Body"
+              htmlFor="about-exploreBody"
+              tip="Text under the Explore tab heading. Each line becomes its own paragraph."
+              hint="One paragraph per line."
+            >
               <TextAreaField
+                id="about-exploreBody"
+                aria-describedby="about-exploreBody-hint"
                 rows={6}
+                placeholder="e.g. A Lahore-based, government-registered tour operator running trips to Hunza, Skardu and Swat."
                 value={values.exploreBodyText}
                 onChange={(e) => setField("exploreBodyText", e.target.value)}
               />
-            </div>
+            </AdminField>
             <TabImageUploader
               displayUrl={tabImageDisplayUrl("explore")}
               uploading={tabImageUploading.explore}
@@ -508,41 +576,89 @@ export function AdminAboutContentPanel() {
 
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-foreground">Stats</h3>
-            <div>
-              <FieldLabel>Stat 1 value</FieldLabel>
-              <TextInput value={values.stat1Value} onChange={(e) => setField("stat1Value", e.target.value)} />
-            </div>
-            <div>
-              <FieldLabel>Stat 1 label</FieldLabel>
-              <TextInput value={values.stat1Label} onChange={(e) => setField("stat1Label", e.target.value)} />
-            </div>
+            <AdminField
+              label="Stat 1 value"
+              htmlFor="about-stat1Value"
+              tip="Big number shown in the stats box under the Explore tab text."
+            >
+              <TextInput
+                id="about-stat1Value"
+                placeholder="e.g. 150k+"
+                value={values.stat1Value}
+                onChange={(e) => setField("stat1Value", e.target.value)}
+              />
+            </AdminField>
+            <AdminField
+              label="Stat 1 label"
+              htmlFor="about-stat1Label"
+              tip="Short caption under the stat 1 number."
+            >
+              <TextInput
+                id="about-stat1Label"
+                placeholder="e.g. Satisfied clients"
+                value={values.stat1Label}
+                onChange={(e) => setField("stat1Label", e.target.value)}
+              />
+            </AdminField>
             <div className="h-px w-full bg-border" aria-hidden />
-            <div>
-              <FieldLabel>Stat 2 value</FieldLabel>
-              <TextInput value={values.stat2Value} onChange={(e) => setField("stat2Value", e.target.value)} />
-            </div>
-            <div>
-              <FieldLabel>Stat 2 label</FieldLabel>
-              <TextInput value={values.stat2Label} onChange={(e) => setField("stat2Label", e.target.value)} />
-            </div>
+            <AdminField
+              label="Stat 2 value"
+              htmlFor="about-stat2Value"
+              tip="Big number shown in the stats box under the Explore tab text."
+            >
+              <TextInput
+                id="about-stat2Value"
+                placeholder="e.g. 100+"
+                value={values.stat2Value}
+                onChange={(e) => setField("stat2Value", e.target.value)}
+              />
+            </AdminField>
+            <AdminField
+              label="Stat 2 label"
+              htmlFor="about-stat2Label"
+              tip="Short caption under the stat 2 number."
+            >
+              <TextInput
+                id="about-stat2Label"
+                placeholder="e.g. Our hard working staff"
+                value={values.stat2Label}
+                onChange={(e) => setField("stat2Label", e.target.value)}
+              />
+            </AdminField>
           </div>
         </div>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-2">
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-foreground">Mission tab</h3>
-            <div>
-              <FieldLabel>Title</FieldLabel>
-              <TextInput value={values.missionTitle} onChange={(e) => setField("missionTitle", e.target.value)} />
-            </div>
-            <div>
-              <FieldLabel>Body (one paragraph per line)</FieldLabel>
+            <AdminField
+              label="Title"
+              htmlFor={req.id("missionTitle")}
+              tip="Heading shown when visitors open the Mission tab on the About Us page."
+              error={req.errorFor("missionTitle")}
+            >
+              <TextInput
+                {...req.fieldProps("missionTitle")}
+                placeholder="e.g. Make adventure travel possible for all"
+                value={values.missionTitle}
+                onChange={(e) => setField("missionTitle", e.target.value)}
+              />
+            </AdminField>
+            <AdminField
+              label="Body"
+              htmlFor="about-missionBody"
+              tip="Text under the Mission tab heading. Each line becomes its own paragraph."
+              hint="One paragraph per line."
+            >
               <TextAreaField
+                id="about-missionBody"
+                aria-describedby="about-missionBody-hint"
                 rows={6}
+                placeholder="e.g. We plan safe, well-organised trips across northern Pakistan, from Hunza to Skardu."
                 value={values.missionBodyText}
                 onChange={(e) => setField("missionBodyText", e.target.value)}
               />
-            </div>
+            </AdminField>
             <TabImageUploader
               displayUrl={tabImageDisplayUrl("mission")}
               uploading={tabImageUploading.mission}
@@ -553,18 +669,34 @@ export function AdminAboutContentPanel() {
 
           <div className="space-y-4">
             <h3 className="text-sm font-bold text-foreground">Vision tab</h3>
-            <div>
-              <FieldLabel>Title</FieldLabel>
-              <TextInput value={values.visionTitle} onChange={(e) => setField("visionTitle", e.target.value)} />
-            </div>
-            <div>
-              <FieldLabel>Body (one paragraph per line)</FieldLabel>
+            <AdminField
+              label="Title"
+              htmlFor={req.id("visionTitle")}
+              tip="Heading shown when visitors open the Vision tab on the About Us page."
+              error={req.errorFor("visionTitle")}
+            >
+              <TextInput
+                {...req.fieldProps("visionTitle")}
+                placeholder="e.g. Organised, exciting tours for every traveller"
+                value={values.visionTitle}
+                onChange={(e) => setField("visionTitle", e.target.value)}
+              />
+            </AdminField>
+            <AdminField
+              label="Body"
+              htmlFor="about-visionBody"
+              tip="Text under the Vision tab heading. Each line becomes its own paragraph."
+              hint="One paragraph per line."
+            >
               <TextAreaField
+                id="about-visionBody"
+                aria-describedby="about-visionBody-hint"
                 rows={6}
+                placeholder="e.g. To be the first name travellers think of for culture and adventure trips in Pakistan."
                 value={values.visionBodyText}
                 onChange={(e) => setField("visionBodyText", e.target.value)}
               />
-            </div>
+            </AdminField>
             <TabImageUploader
               displayUrl={tabImageDisplayUrl("vision")}
               uploading={tabImageUploading.vision}
@@ -576,7 +708,15 @@ export function AdminAboutContentPanel() {
 
         <div className="mt-8 flex flex-wrap items-center justify-end gap-3">
           <SaveStatusPill dirty={dirty} />
-          <Button variant="primary" disabled={saving} onClick={onSave}>
+          <Button
+            variant="primary"
+            {...req.submitProps}
+            disabled={saving}
+            onClick={() => {
+              if (!req.guardSubmit()) return;
+              void onSave();
+            }}
+          >
             {saving ? "Saving…" : "Save About content"}
           </Button>
         </div>
@@ -590,13 +730,24 @@ export function AdminAboutContentPanel() {
         </p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
-          <div>
-            <FieldLabel>Partner name</FieldLabel>
-            <TextInput value={partnerName} onChange={(e) => setPartnerName(e.target.value)} />
-          </div>
+          <AdminField
+            label="Partner name"
+            htmlFor={partnerReq.id("partnerName")}
+            required
+            tip="Shown when a partner's logo is hovered and used as the logo's alt text on the About Us page."
+            error={partnerReq.errorFor("partnerName")}
+          >
+            <TextInput
+              {...partnerReq.fieldProps("partnerName")}
+              placeholder="e.g. Pakistan Tourism Development Corporation"
+              value={partnerName}
+              onChange={(e) => setPartnerName(e.target.value)}
+            />
+          </AdminField>
 
           <div className="flex flex-wrap items-center gap-3">
             <label
+              data-field="partnerLogo"
               className={cn(
                 "inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm transition hover:bg-havezic-background-light",
                 addingPartner && "pointer-events-none opacity-60",
@@ -604,7 +755,11 @@ export function AdminAboutContentPanel() {
             >
               <Upload className="h-4 w-4 text-havezic-primary" aria-hidden />
               Choose logo
+              <span className="text-red-600" aria-hidden>
+                *
+              </span>
               <input
+                aria-required
                 type="file"
                 accept="image/*"
                 className="hidden"
@@ -619,13 +774,24 @@ export function AdminAboutContentPanel() {
                 }}
               />
             </label>
-            <span className="text-xs text-muted">
-              {partnerFile ? partnerFile.name : "No file selected"}
+            <span
+              className={cn(
+                "text-xs",
+                partnerReq.errorFor("partnerLogo") ? "font-medium text-red-600" : "text-muted",
+              )}
+            >
+              {partnerFile
+                ? partnerFile.name
+                : (partnerReq.errorFor("partnerLogo") ?? "No file selected")}
             </span>
             <Button
               variant="secondary"
+              {...partnerReq.submitProps}
               disabled={addingPartner}
-              onClick={() => void onAddPartner()}
+              onClick={() => {
+                if (!partnerReq.guardSubmit()) return;
+                void onAddPartner();
+              }}
             >
               {addingPartner ? "Adding…" : "Add partner"}
             </Button>

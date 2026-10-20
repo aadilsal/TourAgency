@@ -837,7 +837,7 @@ export function SiteHeaderNav({
     () => [
       { href: "/about", label: "About Us", icon: Compass },
       { href: "/contact", label: "Contact", icon: PhoneCall },
-      { href: "/blog", label: "Guides", icon: BookOpen },
+      { href: "/blog", label: "Blog", icon: BookOpen },
     ],
     [],
   );

@@ -6,7 +6,12 @@ import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
-import { FieldHint, FieldLabel, TextAreaField, TextInput } from "@/components/ui/FormField";
+import { FieldHint, TextAreaField, TextInput } from "@/components/ui/FormField";
+import {
+  AdminField,
+  RequiredFieldsNote,
+  useRequiredFields,
+} from "@/components/admin/shared/AdminField";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { useSafeQuery } from "@/hooks/useSafeQuery";
@@ -76,6 +81,24 @@ export function AdminItineraryTemplatePanel() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [savedOnce, setSavedOnce] = useState(false);
+
+  // upsertAdminSiteSettings accepts empty strings here, and a blank stored row
+  // must never block an unrelated save — so these rules are advisory only.
+  const req = useRequiredFields(
+    [
+      ...(values?.paymentTerms ?? []).map((t, idx) => ({
+        name: `payment-${idx}-title`,
+        label: `Payment row ${idx + 1} title`,
+        value: t.title,
+        when: false,
+      })),
+      ...(values?.termsBlocks ?? []).flatMap((b, idx) => [
+        { name: `terms-${idx}-title`, label: `Terms block ${idx + 1} title`, value: b.title, when: false },
+        { name: `terms-${idx}-body`, label: `Terms block ${idx + 1} body`, value: b.body, when: false },
+      ]),
+    ],
+    { idPrefix: "itin-template" },
+  );
 
   useUnsavedChangesGuard(dirty);
   const draft = useLocalDraft<TemplateForm | null>(
@@ -207,6 +230,8 @@ export function AdminItineraryTemplatePanel() {
         </p>
       </div>
 
+      <RequiredFieldsNote />
+
       <Card className="p-5">
         <p className="text-xs font-bold uppercase tracking-wide text-muted">Payment terms</p>
         {snap.stored.paymentTerms === null ? (
@@ -218,9 +243,14 @@ export function AdminItineraryTemplatePanel() {
               key={idx}
               className="grid gap-3 rounded-xl border border-border bg-panel p-3 sm:grid-cols-12"
             >
-              <div className="sm:col-span-2">
-                <FieldLabel>Percent</FieldLabel>
+              <AdminField
+                className="sm:col-span-2"
+                label="Percent"
+                htmlFor={`itin-template-payment-${idx}-percent`}
+                tip="Share of the trip price due at this stage. The rows usually add up to 100%."
+              >
                 <TextInput
+                  id={`itin-template-payment-${idx}-percent`}
                   type="number"
                   min={0}
                   max={100}
@@ -234,10 +264,17 @@ export function AdminItineraryTemplatePanel() {
                     );
                   }}
                 />
-              </div>
-              <div className="sm:col-span-3">
-                <FieldLabel>Title</FieldLabel>
+              </AdminField>
+              <AdminField
+                className="sm:col-span-3"
+                label="Title"
+                htmlFor={req.id(`payment-${idx}-title`)}
+                tip="Name of this payment stage, printed in the payment table of every itinerary PDF."
+                error={req.errorFor(`payment-${idx}-title`)}
+              >
                 <TextInput
+                  {...req.fieldProps(`payment-${idx}-title`)}
+                  placeholder="e.g. Advance to confirm booking"
                   value={t.title}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -246,10 +283,16 @@ export function AdminItineraryTemplatePanel() {
                     );
                   }}
                 />
-              </div>
-              <div className="sm:col-span-6">
-                <FieldLabel>Description</FieldLabel>
+              </AdminField>
+              <AdminField
+                className="sm:col-span-6"
+                label="Description"
+                htmlFor={`itin-template-payment-${idx}-description`}
+                tip="Optional detail under the stage name, e.g. when this payment is due."
+              >
                 <TextInput
+                  id={`itin-template-payment-${idx}-description`}
+                  placeholder="e.g. Balance due 7 days before departure"
                   value={t.description}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -258,7 +301,7 @@ export function AdminItineraryTemplatePanel() {
                     );
                   }}
                 />
-              </div>
+              </AdminField>
               <div className="flex items-end sm:col-span-1">
                 <IconAction
                   label="Remove payment row"
@@ -335,20 +378,35 @@ export function AdminItineraryTemplatePanel() {
         <div className="mt-4 space-y-4">
           {values.termsBlocks.map((b, idx) => (
             <div key={idx} className="rounded-xl border border-border bg-panel p-3">
-              <FieldLabel>Title</FieldLabel>
-              <TextInput
-                value={b.title}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setTermsBlocks((prev) =>
-                    prev.map((x, i) => (i === idx ? { ...x, title: v } : x)),
-                  );
-                }}
-              />
-              <div className="mt-2">
-                <FieldLabel>Body</FieldLabel>
+              <AdminField
+                label="Title"
+                htmlFor={req.id(`terms-${idx}-title`)}
+                tip="Heading of this terms section on every itinerary PDF."
+                error={req.errorFor(`terms-${idx}-title`)}
+              >
+                <TextInput
+                  {...req.fieldProps(`terms-${idx}-title`)}
+                  placeholder="e.g. Cancellation policy"
+                  value={b.title}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setTermsBlocks((prev) =>
+                      prev.map((x, i) => (i === idx ? { ...x, title: v } : x)),
+                    );
+                  }}
+                />
+              </AdminField>
+              <AdminField
+                className="mt-2"
+                label="Body"
+                htmlFor={req.id(`terms-${idx}-body`)}
+                tip="The terms text printed under this heading on every itinerary PDF."
+                error={req.errorFor(`terms-${idx}-body`)}
+              >
                 <TextAreaField
+                  {...req.fieldProps(`terms-${idx}-body`)}
                   rows={4}
+                  placeholder="e.g. Cancellations 15+ days before departure get a full refund of the advance, minus bank charges."
                   value={b.body}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -357,7 +415,7 @@ export function AdminItineraryTemplatePanel() {
                     );
                   }}
                 />
-              </div>
+              </AdminField>
               <IconAction
                 label="Remove terms block"
                 className="mt-2"
@@ -387,24 +445,36 @@ export function AdminItineraryTemplatePanel() {
         </p>
         <p className="mt-1 text-sm text-muted">One line per item. Used when starting a new itinerary.</p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <div>
-            <FieldLabel>Default included</FieldLabel>
+          <AdminField
+            label="Default included"
+            htmlFor="itin-template-defaultIncluded"
+            tip="Pre-filled into the Included list when you start a new itinerary. You can still edit it per trip."
+            hint="One item per line."
+          >
             <TextAreaField
+              id="itin-template-defaultIncluded"
+              aria-describedby="itin-template-defaultIncluded-hint"
               rows={8}
               value={values.defaultIncluded}
               onChange={(e) => form.setField("defaultIncluded", e.target.value)}
               placeholder={"Transport on Prado\nDaily breakfast"}
             />
-          </div>
-          <div>
-            <FieldLabel>Default not included</FieldLabel>
+          </AdminField>
+          <AdminField
+            label="Default not included"
+            htmlFor="itin-template-defaultNotIncluded"
+            tip="Pre-filled into the Not included list when you start a new itinerary."
+            hint="One item per line."
+          >
             <TextAreaField
+              id="itin-template-defaultNotIncluded"
+              aria-describedby="itin-template-defaultNotIncluded-hint"
               rows={8}
               value={values.defaultNotIncluded}
               onChange={(e) => form.setField("defaultNotIncluded", e.target.value)}
               placeholder={"Lunch & dinner\nAir tickets"}
             />
-          </div>
+          </AdminField>
         </div>
       </Card>
 
@@ -413,8 +483,14 @@ export function AdminItineraryTemplatePanel() {
         saving={saving}
         savedOnce={savedOnce}
         error={saveError}
-        onSave={() => void save()}
-        onDiscard={form.reset}
+        onSave={() => {
+          if (!req.guardSubmit()) return;
+          void save();
+        }}
+        onDiscard={() => {
+          form.reset();
+          req.reset();
+        }}
         saveLabel="Save itinerary template"
       />
     </div>

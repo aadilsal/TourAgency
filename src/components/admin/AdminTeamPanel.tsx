@@ -10,6 +10,7 @@ import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { FieldError, FieldHint, FieldLabel, TextInput } from "@/components/ui/FormField";
+import { AdminField, RequiredFieldsNote, useRequiredFields } from "@/components/admin/shared/AdminField";
 import { cn } from "@/lib/cn";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
@@ -61,6 +62,15 @@ export function AdminTeamPanel() {
   // Warn before navigating away from a half-filled "Add member" form.
   useUnsavedChangesGuard(name.trim().length > 0 || role.trim().length > 0 || file !== null);
 
+  // team.create throws on an empty name or role.
+  const req = useRequiredFields(
+    [
+      { name: "name", label: "Name", value: name },
+      { name: "role", label: "Role", value: role },
+    ],
+    { idPrefix: "team" },
+  );
+
   async function uploadOne(f: File): Promise<Id<"_storage">> {
     if (!canMutate) throw new Error("Not authenticated");
     const postUrl = await generateUploadUrl({ sessionToken });
@@ -108,6 +118,8 @@ export function AdminTeamPanel() {
       setName("");
       setRole("");
       setFile(null);
+      // Fields were cleared on purpose — don't flag them as missing.
+      req.reset();
       setMsg("Team member added.");
     } catch (e) {
       setErr(toUserFacingErrorMessage(e));
@@ -139,29 +151,40 @@ export function AdminTeamPanel() {
           </div>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2">
-          <div>
-            <FieldLabel htmlFor="team-name" required>
-              Name
-            </FieldLabel>
+        <RequiredFieldsNote className="mt-4" />
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <AdminField
+            label="Name"
+            htmlFor={req.id("name")}
+            required
+            labelClassName="text-sm font-medium text-black"
+            tip="The person's name, shown under their photo on the About page."
+            error={req.errorFor("name")}
+          >
             <TextInput
-              id="team-name"
-              placeholder="e.g. Usman"
+              {...req.fieldProps("name")}
+              error={Boolean(req.errorFor("name"))}
+              placeholder="e.g. Usman Tariq"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-          </div>
-          <div>
-            <FieldLabel htmlFor="team-role" required>
-              Role
-            </FieldLabel>
+          </AdminField>
+          <AdminField
+            label="Role"
+            htmlFor={req.id("role")}
+            required
+            labelClassName="text-sm font-medium text-black"
+            tip="Their job title, shown under their name on the About page."
+            error={req.errorFor("role")}
+          >
             <TextInput
-              id="team-role"
-              placeholder="e.g. CEO"
+              {...req.fieldProps("role")}
+              error={Boolean(req.errorFor("role"))}
+              placeholder="e.g. Tour Operations Manager"
               value={role}
               onChange={(e) => setRole(e.target.value)}
             />
-          </div>
+          </AdminField>
         </div>
 
         <div className="mt-4">
@@ -207,7 +230,15 @@ export function AdminTeamPanel() {
         ) : null}
 
         <div className="mt-6 flex justify-end">
-          <Button variant="primary" onClick={onCreate} disabled={saving}>
+          <Button
+            variant="primary"
+            {...req.submitProps}
+            onClick={() => {
+              if (!req.guardSubmit()) return;
+              void onCreate();
+            }}
+            disabled={saving}
+          >
             {saving ? "Saving…" : "Add member"}
           </Button>
         </div>

@@ -20,6 +20,7 @@ import { useEditorForm } from "@/hooks/useEditorForm";
 import { useLocalDraft } from "@/hooks/useLocalDraft";
 import { confirmDiscard } from "@/hooks/useUnsavedChangesGuard";
 import { DraftRestoreBanner } from "@/components/admin/shared/EditorStatus";
+import { AdminField, RequiredFieldsNote, useRequiredFields } from "@/components/admin/shared/AdminField";
 
 type Post = {
   _id: Id<"blogPosts">;
@@ -78,6 +79,15 @@ export function AdminBlogPanel() {
   const [listErr, setListErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  // Title: createPost/updatePost throw "Title can't be empty".
+  // Content: createPost `content: v.string()` (the form always sends it).
+  const req = useRequiredFields(
+    [
+      { name: "title", label: "Title", value: values.title },
+      { name: "content", label: "Content", value: values.content },
+    ],
+    { idPrefix: "blog-editor" },
+  );
 
   // Crash-proof backup of the long-form editor while it holds unsaved edits.
   const draft = useLocalDraft<PostForm>(
@@ -89,6 +99,7 @@ export function AdminBlogPanel() {
   function openNew() {
     setEditingId(null);
     form.reset(EMPTY_POST);
+    req.reset();
     setErr(null);
     setEditorOpen(true);
   }
@@ -103,6 +114,7 @@ export function AdminBlogPanel() {
       metaDescription: p.metaDescription ?? "",
       published: p.published,
     });
+    req.reset();
     setErr(null);
     setEditorOpen(true);
   }
@@ -168,6 +180,7 @@ export function AdminBlogPanel() {
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!req.guardSubmit(e)) return;
     setErr(null);
     if (typeof sessionToken !== "string") {
       setErr("Session expired — your edits are backed up on this device. Sign in again, then save.");
@@ -362,7 +375,8 @@ export function AdminBlogPanel() {
         description="Write in the large editor below. Toggle publish when ready."
         panelClassName="max-w-3xl"
       >
-        <form onSubmit={onSave} className="space-y-3">
+        <form noValidate onSubmit={onSave} className="space-y-3">
+          <RequiredFieldsNote />
           {draft.restorable && !dirty ? (
             <DraftRestoreBanner
               savedAt={draft.restorable.savedAt}
@@ -379,52 +393,84 @@ export function AdminBlogPanel() {
             </p>
           ) : null}
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-semibold text-slate-600">
-              Title
+            <AdminField
+              label="Title"
+              htmlFor={req.id("title")}
+              required
+              tip="The post headline, shown at the top of the article and on the /blog list."
+              error={req.errorFor("title")}
+            >
               <input
-                required
+                {...req.fieldProps("title")}
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder="e.g. Best time to visit Hunza Valley"
                 value={values.title}
                 onChange={(e) => setField("title", e.target.value)}
               />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Slug
+            </AdminField>
+            <AdminField
+              label="Slug"
+              htmlFor="blog-editor-slug"
+              tip="The last part of the post's web address: /blog/your-slug. Changing it breaks old links."
+              hint="Leave blank to build it from the title."
+            >
               <input
+                id="blog-editor-slug"
+                aria-describedby="blog-editor-slug-hint"
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                placeholder="auto from title"
+                placeholder="e.g. best-time-to-visit-hunza"
                 value={values.slug}
                 onChange={(e) => setField("slug", e.target.value)}
               />
-            </label>
+            </AdminField>
           </div>
-          <label className="block text-xs font-semibold text-slate-600">
-            Content
+          <AdminField
+            label="Content"
+            htmlFor={req.id("content")}
+            required
+            tip="The full article body shown on the post page."
+            error={req.errorFor("content")}
+          >
             <textarea
-              required
+              {...req.fieldProps("content")}
               rows={14}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-sm leading-relaxed"
+              placeholder="e.g. Hunza is at its best from April to October, when the apricot blossoms and autumn colours draw visitors..."
               value={values.content}
               onChange={(e) => setField("content", e.target.value)}
             />
-          </label>
+          </AdminField>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-semibold text-slate-600">
-              Meta title (SEO)
+            <AdminField
+              label="Meta title (SEO)"
+              htmlFor="blog-editor-meta-title"
+              tip="The title Google shows in search results. Leave blank to use the post title."
+              hint="Keep it under 60 characters."
+            >
               <input
+                id="blog-editor-meta-title"
+                aria-describedby="blog-editor-meta-title-hint"
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder="e.g. Best Time to Visit Hunza | JunketTours"
                 value={values.metaTitle}
                 onChange={(e) => setField("metaTitle", e.target.value)}
               />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Meta description
+            </AdminField>
+            <AdminField
+              label="Meta description"
+              htmlFor="blog-editor-meta-description"
+              tip="The short summary Google shows under the title in search results."
+              hint="Aim for 120-160 characters."
+            >
               <input
+                id="blog-editor-meta-description"
+                aria-describedby="blog-editor-meta-description-hint"
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder="e.g. Month-by-month guide to Hunza weather, blossoms and autumn colours."
                 value={values.metaDescription}
                 onChange={(e) => setField("metaDescription", e.target.value)}
               />
-            </label>
+            </AdminField>
           </div>
           <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
             <span>
@@ -454,7 +500,7 @@ export function AdminBlogPanel() {
             </button>
           </label>
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button id="blog-editor-save" type="submit" disabled={saving}>
+            <Button id="blog-editor-save" type="submit" {...req.submitProps} disabled={saving}>
               {saving ? "Saving…" : editingId ? "Save changes" : "Create post"}
             </Button>
             <Button

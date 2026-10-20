@@ -15,8 +15,13 @@ export function AdminSidebar({
   const sections = useMemo(() => visibleAdminNav(showManageAdmins), [showManageAdmins]);
 
   return (
-    <aside className="hidden w-60 shrink-0 md:block">
-      <div className="sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto rounded-2xl border border-border bg-panel p-3 shadow-sm backdrop-blur-xl">
+    // Desktop only (lg+). On tablets a 240px rail left too little room for the
+    // admin tables/forms, so < lg uses the top bar's drawer instead.
+    <aside className="hidden w-60 shrink-0 self-start lg:sticky lg:top-24 lg:block">
+      <div
+        data-lenis-prevent
+        className="max-h-[calc(100dvh-7rem)] overflow-y-auto overscroll-contain rounded-2xl border border-border bg-panel p-3 shadow-sm backdrop-blur-xl"
+      >
         <nav aria-label="Admin" className="flex flex-col gap-3">
           {sections.map((sec) => (
             <div key={sec.id}>
@@ -35,7 +40,7 @@ export function AdminSidebar({
                         href={l.href}
                         aria-current={active ? "page" : undefined}
                         className={cn(
-                          "flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
+                          "flex min-h-10 items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand-sun",
                           active
                             ? "bg-brand-sun/18 text-foreground ring-1 ring-brand-sun/25"
                             : "text-muted hover:bg-black/5 hover:text-foreground dark:hover:bg-white/10",

@@ -6,6 +6,14 @@ import { useCallback, useEffect, useId, useRef } from "react";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
 import { cn } from "@/lib/cn";
 import { useBodyScrollLock } from "@/components/ui/useBodyScrollLock";
+import { useFocusTrap } from "@/components/ui/useFocusTrap";
+
+/**
+ * Open dialogs, innermost last. Escape must close only the top-most dialog —
+ * otherwise a confirm/picker modal opened from an editor modal would close
+ * (and discard) both at once.
+ */
+const openStack: string[] = [];
 
 export function Modal({
   open,
@@ -35,7 +43,8 @@ export function Modal({
   const reduce = useReducedMotion();
   const titleId = useId();
   const descId = useId();
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const stackId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
   const confirmRef = useRef(confirmClose);
   confirmRef.current = confirmClose;
   const onCloseRef = useRef(onClose);
@@ -54,18 +63,26 @@ export function Modal({
 
   useBodyScrollLock(open);
 
-  useEffect(() => {
-    if (open) closeRef.current?.focus();
-  }, [open]);
+  // Keeps Tab inside the dialog, focuses its first control on open and
+  // returns focus to the trigger on close. Escape is handled below.
+  useFocusTrap(panelRef, open);
 
   useEffect(() => {
     if (!open) return;
+    openStack.push(stackId);
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") requestClose();
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (openStack[openStack.length - 1] !== stackId) return;
+      e.preventDefault();
+      requestClose();
     }
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, requestClose]);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      const i = openStack.lastIndexOf(stackId);
+      if (i !== -1) openStack.splice(i, 1);
+    };
+  }, [open, requestClose, stackId]);
 
   return (
     <AnimatePresence>
@@ -88,17 +105,20 @@ export function Modal({
             )}
           >
             <motion.div
+              ref={panelRef}
               role="dialog"
               aria-modal="true"
               aria-labelledby={title ? titleId : undefined}
               aria-describedby={description ? descId : undefined}
+              tabIndex={-1}
               className={cn(
-                "pointer-events-auto max-h-[90vh] max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-2xl border border-white/20 bg-white/95 p-6 text-slate-900 shadow-glass backdrop-blur-glass-lg",
+                // Flex column: the header stays put and only the body scrolls,
+                // so the close button is always reachable on long forms.
+                "pointer-events-auto flex max-h-[90vh] max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/20 bg-white/95 text-slate-900 shadow-glass backdrop-blur-glass-lg focus:outline-none",
                 // Many admin components use dark-theme tokens like text-foreground/text-muted.
                 // Inside a white modal panel, force them to readable (black) shades.
                 "[&_.text-foreground]:text-slate-900 [&_.text-muted]:text-slate-600 [&_.text-brand-ink]:text-slate-900 [&_.text-brand-muted]:text-slate-600",
-                fullscreenOnMobile &&
-                  "max-h-[100dvh] p-4 sm:max-h-[90dvh] sm:p-6",
+                fullscreenOnMobile && "max-h-[100dvh] sm:max-h-[90dvh]",
                 fullscreenOnMobile &&
                   "sm:rounded-2xl sm:border-white/20 sm:bg-white/95",
                 fullscreenOnMobile &&
@@ -111,7 +131,12 @@ export function Modal({
               transition={{ type: "spring", damping: 28, stiffness: 320 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="mb-4 flex items-start justify-between gap-4">
+              <div
+                className={cn(
+                  "flex shrink-0 items-start justify-between gap-4 px-6 pb-4 pt-6",
+                  fullscreenOnMobile && "px-4 pt-4 sm:px-6 sm:pt-6",
+                )}
+              >
                 <div className="min-w-0">
                   {title ? (
                     <h2
@@ -128,16 +153,26 @@ export function Modal({
                   ) : null}
                 </div>
                 <button
-                  ref={closeRef}
                   type="button"
                   onClick={requestClose}
                   aria-label="Close"
-                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-900 transition-colors hover:bg-slate-100 hover:text-slate-950"
+                  className="-mr-2 -mt-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-slate-900 transition-colors hover:bg-slate-100 hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-slate-500"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
-              {children}
+              {/* data-lenis-prevent: the public site's smooth scroller must never
+                  swallow wheel/touch events meant for the dialog body. */}
+              <div
+                data-lenis-prevent
+                className={cn(
+                  "min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-6",
+                  fullscreenOnMobile &&
+                    "px-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6",
+                )}
+              >
+                {children}
+              </div>
             </motion.div>
           </div>
         </div>

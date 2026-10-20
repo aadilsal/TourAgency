@@ -27,7 +27,7 @@ export default async function AdminLayout({
     <div className="min-h-screen bg-background text-foreground">
       <AdminSessionKeeper />
       <AdminTopBar email={s.email} role={s.role} showManageAdmins={showManageAdmins} />
-      <PageContainer className="flex gap-8 py-8 md:gap-10 md:py-10">
+      <PageContainer className="flex gap-8 py-6 md:py-8 lg:gap-10 lg:py-10">
         <AdminSidebar showManageAdmins={showManageAdmins} />
         <div className="min-w-0 flex-1">
           {children}

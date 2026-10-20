@@ -383,6 +383,7 @@ export const listRelatedTours = query({
         perHeadPrices: t.perHeadPrices ?? [],
         durationDays: t.durationDays,
         location: t.location,
+        audience: t.audience,
         images: await resolveTourImageUrls(ctx, t.images),
       })),
     );

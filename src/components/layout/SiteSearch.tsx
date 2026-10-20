@@ -121,7 +121,7 @@ export function SiteSearch({
       {q ? (
         <div className="mt-2">
           {results.length > 0 ? (
-            <ul className="max-h-72 overflow-auto">
+            <ul data-lenis-prevent className="max-h-72 overflow-auto overscroll-contain">
               {results.map((t) => (
                 <li key={t._id}>
                   <button

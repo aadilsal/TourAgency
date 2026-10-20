@@ -18,6 +18,7 @@ import { asBoolean, asNumber, asString } from "@/lib/bulkUpload/coerce";
 import { importInBatches } from "@/lib/bulkUpload/importInBatches";
 import { useEditorForm } from "@/hooks/useEditorForm";
 import { confirmDiscard } from "@/hooks/useUnsavedChangesGuard";
+import { AdminField, RequiredFieldsNote, useRequiredFields } from "@/components/admin/shared/AdminField";
 
 type FaqRow = {
   _id: Id<"faqs">;
@@ -146,6 +147,16 @@ export function AdminFaqsPanel() {
   const [listErr, setListErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  // Question/answer: faqs.upsert throws "Question/Answer can't be empty".
+  // Sort order: this form already refuses to save an existing FAQ without one.
+  const req = useRequiredFields(
+    [
+      { name: "question", label: "Question", value: values.question },
+      { name: "answer", label: "Answer", value: values.answer },
+      { name: "sortOrder", label: "Sort order", value: values.sortOrder, when: editingId !== null },
+    ],
+    { idPrefix: "faq-editor" },
+  );
 
   const list = useMemo(() => (results as FaqRow[] | undefined) ?? [], [results]);
   const allLoaded = status === "Exhausted";
@@ -162,6 +173,7 @@ export function AdminFaqsPanel() {
       sortOrder: nextSort,
       isActive: true,
     });
+    req.reset();
     setErr(null);
     setEditorOpen(true);
   }
@@ -175,6 +187,7 @@ export function AdminFaqsPanel() {
       sortOrder: String(row.sortOrder),
       isActive: row.isActive,
     });
+    req.reset();
     setErr(null);
     setEditorOpen(true);
   }
@@ -193,6 +206,7 @@ export function AdminFaqsPanel() {
 
   async function onSave(e: React.FormEvent) {
     e.preventDefault();
+    if (!req.guardSubmit(e)) return;
     setErr(null);
     if (typeof sessionToken !== "string") {
       setErr("Session expired — refresh and sign in again.");
@@ -413,7 +427,8 @@ export function AdminFaqsPanel() {
         description="Question/answer show on the public FAQs page when Visible is on."
         panelClassName="max-w-2xl"
       >
-        <form onSubmit={onSave} className="space-y-3">
+        <form noValidate onSubmit={onSave} className="space-y-3">
+          <RequiredFieldsNote />
           {err ? (
             <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800">
               {err}
@@ -421,20 +436,34 @@ export function AdminFaqsPanel() {
           ) : null}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-semibold text-slate-600 sm:col-span-2">
-              Question
+            <AdminField
+              className="sm:col-span-2"
+              label="Question"
+              htmlFor={req.id("question")}
+              required
+              tip="The question visitors see in the FAQ section of the About page."
+              error={req.errorFor("question")}
+            >
               <input
-                required
+                {...req.fieldProps("question")}
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder="e.g. Do I need a visa to visit Pakistan?"
                 value={values.question}
                 onChange={(e) => setField("question", e.target.value)}
               />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Category
+            </AdminField>
+            <AdminField
+              label="Category"
+              htmlFor="faq-editor-category"
+              tip="Groups related questions under one heading. Pick an existing category or type a new one."
+              hint={`Leave blank for "${DEFAULT_CATEGORY}".`}
+            >
               <input
+                id="faq-editor-category"
+                aria-describedby="faq-editor-category-hint"
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 list="faq-categories"
+                placeholder="e.g. Visas & Permits"
                 value={values.category}
                 onChange={(e) => setField("category", e.target.value)}
               />
@@ -443,29 +472,42 @@ export function AdminFaqsPanel() {
                   <option key={c} value={c} />
                 ))}
               </datalist>
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Sort order
+            </AdminField>
+            <AdminField
+              label="Sort order"
+              htmlFor={req.id("sortOrder")}
+              required={editingId !== null}
+              tip="Lower numbers appear first on the site."
+              hint={editingId ? undefined : "Leave blank to add it at the end of the list."}
+              error={req.errorFor("sortOrder")}
+            >
               <input
+                {...req.fieldProps("sortOrder")}
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 type="number"
-                placeholder={editingId ? undefined : "auto (end of list)"}
+                placeholder={editingId ? "e.g. 10" : "auto (end of list)"}
                 value={values.sortOrder}
                 onChange={(e) => setField("sortOrder", e.target.value)}
               />
-            </label>
+            </AdminField>
           </div>
 
-          <label className="block text-xs font-semibold text-slate-600">
-            Answer
+          <AdminField
+            label="Answer"
+            htmlFor={req.id("answer")}
+            required
+            tip="The answer shown when a visitor opens the question."
+            error={req.errorFor("answer")}
+          >
             <textarea
-              required
+              {...req.fieldProps("answer")}
               rows={8}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm leading-relaxed"
+              placeholder="e.g. Most visitors can apply for an e-visa online. Message us on WhatsApp at +92 300 1234567 and we will send you a tour invitation letter."
               value={values.answer}
               onChange={(e) => setField("answer", e.target.value)}
             />
-          </label>
+          </AdminField>
 
           <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
             <span>
@@ -496,7 +538,7 @@ export function AdminFaqsPanel() {
           </label>
 
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button id="faq-editor-save" type="submit" disabled={saving}>
+            <Button id="faq-editor-save" type="submit" {...req.submitProps} disabled={saving}>
               {saving ? "Saving…" : editingId ? "Save changes" : "Create FAQ"}
             </Button>
             <Button

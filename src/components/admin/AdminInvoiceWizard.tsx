@@ -18,12 +18,11 @@ import {
 } from "@/components/admin/shared/EditorStatus";
 import { WizardLayout } from "@/components/admin/WizardLayout";
 import {
-  FieldHint,
-  FieldLabel,
-  SelectField,
-  TextAreaField,
-  TextInput,
-} from "@/components/ui/FormField";
+  AdminField,
+  RequiredFieldsNote,
+  useRequiredFields,
+} from "@/components/admin/shared/AdminField";
+import { SelectField, TextAreaField, TextInput } from "@/components/ui/FormField";
 import { Button } from "@/components/ui/Button";
 import { IconAction } from "@/components/admin/shared/IconAction";
 import { Modal } from "@/components/ui/Modal";
@@ -212,6 +211,17 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
   } = form;
   const formRef = useRef(form);
   formRef.current = form;
+
+  // Required by api.invoices.createDraft (clientName: v.string()). Only gates
+  // the step-1 "Next" (which creates the draft) — never autosave.
+  const req = useRequiredFields(
+    [{ name: "clientName", label: "Client name", value: clientName }],
+    { idPrefix: "invoice" },
+  );
+  const clientNameError = req.errorFor("clientName");
+  // Also required by createDraft; it defaults to today, so it can only be
+  // blank if the admin cleared it. Marked, not blocking.
+  const invoiceDateError = invoiceDate.trim() ? undefined : "Invoice date is required";
 
   const [msg, setMsg] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -444,6 +454,9 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
 
   function next() {
     if (step === 1) {
+      // Same rule as before (Next was disabled without a client name), but a
+      // click now highlights and focuses the field instead of doing nothing.
+      if (!req.guardSubmit()) return;
       if (invoiceId) setStep(2);
       else void onCreateDraft();
       return;
@@ -507,7 +520,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
         onNext={next}
         nextLabel={step === 1 && creating ? "Creating…" : step === STEPS.length ? (finishing ? "Saving…" : "Final") : "Next"}
         backDisabled={step === 1}
-        nextDisabled={step === 1 ? !clientName.trim() || creating : finishing}
+        nextDisabled={step === 1 ? creating : finishing}
         rightActions={
           <>
             {invoiceId ? <SaveStatusPill status={autosave.status} error={autosave.error} /> : null}
@@ -524,37 +537,56 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
       >
         {step === 1 ? (
           <div className="space-y-4">
-            <div>
-              <FieldLabel required>Client name</FieldLabel>
+            <RequiredFieldsNote />
+            <AdminField
+              label="Client name"
+              htmlFor={req.id("clientName")}
+              required
+              tip="The customer this invoice is billed to. Printed in the 'Bill to' block of the PDF and Word file."
+              error={clientNameError}
+            >
               <TextInput
-                required
+                {...req.fieldProps("clientName")}
+                error={Boolean(clientNameError)}
                 value={clientName}
                 onChange={(e) => update({ clientName: e.target.value })}
-                placeholder="Ahmed Ali"
+                placeholder="e.g. Ahmed Ali"
               />
-            </div>
+            </AdminField>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <FieldLabel required>Invoice date</FieldLabel>
+              <AdminField
+                label="Invoice date"
+                htmlFor="invoice-date"
+                required
+                tip="The date printed on the invoice. New invoices can't be backdated."
+                error={invoiceDateError}
+              >
                 <TextInput
-                  required
+                  id="invoice-date"
+                  aria-required
+                  error={Boolean(invoiceDateError)}
                   type="date"
                   min={invoiceId ? undefined : minDate}
                   value={invoiceDate}
                   onChange={(e) => update({ invoiceDate: e.target.value })}
                 />
-              </div>
-              <div>
-                <FieldLabel required>Currency</FieldLabel>
+              </AdminField>
+              <AdminField
+                label="Currency"
+                htmlFor="invoice-currency"
+                required
+                tip="Currency for every price, total and the amount due on this invoice."
+              >
                 <SelectField
+                  id="invoice-currency"
                   value={currency}
                   onChange={(e) => update({ currency: e.target.value as Currency })}
                 >
                   <option value="PKR">PKR</option>
                   <option value="USD">USD</option>
                 </SelectField>
-              </div>
+              </AdminField>
             </div>
           </div>
         ) : step === 2 ? (
@@ -613,44 +645,66 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                 return (
                   <div key={idx} className="rounded-2xl border border-border bg-panel-elevated p-4">
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div>
-                        <FieldLabel>Item name</FieldLabel>
+                      <AdminField
+                        label="Item name"
+                        htmlFor={`invoice-item-${idx}-name`}
+                        tip="One line on the invoice table, e.g. the package or an add-on service."
+                      >
                         <TextInput
+                          id={`invoice-item-${idx}-name`}
                           value={it.name}
                           onChange={(e) => setItem({ name: e.target.value })}
-                          placeholder={idx === 0 ? "Trip package" : "Add-on / Service"}
+                          placeholder={
+                            idx === 0 ? "e.g. 7-day Hunza & Skardu package" : "e.g. Airport transfer (Skardu)"
+                          }
                         />
-                      </div>
+                      </AdminField>
                       <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <FieldLabel>Qty</FieldLabel>
+                        <AdminField
+                          label="Qty"
+                          htmlFor={`invoice-item-${idx}-qty`}
+                          tip="How many of this item — e.g. number of travellers or rooms."
+                        >
                           <TextInput
+                            id={`invoice-item-${idx}-qty`}
                             type="number"
                             min={0}
                             value={it.quantity}
                             onChange={(e) => setItem({ quantity: num(e.target.value) })}
+                            placeholder="e.g. 2"
                           />
-                        </div>
-                        <div>
-                          <FieldLabel>Price</FieldLabel>
+                        </AdminField>
+                        <AdminField
+                          label={`Price (${currency})`}
+                          htmlFor={`invoice-item-${idx}-price`}
+                          tip="Price for one unit, in the invoice currency. Line total = Qty × Price."
+                        >
                           <TextInput
+                            id={`invoice-item-${idx}-price`}
                             type="number"
                             min={0}
                             value={it.price}
                             onChange={(e) => setItem({ price: num(e.target.value) })}
+                            placeholder={currency === "USD" ? "e.g. 450" : "e.g. 125000"}
                           />
-                        </div>
+                        </AdminField>
                       </div>
                     </div>
 
-                    <div className="mt-3">
-                      <FieldLabel>Description (optional)</FieldLabel>
+                    <AdminField
+                      className="mt-3"
+                      label="Description (optional)"
+                      htmlFor={`invoice-item-${idx}-description`}
+                      tip="Extra detail printed under the item name, e.g. hotels, vehicle or dates."
+                    >
                       <TextAreaField
+                        id={`invoice-item-${idx}-description`}
                         rows={3}
                         value={it.description ?? ""}
                         onChange={(e) => setItem({ description: e.target.value })}
+                        placeholder={"e.g. Prado 4x4 with driver\nHunza: Serena Inn (3N)\nSkardu: Shangrila Resort (2N)"}
                       />
-                    </div>
+                    </AdminField>
 
                     <div className="mt-3 flex items-center justify-between">
                       <p className="text-xs text-muted">
@@ -674,21 +728,33 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
             </div>
 
             <div className="rounded-2xl border border-border bg-panel-elevated p-4">
-              <FieldLabel>Trip summary (shows on invoice)</FieldLabel>
-              <TextAreaField
-                rows={5}
-                value={tripSummary}
-                onChange={(e) => update({ tripSummary: e.target.value })}
-                placeholder="Short summary of the trip: destinations, dates, inclusions, vehicle, hotels…"
-              />
+              <AdminField
+                label="Trip summary (shows on invoice)"
+                htmlFor="invoice-trip-summary"
+                tip="A short paragraph printed on the invoice above the line items. Leave blank to hide it."
+              >
+                <TextAreaField
+                  id="invoice-trip-summary"
+                  rows={5}
+                  value={tripSummary}
+                  onChange={(e) => update({ tripSummary: e.target.value })}
+                  placeholder="e.g. 7 days Lahore → Hunza → Skardu, 12–18 May. Prado with driver, 3-star hotels, breakfast & dinner included."
+                />
+              </AdminField>
             </div>
           </div>
         ) : step === 3 ? (
           <div className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <FieldLabel>Discount (%)</FieldLabel>
+              <AdminField
+                label="Discount (%)"
+                htmlFor="invoice-discount"
+                tip="Percentage taken off the subtotal before tax. Use 0 for no discount."
+                hint="A percentage (0–100), not an amount."
+              >
                 <TextInput
+                  id="invoice-discount"
+                  placeholder="e.g. 10"
                   type="number"
                   min={0}
                   max={100}
@@ -699,10 +765,16 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                     update({ discount: v });
                   }}
                 />
-              </div>
-              <div>
-                <FieldLabel>Tax (%)</FieldLabel>
+              </AdminField>
+              <AdminField
+                label="Tax (%)"
+                htmlFor="invoice-tax"
+                tip="Percentage added on top of the discounted subtotal. Use 0 if no tax applies."
+                hint="A percentage (0–100), not an amount."
+              >
                 <TextInput
+                  id="invoice-tax"
+                  placeholder="e.g. 5"
                   type="number"
                   min={0}
                   max={100}
@@ -713,7 +785,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                     update({ tax: v });
                   }}
                 />
-              </div>
+              </AdminField>
             </div>
 
             <div className="rounded-2xl border border-border bg-panel-elevated p-4">
@@ -737,18 +809,23 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                     {money(currency, total)}
                   </span>
                 </div>
-                <div className="mt-3">
-                  <FieldLabel>Already paid (advance)</FieldLabel>
+                <AdminField
+                  className="mt-3"
+                  label={`Already paid (advance, ${currency})`}
+                  htmlFor="invoice-advance"
+                  tip="Subtracted from the trip total to get the amount due. Printed on the invoice."
+                  hint="Deposit or payment already received from the customer."
+                >
                   <TextInput
+                    id="invoice-advance"
                     type="number"
                     min={0}
                     step="0.01"
                     value={advanceAmount}
                     onChange={(e) => update({ advanceAmount: Math.max(0, num(e.target.value)) })}
-                    placeholder="0"
+                    placeholder={currency === "USD" ? "e.g. 200" : "e.g. 50000"}
                   />
-                  <FieldHint>Deposit or payment already received from the customer.</FieldHint>
-                </div>
+                </AdminField>
                 <div className="mt-4 rounded-xl border-2 border-havezic-primary/40 bg-havezic-primary/5 px-4 py-3">
                   <p className="text-xs font-bold uppercase tracking-wide text-havezic-primary">Amount due</p>
                   <p className="mt-1 text-2xl font-extrabold tabular-nums text-foreground">
@@ -765,9 +842,13 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
           </div>
         ) : step === 4 ? (
           <div className="space-y-4">
-            <div>
-              <FieldLabel required>Payment method</FieldLabel>
+            <AdminField
+              label="Payment method"
+              htmlFor="invoice-payment-method"
+              tip="How the customer should pay. Bank transfer prints your saved bank details automatically."
+            >
               <SelectField
+                id="invoice-payment-method"
                 value={paymentMethod}
                 onChange={(e) => update({ paymentMethod: e.target.value as PaymentMethod })}
               >
@@ -775,7 +856,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                 <option value="easypaisa">Easypaisa</option>
                 <option value="jazzcash">JazzCash</option>
               </SelectField>
-            </div>
+            </AdminField>
 
             {paymentMethod === "bank" ? (
               <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
@@ -804,8 +885,16 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               </div>
             ) : null}
 
-            <div>
-              <FieldLabel required>Payment details</FieldLabel>
+            <AdminField
+              label="Payment details"
+              htmlFor="invoice-payment-details"
+              tip="Printed in the payment section of the invoice. Use a template button to start from a ready-made text."
+              hint={
+                paymentMethod === "bank"
+                  ? "The bank details above are added automatically — this box is for extra instructions only."
+                  : undefined
+              }
+            >
               <div className="mt-2 flex flex-wrap gap-2">
                 {(
                   [
@@ -837,33 +926,47 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                 ))}
               </div>
               <TextAreaField
+                id="invoice-payment-details"
                 rows={6}
                 value={paymentDetails}
                 onChange={(e) => update({ paymentDetails: e.target.value })}
-                placeholder="Account title, IBAN, number, instructions…"
+                placeholder={
+                  paymentMethod === "bank"
+                    ? "e.g. Please share the transfer receipt on WhatsApp +92 300 1234567."
+                    : "e.g. Account title: Junket Tours\nAccount number: 0300 1234567\nShare a screenshot after payment."
+                }
               />
-              {paymentMethod === "bank" ? (
-                <FieldHint>
-                  The bank details above are added automatically — this box is for extra instructions only.
-                </FieldHint>
-              ) : null}
-            </div>
+            </AdminField>
           </div>
         ) : step === 5 ? (
           <div className="space-y-4">
-            <div>
-              <FieldLabel>Terms & conditions</FieldLabel>
-              <TextAreaField rows={5} value={terms} onChange={(e) => update({ terms: e.target.value })} />
-            </div>
-            <div>
-              <FieldLabel>Cancellation policy</FieldLabel>
+            <AdminField
+              label="Terms & conditions"
+              htmlFor="invoice-terms"
+              tip="Printed in the notes section at the end of the invoice. Leave blank to hide it."
+            >
               <TextAreaField
+                id="invoice-terms"
+                rows={5}
+                value={terms}
+                onChange={(e) => update({ terms: e.target.value })}
+                placeholder={"e.g. 50% advance confirms the booking.\nBalance is due 7 days before departure."}
+              />
+            </AdminField>
+            <AdminField
+              label="Cancellation policy"
+              htmlFor="invoice-cancellation"
+              tip="Printed under the terms on the invoice. Leave blank to hide it."
+              hint="Keep it short and clear for clients."
+            >
+              <TextAreaField
+                id="invoice-cancellation"
                 rows={5}
                 value={cancellationPolicy}
                 onChange={(e) => update({ cancellationPolicy: e.target.value })}
+                placeholder={"e.g. Free cancellation up to 15 days before departure.\n50% refund 7–14 days before; no refund after that."}
               />
-              <FieldHint>Keep it short and clear for clients.</FieldHint>
-            </div>
+            </AdminField>
           </div>
         ) : (
           <div className="space-y-4">

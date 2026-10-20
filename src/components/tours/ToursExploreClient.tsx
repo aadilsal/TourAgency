@@ -34,6 +34,11 @@ import { MotionSection } from "@/components/ui/MotionSection";
 import { useBodyScrollLock } from "@/components/ui/useBodyScrollLock";
 import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { getProvince, tourMatchesProvince } from "@/lib/data/provinces-data";
+import {
+  TOUR_AUDIENCE_OPTIONS,
+  parseTourAudience,
+  type TourAudience,
+} from "@/lib/tours/tourAudience";
 
 const PAGE_SIZE = 9;
 
@@ -44,6 +49,7 @@ type SortKey = "popular" | "dur-asc" | "dur-desc";
 type Props = {
   initialTours: TourRow[];
   initialType?: string | null;
+  initialAudience?: string | null;
   initialLocation?: string | null;
   initialProvince?: string | null;
   initialQuery?: string | null;
@@ -55,6 +61,8 @@ const fieldClass =
   "mt-1 min-h-11 w-full rounded-xl border border-border bg-white px-3 py-2 text-sm font-medium text-havezic-accent shadow-sm focus:outline-none focus:ring-2 focus:ring-havezic-primary/25";
 
 type FilterFormProps = {
+  audience: TourAudience | "";
+  setAudience: (v: TourAudience | "") => void;
   location: string;
   setLocation: (v: string) => void;
   durMin: string;
@@ -70,6 +78,8 @@ type FilterFormProps = {
 };
 
 function TourFiltersForm({
+  audience,
+  setAudience,
   location,
   setLocation,
   durMin,
@@ -89,6 +99,25 @@ function TourFiltersForm({
         <SlidersHorizontal className="h-4 w-4" aria-hidden />
         Filters
       </p>
+
+      <label className="block text-sm">
+        <span className="font-medium text-havezic-text">Tour for</span>
+        <select
+          className={fieldClass}
+          value={audience}
+          onChange={(e) => {
+            setAudience(parseTourAudience(e.target.value) ?? "");
+            onFilterChange();
+          }}
+        >
+          <option value="">All tours</option>
+          {TOUR_AUDIENCE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </label>
 
       <label className="block text-sm">
         <span className="font-medium text-havezic-text">Location</span>
@@ -175,6 +204,7 @@ function TourFiltersForm({
 }
 
 function useActiveFilterCount(
+  audience: TourAudience | "",
   location: string,
   durMin: string,
   durMax: string,
@@ -182,17 +212,19 @@ function useActiveFilterCount(
 ) {
   return useMemo(() => {
     let n = 0;
+    if (audience) n++;
     if (location.trim()) n++;
     if (durMin.trim()) n++;
     if (durMax.trim()) n++;
     if (type) n++;
     return n;
-  }, [location, durMin, durMax, type]);
+  }, [audience, location, durMin, durMax, type]);
 }
 
 export function ToursExploreClient({
   initialTours,
   initialType,
+  initialAudience,
   initialLocation,
   initialProvince,
   initialQuery,
@@ -206,6 +238,9 @@ export function ToursExploreClient({
   const [durMax, setDurMax] = useState("");
   const [type, setType] = useState<TourTypeFilter | "">(
     parseTourType(initialType ?? undefined) ?? "",
+  );
+  const [audience, setAudience] = useState<TourAudience | "">(
+    parseTourAudience(initialAudience) ?? "",
   );
   const [sort, setSort] = useState<SortKey>("popular");
   const [page, setPage] = useState(1);
@@ -221,6 +256,7 @@ export function ToursExploreClient({
   }, [convexTours, initialTours]);
 
   const activeFilterCount = useActiveFilterCount(
+    audience,
     location,
     durMin,
     durMax,
@@ -245,6 +281,7 @@ export function ToursExploreClient({
     setDurMin("");
     setDurMax("");
     setType("");
+    setAudience("");
     setPage(1);
   }, []);
 
@@ -280,6 +317,9 @@ export function ToursExploreClient({
     if (type) {
       list = list.filter((t) => tourMatchesType(t, type));
     }
+    if (audience) {
+      list = list.filter((t) => t.audience === audience);
+    }
     list.sort((a, b) => {
       if (sort === "popular") {
         const ta = a.createdAt ?? 0;
@@ -291,7 +331,7 @@ export function ToursExploreClient({
       return b.durationDays - a.durationDays;
     });
     return list;
-  }, [catalog, query, provinceFilter, location, durMin, durMax, type, sort]);
+  }, [catalog, query, provinceFilter, location, durMin, durMax, type, audience, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -315,6 +355,8 @@ export function ToursExploreClient({
   }, [filterDrawerOpen]);
 
   const filterFormProps: FilterFormProps = {
+    audience,
+    setAudience,
     location,
     setLocation,
     durMin,

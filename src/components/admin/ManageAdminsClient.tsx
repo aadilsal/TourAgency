@@ -14,6 +14,8 @@ import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { PasswordStrengthMeter } from "@/components/ui/PasswordStrengthMeter";
 import { analyzePassword } from "@/lib/passwordStrength";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { cn } from "@/lib/cn";
+import { AdminField, RequiredFieldsNote, useRequiredFields } from "@/components/admin/shared/AdminField";
 
 type UserRow = {
   _id: Id<"users">;
@@ -48,6 +50,22 @@ export function ManageAdminsClient() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const pwOk = analyzePassword(password).meetsMinimum;
+
+  // createAdminUser needs name, email and password (non-optional strings).
+  const req = useRequiredFields(
+    [
+      { name: "name", label: "Name", value: name },
+      { name: "email", label: "Email", value: email },
+      {
+        name: "password",
+        label: "Password",
+        value: password,
+        isMissing: () => !pwOk,
+        message: password ? "Password must meet all strength requirements." : "Password is required",
+      },
+    ],
+    { idPrefix: "new-admin" },
+  );
 
   /** Role changes report failures instead of dropping them on the floor. */
   async function changeRole(kind: "promote" | "demote", userId: Id<"users">, name: string) {
@@ -85,6 +103,8 @@ export function ManageAdminsClient() {
       setName("");
       setEmail("");
       setPassword("");
+      // Fields were cleared on purpose — don't flag them as missing.
+      req.reset();
       setMsg("Admin created.");
     } catch (er) {
       setMsg(toUserFacingErrorMessage(er));
@@ -100,7 +120,11 @@ export function ManageAdminsClient() {
   return (
     <div className="space-y-10">
       <form
-        onSubmit={onCreateAdmin}
+        noValidate
+        onSubmit={(e) => {
+          if (!req.guardSubmit(e)) return;
+          void onCreateAdmin(e);
+        }}
         className="max-w-md space-y-3 rounded-xl border border-slate-200/90 bg-white p-5 shadow-sm"
       >
         <div className="flex items-center gap-2">
@@ -111,32 +135,60 @@ export function ManageAdminsClient() {
           New account with admin role. Existing customers can also be promoted
           below.
         </p>
-        <input
+        <RequiredFieldsNote />
+        <AdminField
+          label="Name"
+          htmlFor={req.id("name")}
           required
-          placeholder="Name"
-          className={inputClass}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <input
+          tip="The admin's full name, shown in the admin panel."
+          error={req.errorFor("name")}
+        >
+          <input
+            {...req.fieldProps("name")}
+            placeholder="e.g. Ayesha Khan"
+            className={cn(inputClass, "mt-1")}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </AdminField>
+        <AdminField
+          label="Email"
+          htmlFor={req.id("email")}
           required
-          type="email"
-          placeholder="Email"
-          className={inputClass}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <input
+          tip="Used to sign in. Must not already belong to another account."
+          error={req.errorFor("email")}
+        >
+          <input
+            {...req.fieldProps("email")}
+            type="email"
+            autoComplete="off"
+            placeholder="e.g. ayesha@junkettours.com"
+            className={cn(inputClass, "mt-1")}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+        </AdminField>
+        <AdminField
+          label="Password"
+          htmlFor={req.id("password")}
           required
-          type="password"
-          minLength={8}
-          placeholder="Password (min 8 characters)"
-          className={inputClass}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+          tip="The new admin's sign-in password. Share it with them privately."
+          hint="Must pass every rule in the strength check below."
+          error={req.errorFor("password")}
+        >
+          <input
+            {...req.fieldProps("password")}
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            placeholder="Min 8 characters"
+            className={cn(inputClass, "mt-1")}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </AdminField>
         <PasswordStrengthMeter password={password} />
-        <Button type="submit" disabled={!pwOk || typeof sessionToken !== "string"}>
+        <Button type="submit" {...req.submitProps} disabled={typeof sessionToken !== "string"}>
           Create admin
         </Button>
         {msg ? <p className="text-sm text-slate-600">{msg}</p> : null}

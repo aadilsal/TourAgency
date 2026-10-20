@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Card } from "@/components/ui/Card";
-import { FieldHint, FieldLabel, TextAreaField, TextInput } from "@/components/ui/FormField";
+import { TextAreaField, TextInput } from "@/components/ui/FormField";
+import { AdminField } from "@/components/admin/shared/AdminField";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { useSafeQuery } from "@/hooks/useSafeQuery";
@@ -138,19 +139,38 @@ export function AdminSettingsPanel() {
   function field(
     key: TextKey,
     label: string,
-    opts: { type?: string; placeholder?: string; multiline?: boolean; wide?: boolean; hint?: string } = {},
+    opts: {
+      type?: string;
+      placeholder?: string;
+      multiline?: boolean;
+      wide?: boolean;
+      hint?: string;
+      tip?: string;
+    } = {},
   ) {
     const id = `settings-${key}`;
     const v = values![key];
+    const hint = usingDefault(key)
+      ? "Default value — not saved yet. Edit to override."
+      : snap!.stored[key] === "" && !v
+        ? "Cleared — hidden on the site."
+        : opts.hint;
+    const describedBy = hint ? `${id}-hint` : undefined;
     return (
-      <div className={opts.wide ? "sm:col-span-2" : undefined}>
-        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <AdminField
+        className={opts.wide ? "sm:col-span-2" : undefined}
+        label={label}
+        htmlFor={id}
+        tip={opts.tip}
+        hint={hint}
+      >
         {opts.multiline ? (
           <TextAreaField
             id={id}
             rows={3}
             value={v}
             placeholder={opts.placeholder}
+            aria-describedby={describedBy}
             onChange={(e) => form.setField(key, e.target.value)}
           />
         ) : (
@@ -159,17 +179,11 @@ export function AdminSettingsPanel() {
             type={opts.type}
             value={v}
             placeholder={opts.placeholder}
+            aria-describedby={describedBy}
             onChange={(e) => form.setField(key, e.target.value)}
           />
         )}
-        {usingDefault(key) ? (
-          <FieldHint>Default value — not saved yet. Edit to override.</FieldHint>
-        ) : snap!.stored[key] === "" && !v ? (
-          <FieldHint>Cleared — hidden on the site.</FieldHint>
-        ) : opts.hint ? (
-          <FieldHint>{opts.hint}</FieldHint>
-        ) : null}
-      </div>
+      </AdminField>
     );
   }
 
@@ -245,16 +259,35 @@ export function AdminSettingsPanel() {
         title="Business info"
         description="Shown in the site footer, contact page, invoices and itinerary PDFs."
       >
-        {field("officeAddress", "Office address", { multiline: true, wide: true })}
-        {field("website", "Website", { wide: true, placeholder: "https://www.junkettours.co" })}
+        {field("officeAddress", "Office address", {
+          multiline: true,
+          wide: true,
+          placeholder: "e.g. Office 12, Main Boulevard, Gulberg III, Lahore",
+          tip: "Your office address in the site footer, on the Contact page and on invoices and itinerary PDFs.",
+        })}
+        {field("website", "Website", {
+          wide: true,
+          placeholder: "e.g. https://www.junkettours.co",
+          tip: "Website address printed on invoices and itinerary PDFs.",
+          hint: "Include https://",
+        })}
       </Section>
 
       <Section title="Contact & map" description="How customers reach you from the website.">
-        {field("whatsappPhone", "WhatsApp phone", { placeholder: "+92 320 9973486" })}
-        {field("contactEmail", "Contact email", { type: "email", placeholder: "info@junkettours.co" })}
+        {field("whatsappPhone", "WhatsApp phone", {
+          placeholder: "e.g. +92 300 1234567",
+          tip: "Number behind the WhatsApp buttons on the site and printed on invoices and PDFs.",
+          hint: "Include the country code, e.g. +92.",
+        })}
+        {field("contactEmail", "Contact email", {
+          type: "email",
+          placeholder: "e.g. bookings@junkettours.com",
+          tip: "Email shown on the Contact page, in the footer and on invoices and PDFs.",
+        })}
         {field("mapsEmbedUrl", "Google Maps embed URL", {
           wide: true,
-          placeholder: "https://www.google.com/maps/embed?...",
+          placeholder: "e.g. https://www.google.com/maps/embed?pb=...",
+          tip: "The map shown on the Contact page and in the site footer.",
           hint: "Paste the embed link or the full <iframe> code from Google Maps → Share → Embed.",
         })}
       </Section>
@@ -262,9 +295,11 @@ export function AdminSettingsPanel() {
       <Section title="Licences" description="Printed on invoices and itinerary PDFs.">
         {field("governmentLicenseNo", "Government licence number (primary)", {
           placeholder: "e.g. DTS registration",
+          tip: "Your main tourism licence / registration number, printed on invoices and itinerary PDFs.",
         })}
         {field("governmentLicenseNo2", "Government licence number (secondary)", {
           placeholder: "e.g. second registration",
+          tip: "An optional second registration number. Leave empty if you only have one.",
         })}
       </Section>
 
@@ -275,33 +310,55 @@ export function AdminSettingsPanel() {
       >
         {(
           [
-            ["bankName", "Bank name"],
-            ["accountTitle", "Account title"],
-            ["accountNumber", "Account number"],
-            ["iban", "IBAN"],
+            ["bankName", "Bank name", "e.g. Meezan Bank", "The bank customers transfer payments to."],
+            [
+              "accountTitle",
+              "Account title",
+              "e.g. Junket Tours (Pvt) Ltd",
+              "The account holder's name exactly as the bank has it.",
+            ],
+            [
+              "accountNumber",
+              "Account number",
+              "e.g. 0123 4567 8901 2345",
+              "Your local bank account number.",
+            ],
+            [
+              "iban",
+              "IBAN",
+              "e.g. PK36MEZN0001234567890123",
+              "24-character Pakistani IBAN (starts with PK), for transfers from other banks and abroad.",
+            ],
           ] as const
-        ).map(([key, label]) => (
-          <div key={key}>
-            <FieldLabel htmlFor={`settings-${key}`}>{label}</FieldLabel>
+        ).map(([key, label, placeholder, tip]) => (
+          <AdminField key={key} label={label} htmlFor={`settings-${key}`} tip={tip}>
             <TextInput
               id={`settings-${key}`}
               value={values[key]}
+              placeholder={placeholder}
               onChange={(e) => form.setField(key, e.target.value)}
             />
-          </div>
+          </AdminField>
         ))}
-        <div className="sm:col-span-2">
-          <FieldLabel htmlFor="settings-bankInstruction">Payment instruction (optional)</FieldLabel>
+        <AdminField
+          className="sm:col-span-2"
+          label="Payment instruction (optional)"
+          htmlFor="settings-bankInstruction"
+          tip="One line printed under the bank details, telling customers what to do after paying."
+          hint={
+            snap.stored.bankDetails === null
+              ? "Default bank details — not saved yet. Edit any field to save your own."
+              : undefined
+          }
+        >
           <TextInput
             id="settings-bankInstruction"
             value={values.bankInstruction}
-            placeholder="e.g. Share the payment receipt after transfer."
+            placeholder="e.g. Share the payment receipt on WhatsApp after transfer."
+            aria-describedby={snap.stored.bankDetails === null ? "settings-bankInstruction-hint" : undefined}
             onChange={(e) => form.setField("bankInstruction", e.target.value)}
           />
-          {snap.stored.bankDetails === null ? (
-            <FieldHint>Default bank details — not saved yet. Edit any field to save your own.</FieldHint>
-          ) : null}
-        </div>
+        </AdminField>
       </Section>
 
       <FormSaveBar

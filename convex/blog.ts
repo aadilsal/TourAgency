@@ -168,6 +168,38 @@ export const listRelatedPublic = query({
   },
 });
 
+/**
+ * Published posts for the given ids, in the given order (tour page "Read more
+ * on our blog"). Drafts and deleted posts are skipped, never thrown on.
+ */
+export const listPublishedByIds = query({
+  args: { ids: v.array(v.id("blogPosts")) },
+  handler: async (ctx, { ids }) => {
+    const out: Array<{ slug: string; title: string; metaDescription?: string }> = [];
+    for (const id of Array.from(new Set(ids)).slice(0, 12)) {
+      const p = await ctx.db.get(id);
+      if (p && p.published) {
+        out.push({ slug: p.slug, title: p.title, metaDescription: p.metaDescription });
+      }
+    }
+    return out;
+  },
+});
+
+/** Lean post list for the tour editor's "Related blog posts" picker. */
+export const listForTourAssignment = query({
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    await requireAdminFromSession(ctx, sessionToken);
+    const posts = await ctx.db
+      .query("blogPosts")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .take(MAX_PUBLIC_POSTS);
+    return posts.map((p) => ({ _id: p._id, title: p.title, published: p.published }));
+  },
+});
+
 export const getPostBySlug = query({
   args: { slug: v.string(), sessionToken: v.optional(v.string()) },
   handler: async (ctx, { slug, sessionToken }) => {

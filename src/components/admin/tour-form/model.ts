@@ -2,6 +2,7 @@ import type { Doc, Id } from "@convex/_generated/dataModel";
 import { normalizeTourSlug } from "@convex/lib/tourSlug";
 import { parseTourType } from "@/lib/tours/tour-filters";
 import type { TourPdfImportDraft } from "@/lib/tours/pdf/types";
+import { parseTourAudience, type TourAudience } from "@/lib/tours/tourAudience";
 
 /**
  * Pure state model for the admin tour editor. Everything that decides WHAT gets
@@ -30,6 +31,9 @@ export type TourFormValues = {
   title: string;
   slug: string;
   knowBeforeYouGo: string;
+  /** `""` = for everyone (no badge). */
+  audience: TourAudience | "";
+  relatedBlogPostIds: Id<"blogPosts">[];
   description: string;
   /** Kept as raw strings so unknown/legacy type values survive a save. */
   types: string[];
@@ -97,6 +101,8 @@ export function emptyTourForm(): TourFormValues {
     title: "",
     slug: "",
     knowBeforeYouGo: "",
+    audience: "",
+    relatedBlogPostIds: [],
     description: "",
     types: [],
     destinationIds: [],
@@ -132,6 +138,8 @@ export function tourDocToForm(t: Doc<"tours">): TourFormValues {
     title: t.title,
     slug: t.slug,
     knowBeforeYouGo: t.knowBeforeYouGo ?? "",
+    audience: parseTourAudience(t.audience) ?? "",
+    relatedBlogPostIds: Array.isArray(t.relatedBlogPostIds) ? [...t.relatedBlogPostIds] : [],
     description: t.description,
     types: Array.isArray(t.types) ? [...t.types] : [],
     destinationIds: [
@@ -246,6 +254,8 @@ export function toServerFields(values: TourFormValues) {
     title: values.title.trim(),
     slug: slugify(values.slug || values.title),
     knowBeforeYouGo: textOrNull(values.knowBeforeYouGo),
+    audience: values.audience || null,
+    relatedBlogPostIds: Array.from(new Set(values.relatedBlogPostIds)),
     description: values.description,
     types: values.types,
     destinationIds,
@@ -313,6 +323,7 @@ export function buildCreateArgs(values: TourFormValues) {
   return {
     ...f,
     knowBeforeYouGo: orUndef(f.knowBeforeYouGo),
+    audience: orUndef(f.audience),
     destinationId: orUndef(f.destinationId),
     pricePkr: orUndef(f.pricePkr),
     priceUsd: orUndef(f.priceUsd),
@@ -342,6 +353,8 @@ const FIELD_LABELS: Record<keyof TourFormValues, string> = {
   title: "Title",
   slug: "Slug",
   knowBeforeYouGo: "Know before you go",
+  audience: "Tour for",
+  relatedBlogPostIds: "Related blog posts",
   description: "Description",
   types: "Tour types",
   destinationIds: "Destinations",

@@ -105,6 +105,10 @@ export default defineSchema({
      * (see src/lib/tours/knowBeforeYouGo.ts).
      */
     knowBeforeYouGo: v.optional(v.string()),
+    /** Who the tour is marketed to (badge + /tours filter). Absent = everyone. */
+    audience: v.optional(v.union(v.literal("foreigners"), v.literal("pakistanis"))),
+    /** Blog posts shown under "Read more on our blog" on the tour page. */
+    relatedBlogPostIds: v.optional(v.array(v.id("blogPosts"))),
     /** Business-defined tour categories used by homepage/type filtering. */
     types: v.optional(v.array(v.string())),
     /** Optional explicit destination assignments for admin-managed grouping. */

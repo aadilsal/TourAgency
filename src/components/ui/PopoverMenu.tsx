@@ -30,6 +30,7 @@
   );
    const rootRef = useRef<HTMLDivElement>(null);
    const btnRef = useRef<HTMLButtonElement>(null);
+   const menuRef = useRef<HTMLDivElement>(null);
    const id = useId();
  
    useEffect(() => {
@@ -52,7 +53,7 @@
       const flipUp = spaceBelow < menuH + 40 && spaceAbove > spaceBelow;
 
       const idealTop = flipUp ? r.top - 8 - menuH : r.bottom + 8;
-      const top = Math.max(pad, Math.min(idealTop, vh - pad - menuH));
+      const top = Math.max(pad, Math.min(idealTop, vh - pad - Math.min(menuH, vh - pad * 2)));
 
       const idealLeft = align === "right" ? r.right - menuW : r.left;
       const left = Math.max(pad, Math.min(idealLeft, vw - pad - menuW));
@@ -69,10 +70,16 @@
        const el = rootRef.current;
        if (!el) return;
        if (el.contains(e.target as Node)) return;
+       // The menu is portalled to <body>, so it isn't inside rootRef.
+       if (menuRef.current?.contains(e.target as Node)) return;
        setOpen(false);
      }
      function onKey(e: KeyboardEvent) {
-       if (e.key === "Escape") setOpen(false);
+       if (e.key === "Escape") {
+         e.preventDefault();
+         setOpen(false);
+         btnRef.current?.focus();
+       }
      }
      window.addEventListener("pointerdown", onDown);
      window.addEventListener("keydown", onKey);
@@ -102,13 +109,17 @@
       {open && pos
         ? createPortal(
             <div
+              ref={menuRef}
               id={id}
               role="menu"
+              data-lenis-prevent
               className={cn(
-                "fixed z-[300] w-56 overflow-hidden rounded-2xl border border-border bg-[#0b1220] shadow-glass",
+                // Light panel: the old #0b1220 background left the theme's black
+                // `text-foreground` items unreadable.
+                "fixed z-[300] w-56 overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white py-1 text-slate-900 shadow-lg",
                 menuClassName,
               )}
-              style={{ top: pos.top, left: pos.left }}
+              style={{ top: pos.top, left: pos.left, maxHeight: "calc(100dvh - 16px)" }}
             >
               {items.map((it, idx) => (
                 <button
@@ -117,8 +128,8 @@
                   role="menuitem"
                   disabled={it.disabled}
                   className={cn(
-                    "w-full px-3 py-3 text-left text-sm font-semibold hover:bg-black/5 dark:hover:bg-white/10",
-                    it.tone === "danger" ? "text-red-600" : "text-foreground",
+                    "min-h-11 w-full px-3 py-3 text-left text-sm font-semibold hover:bg-slate-100 focus-visible:bg-slate-100 focus-visible:outline-none",
+                    it.tone === "danger" ? "text-red-600" : "text-slate-900",
                     it.disabled && "opacity-40",
                   )}
                   onClick={() => {

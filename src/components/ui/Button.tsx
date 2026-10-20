@@ -10,7 +10,7 @@ export function buttonClass(
 ) {
   return cn(
     // 44px minimum touch target (h-11) for accessibility on mobile.
-    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-colors disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
+    "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold transition-colors disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2",
     variant === "primary" &&
       "bg-havezic-primary text-white shadow-sm hover:bg-havezic-primary-hover focus-visible:outline-havezic-primary",
     variant === "secondary" &&

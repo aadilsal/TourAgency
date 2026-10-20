@@ -117,7 +117,7 @@ export function SiteFooter({
               <li><Link href="/tours" className={linkClass}><MapPin className="h-4 w-4 shrink-0 opacity-70" />Tours</Link></li>
               <li><Link href="/guides" className={linkClass}><MapPin className="h-4 w-4 shrink-0 opacity-70" />Province guides</Link></li>
               <li><Link href="/destinations" className={linkClass}><MapPin className="h-4 w-4 shrink-0 opacity-70" />City destinations</Link></li>
-              <li><Link href="/blog" className={linkClass}><BookOpen className="h-4 w-4 shrink-0 opacity-70" />Travel guides</Link></li>
+              <li><Link href="/blog" className={linkClass}><BookOpen className="h-4 w-4 shrink-0 opacity-70" />Blog</Link></li>
               <li><Link href="/ai-planner" className={linkClass}><Sparkles className="h-4 w-4 shrink-0 opacity-70" />AI Planner</Link></li>
               <li><Link href="/about" className={linkClass}><Compass className="h-4 w-4 shrink-0 opacity-70" />About &amp; FAQs</Link></li>
               <li><Link href="/contact" className={linkClass}><PhoneCall className="h-4 w-4 shrink-0 opacity-70" />Contact us</Link></li>

@@ -17,6 +17,7 @@ export type FeaturedTour = {
   durationDays: number;
   location: string;
   images: string[];
+  audience?: string;
 };
 
 type Props = { tours: FeaturedTour[]; initialCurrency?: CurrencyCode };

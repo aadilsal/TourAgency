@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import type { Id } from "@convex/_generated/dataModel";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,7 @@ import { useSafeQuery } from "@/hooks/useSafeQuery";
 import { useEditorForm } from "@/hooks/useEditorForm";
 import { confirmDiscard } from "@/hooks/useUnsavedChangesGuard";
 import { QueryErrorBanner } from "@/components/admin/shared/EditorStatus";
+import { AdminField, InfoTip, RequiredFieldsNote, useRequiredFields } from "@/components/admin/shared/AdminField";
 
 type SiteRow = {
   _id: Id<"sites">;
@@ -85,8 +86,31 @@ export function AdminSitesPanel() {
 
   const list = useMemo(() => (rowsQuery.data ?? []) as SiteRow[], [rowsQuery.data]);
 
+  // Required = createSite's non-optional strings (provinceId, name, summary,
+  // history) + updateSite refusing an empty name. The form always sends them.
+  const req = useRequiredFields(
+    [
+      {
+        name: "provinceId",
+        label: "Province",
+        value: values.provinceId,
+        message: "Add a province first — sites must belong to one.",
+      },
+      { name: "name", label: "Name", value: values.name },
+      // Optional in convex/sites.ts — existing sites may have them empty.
+      { name: "summary", label: "Summary", value: values.summary, when: false },
+      { name: "history", label: "History", value: values.history, when: false },
+    ],
+    { idPrefix: "site" },
+  );
+  const fieldIdBase = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const typeId = `site-type-${fieldIdBase}`;
+  const cityId = `site-city-${fieldIdBase}`;
+  const sortOrderId = `site-sort-order-${fieldIdBase}`;
+
   function openNew() {
     setEditing(null);
+    req.reset();
     const defaultProvinceId =
       (provinces ?? []).find((p) => p.slug === filterProvince)?._id ??
       (provinces ?? [])[0]?._id ??
@@ -98,6 +122,7 @@ export function AdminSitesPanel() {
 
   function openEdit(s: SiteRow) {
     setEditing(s);
+    req.reset();
     form.reset({
       provinceId: s.provinceId,
       type: s.type,
@@ -271,17 +296,30 @@ export function AdminSitesPanel() {
         confirmClose={dirty}
         title={editing ? "Edit site" : "Add site"}
       >
-        <form onSubmit={(e) => void handleSave(e)} className="space-y-4">
+        <form
+          noValidate
+          onSubmit={(e) => {
+            if (!req.guardSubmit(e)) return;
+            void handleSave(e);
+          }}
+          className="space-y-4"
+        >
           {msg && modalOpen ? (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{msg}</p>
           ) : null}
-          <label className="block text-xs font-semibold text-slate-600">
-            Province
+          <RequiredFieldsNote />
+          <AdminField
+            label="Province"
+            htmlFor={req.id("provinceId")}
+            required
+            tip="The province guide (/guides/…) this site is listed under."
+            error={req.errorFor("provinceId")}
+          >
             <select
+              {...req.fieldProps("provinceId")}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
               value={values.provinceId}
               onChange={(e) => setField("provinceId", e.target.value)}
-              required
             >
               {(provinces ?? []).length === 0 ? <option value="">No provinces yet</option> : null}
               {(provinces ?? []).map((p) => (
@@ -290,10 +328,14 @@ export function AdminSitesPanel() {
                 </option>
               ))}
             </select>
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Type
+          </AdminField>
+          <AdminField
+            label="Type"
+            htmlFor={typeId}
+            tip="Used by the category filter on the province guide page."
+          >
             <select
+              id={typeId}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
               value={values.type}
               onChange={(e) => setField("type", e.target.value as SiteType)}
@@ -304,68 +346,106 @@ export function AdminSitesPanel() {
                 </option>
               ))}
             </select>
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Name
+          </AdminField>
+          <AdminField
+            label="Name"
+            htmlFor={req.id("name")}
+            required
+            tip="The site's name as shown on the province guide."
+            error={req.errorFor("name")}
+          >
             <input
+              {...req.fieldProps("name")}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+              placeholder="e.g. Badshahi Mosque"
               value={values.name}
               onChange={(e) => setField("name", e.target.value)}
-              required
             />
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Summary
+          </AdminField>
+          <AdminField
+            label="Summary"
+            htmlFor={req.id("summary")}
+            tip="One or two sentences shown at the top of the site's card."
+            error={req.errorFor("summary")}
+          >
             <textarea
+              {...req.fieldProps("summary")}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
               rows={2}
+              placeholder="e.g. Mughal-era mosque facing Lahore Fort, one of the largest in the world."
               value={values.summary}
               onChange={(e) => setField("summary", e.target.value)}
             />
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            History
+          </AdminField>
+          <AdminField
+            label="History"
+            htmlFor={req.id("history")}
+            tip="The longer background paragraph shown on the site's card in the province guide."
+            error={req.errorFor("history")}
+          >
             <textarea
+              {...req.fieldProps("history")}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
               rows={5}
+              placeholder="e.g. Built by Emperor Aurangzeb in 1673, the mosque…"
               value={values.history}
               onChange={(e) => setField("history", e.target.value)}
             />
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            City
+          </AdminField>
+          <AdminField
+            label="City"
+            htmlFor={cityId}
+            tip="The nearest city or town, shown under the site name."
+            hint="Leave blank to show no city."
+          >
             <input
+              id={cityId}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+              placeholder="e.g. Lahore"
               value={values.city}
               onChange={(e) => setField("city", e.target.value)}
             />
-          </label>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          </AdminField>
+          <div className="relative flex items-center gap-1">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={values.featured}
+                onChange={(e) => setField("featured", e.target.checked)}
+              />
+              Featured in scrolly preview
+            </label>
+            <InfoTip label="About Featured">
+              Featured sites appear in the scrolling province preview on the guides page.
+            </InfoTip>
+          </div>
+          <div className="relative flex items-center gap-1">
+            <label className="flex items-center gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={values.isActive}
+                onChange={(e) => setField("isActive", e.target.checked)}
+              />
+              Active
+            </label>
+            <InfoTip label="About Active">
+              Untick to hide this site from the public site without deleting it.
+            </InfoTip>
+          </div>
+          <AdminField
+            label="Sort order"
+            htmlFor={sortOrderId}
+            tip="Position within its province. Lower numbers come first."
+          >
             <input
-              type="checkbox"
-              checked={values.featured}
-              onChange={(e) => setField("featured", e.target.checked)}
-            />
-            Featured in scrolly preview
-          </label>
-          <label className="flex items-center gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={values.isActive}
-              onChange={(e) => setField("isActive", e.target.checked)}
-            />
-            Active
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Sort order
-            <input
+              id={sortOrderId}
               type="number"
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+              placeholder="e.g. 1"
               value={values.sortOrder}
               onChange={(e) => setField("sortOrder", e.target.value)}
-              required
             />
-          </label>
+          </AdminField>
           <div className="flex justify-end gap-2">
             <Button
               type="button"
@@ -376,7 +456,7 @@ export function AdminSitesPanel() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" {...req.submitProps} disabled={saving}>
               {saving ? "Saving…" : "Save"}
             </Button>
           </div>

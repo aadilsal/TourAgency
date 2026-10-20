@@ -14,6 +14,12 @@ import { confirmDiscard } from "@/hooks/useUnsavedChangesGuard";
 import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
 import { asNumber, asString, asStringArray } from "@/lib/bulkUpload/coerce";
 import { importInBatches } from "@/lib/bulkUpload/importInBatches";
+import {
+  AdminField,
+  InfoTip,
+  RequiredFieldsNote,
+  useRequiredFields,
+} from "@/components/admin/shared/AdminField";
 
 type DestinationRow = {
   _id: Id<"destinations">;
@@ -107,6 +113,18 @@ export function AdminDestinationsPanel() {
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  // createDestination: name, line, description, bestTime, costEstimate are
+  // non-optional v.string() args (the matching inputs were already `required`).
+  const req = useRequiredFields(
+    [
+      { name: "name", label: "Name", value: name },
+      { name: "line", label: "Line", value: line },
+      { name: "description", label: "Description", value: description },
+      { name: "bestTime", label: "Best time", value: bestTime },
+      { name: "costEstimate", label: "Cost estimate", value: costEstimate },
+    ],
+    { idPrefix: "destination-editor" },
+  );
 
   const list = useMemo(() => (rows ?? []) as DestinationRow[], [rows]);
 
@@ -152,6 +170,7 @@ export function AdminDestinationsPanel() {
   function openNew() {
     setEditingId(null);
     resetForm();
+    req.reset();
     setMsg(null);
     setModalOpen(true);
   }
@@ -172,6 +191,7 @@ export function AdminDestinationsPanel() {
     });
     setHeroStorageId(undefined);
     setHeroPreviewUrl(d.heroStorageId || d.heroExternalUrl ? d.heroUrl ?? null : null);
+    req.reset();
     setMsg(null);
     setModalOpen(true);
   }
@@ -217,6 +237,7 @@ export function AdminDestinationsPanel() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!req.guardSubmit(e)) return;
     if (heroUploading) {
       setMsg("Wait for the image upload to finish before saving.");
       return;
@@ -382,7 +403,8 @@ export function AdminDestinationsPanel() {
         panelClassName="max-w-2xl"
         fullscreenOnMobile
       >
-        <form onSubmit={onSubmit} className="space-y-3">
+        <form noValidate onSubmit={onSubmit} className="space-y-3">
+          <RequiredFieldsNote />
           {msg && modalOpen ? (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
               {msg}
@@ -390,49 +412,77 @@ export function AdminDestinationsPanel() {
           ) : null}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-semibold text-slate-600">
-              Name
+            <AdminField
+              label="Name"
+              htmlFor={req.id("name")}
+              required
+              tip="The destination name shown on its page, cards and the destinations list."
+              error={req.errorFor("name")}
+            >
               <input
-                required
+                {...req.fieldProps("name")}
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder="e.g. Hunza Valley"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Slug
+            </AdminField>
+            <AdminField
+              label="Slug"
+              htmlFor="destination-editor-slug"
+              tip="The last part of the destination page's web address. Changing it breaks old links."
+              hint="Leave blank to build it from the name."
+            >
               <input
+                id="destination-editor-slug"
+                aria-describedby="destination-editor-slug-hint"
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                placeholder="auto from name"
+                placeholder="e.g. hunza-valley"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
               />
-            </label>
+            </AdminField>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs font-semibold text-slate-600">
-              Line
+            <AdminField
+              label="Line"
+              htmlFor={req.id("line")}
+              required
+              tip="A one-line tagline shown under the name on destination cards and the page header."
+              error={req.errorFor("line")}
+            >
               <input
-                required
+                {...req.fieldProps("line")}
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder="e.g. Apricot orchards and Rakaposhi views"
                 value={line}
                 onChange={(e) => setLine(e.target.value)}
               />
-            </label>
-            <label className="block text-xs font-semibold text-slate-600">
-              Sort order
+            </AdminField>
+            <AdminField
+              label="Sort order"
+              htmlFor="destination-editor-sort-order"
+              tip="Lower numbers appear first in destination lists."
+            >
               <input
+                id="destination-editor-sort-order"
                 type="number"
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                placeholder="e.g. 10"
                 value={sortOrder}
                 onChange={(e) => setSortOrder(Number(e.target.value) || 0)}
               />
-            </label>
+            </AdminField>
           </div>
 
           <div className="text-xs font-semibold text-slate-600">
-            Hero image (optional)
+            <div className="relative flex items-center gap-1">
+              <span>Hero image (optional)</span>
+              <InfoTip label="About Hero image">
+                The large banner photo at the top of the destination page. Use a wide landscape image.
+              </InfoTip>
+            </div>
             <div className="mt-2 flex flex-wrap items-center gap-3">
               <div className="relative h-16 w-24 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100">
                 {heroPreviewUrl ? (
@@ -460,71 +510,110 @@ export function AdminDestinationsPanel() {
             </div>
           </div>
 
-          <label className="block text-xs font-semibold text-slate-600">
-            Description
+          <AdminField
+            label="Description"
+            htmlFor={req.id("description")}
+            required
+            tip="The intro paragraph on the destination page."
+            error={req.errorFor("description")}
+          >
             <textarea
-              required
+              {...req.fieldProps("description")}
               rows={3}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              placeholder="e.g. Hunza is a high mountain valley in Gilgit-Baltistan, known for Baltit Fort, Attabad Lake and views of Rakaposhi."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-          </label>
+          </AdminField>
 
-          <label className="block text-xs font-semibold text-slate-600">
-            Match terms (one per line)
+          <AdminField
+            label="Match terms (one per line)"
+            htmlFor="destination-editor-match-terms"
+            tip="Words that link tours to this destination: a tour whose location contains any of these terms is listed on this page."
+            hint="One term per line, e.g. place names and common spellings."
+          >
             <textarea
+              id="destination-editor-match-terms"
+              aria-describedby="destination-editor-match-terms-hint"
               rows={3}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
+              placeholder={"e.g. hunza\nkarimabad\nattabad"}
               value={matchTermsInput}
               onChange={(e) => setMatchTermsInput(e.target.value)}
             />
-          </label>
+          </AdminField>
 
-          <label className="block text-xs font-semibold text-slate-600">
-            Best time
+          <AdminField
+            label="Best time"
+            htmlFor={req.id("bestTime")}
+            required
+            tip="When to visit, shown in the destination's travel info."
+            error={req.errorFor("bestTime")}
+          >
             <textarea
-              required
+              {...req.fieldProps("bestTime")}
               rows={2}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              placeholder="e.g. April to October; blossoms in April, autumn colours in late October."
               value={bestTime}
               onChange={(e) => setBestTime(e.target.value)}
             />
-          </label>
+          </AdminField>
 
-          <label className="block text-xs font-semibold text-slate-600">
-            Tips (one per line)
+          <AdminField
+            label="Tips (one per line)"
+            htmlFor="destination-editor-tips"
+            tip="Practical travel tips listed on the destination page."
+            hint="Each line becomes one tip."
+          >
             <textarea
+              id="destination-editor-tips"
+              aria-describedby="destination-editor-tips-hint"
               rows={3}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              placeholder={"e.g. Carry cash; ATMs are limited past Gilgit\nPack a warm layer even in summer"}
               value={tipsInput}
               onChange={(e) => setTipsInput(e.target.value)}
             />
-          </label>
+          </AdminField>
 
-          <label className="block text-xs font-semibold text-slate-600">
-            Cost estimate
+          <AdminField
+            label="Cost estimate"
+            htmlFor={req.id("costEstimate")}
+            required
+            tip="A rough budget guide shown on the destination page."
+            error={req.errorFor("costEstimate")}
+          >
             <textarea
-              required
+              {...req.fieldProps("costEstimate")}
               rows={2}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              placeholder="e.g. From USD 450 (about PKR 125,000) per person for 5 days, including transport and hotels."
               value={costEstimate}
               onChange={(e) => setCostEstimate(e.target.value)}
             />
-          </label>
+          </AdminField>
 
-          <label className="block text-xs font-semibold text-slate-600">
-            Bullets (one per line)
+          <AdminField
+            label="Bullets (one per line)"
+            htmlFor="destination-editor-bullets"
+            tip="Short highlights shown as a bullet list on the destination page."
+            hint="Each line becomes one bullet."
+          >
             <textarea
+              id="destination-editor-bullets"
+              aria-describedby="destination-editor-bullets-hint"
               rows={3}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              placeholder={"e.g. Sunrise over Rakaposhi\nBoat ride on Attabad Lake\nBaltit and Altit forts"}
               value={bulletsInput}
               onChange={(e) => setBulletsInput(e.target.value)}
             />
-          </label>
+          </AdminField>
 
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" {...req.submitProps} disabled={saving}>
               {saving ? "Saving…" : editingId ? "Save changes" : "Create destination"}
             </Button>
             <Button

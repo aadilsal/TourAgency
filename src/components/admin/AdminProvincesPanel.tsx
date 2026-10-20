@@ -4,7 +4,7 @@ import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import type { Id } from "@convex/_generated/dataModel";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -13,6 +13,7 @@ import { useSafeQuery } from "@/hooks/useSafeQuery";
 import { useEditorForm } from "@/hooks/useEditorForm";
 import { confirmDiscard } from "@/hooks/useUnsavedChangesGuard";
 import { QueryErrorBanner } from "@/components/admin/shared/EditorStatus";
+import { AdminField, RequiredFieldsNote, useRequiredFields } from "@/components/admin/shared/AdminField";
 
 type ProvinceRow = {
   _id: Id<"provinces">;
@@ -102,8 +103,26 @@ export function AdminProvincesPanel() {
 
   const list = useMemo(() => (rowsQuery.data ?? []) as ProvinceRow[], [rowsQuery.data]);
 
+  // Required = what createProvince needs (non-optional strings) and what
+  // updateProvince refuses empty (name). The form always sends all of them.
+  const req = useRequiredFields(
+    [
+      { name: "name", label: "Name", value: values.name },
+      { name: "tagline", label: "Tagline", value: values.tagline },
+      { name: "intro", label: "Intro", value: values.intro },
+      { name: "bestTime", label: "Best time", value: values.bestTime },
+      { name: "costEstimate", label: "Cost estimate", value: values.costEstimate },
+    ],
+    { idPrefix: "province" },
+  );
+  const fieldIdBase = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const tipsId = `province-tips-${fieldIdBase}`;
+  const matchTermsId = `province-match-terms-${fieldIdBase}`;
+  const sortOrderId = `province-sort-order-${fieldIdBase}`;
+
   function openNew() {
     setEditing(null);
+    req.reset();
     form.reset({ ...EMPTY_FORM, sortOrder: String(list.length) });
     setMsg(null);
     setModalOpen(true);
@@ -111,6 +130,7 @@ export function AdminProvincesPanel() {
 
   function openEdit(p: ProvinceRow) {
     setEditing(p);
+    req.reset();
     form.reset({
       name: p.name,
       tagline: p.tagline,
@@ -325,81 +345,138 @@ export function AdminProvincesPanel() {
         confirmClose={dirty}
         title={editing ? "Edit province" : "Add province"}
       >
-        <form onSubmit={(e) => void handleSave(e)} className="space-y-4">
+        <form
+          noValidate
+          onSubmit={(e) => {
+            if (!req.guardSubmit(e)) return;
+            void handleSave(e);
+          }}
+          className="space-y-4"
+        >
           {msg && modalOpen ? (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">{msg}</p>
           ) : null}
-          <label className="block text-xs font-semibold text-slate-600">
-            Name
+          <RequiredFieldsNote />
+          <AdminField
+            label="Name"
+            htmlFor={req.id("name")}
+            required
+            tip="The province name shown on its /guides page and in the guides list."
+            hint={editing ? undefined : "The page address (/guides/…) is made from this name when you create it."}
+            error={req.errorFor("name")}
+          >
             <input
+              {...req.fieldProps("name")}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+              placeholder="e.g. Gilgit-Baltistan"
               value={values.name}
               onChange={(e) => setField("name", e.target.value)}
-              required
             />
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Tagline
+          </AdminField>
+          <AdminField
+            label="Tagline"
+            htmlFor={req.id("tagline")}
+            required
+            tip="A short line shown under the province name at the top of its guide page."
+            error={req.errorFor("tagline")}
+          >
             <input
+              {...req.fieldProps("tagline")}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+              placeholder="e.g. Karakoram peaks, Hunza and Skardu valleys"
               value={values.tagline}
               onChange={(e) => setField("tagline", e.target.value)}
-              required
             />
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Intro
+          </AdminField>
+          <AdminField
+            label="Intro"
+            htmlFor={req.id("intro")}
+            required
+            tip="The opening paragraph of the province guide page."
+            error={req.errorFor("intro")}
+          >
             <textarea
+              {...req.fieldProps("intro")}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
               rows={4}
+              placeholder="e.g. Gilgit-Baltistan is home to K2, the Karakoram Highway and the valleys of Hunza and Skardu…"
               value={values.intro}
               onChange={(e) => setField("intro", e.target.value)}
-              required
             />
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Best time
+          </AdminField>
+          <AdminField
+            label="Best time"
+            htmlFor={req.id("bestTime")}
+            required
+            tip="Shown as “Best time:” at the top of the guide page."
+            error={req.errorFor("bestTime")}
+          >
             <input
+              {...req.fieldProps("bestTime")}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+              placeholder="e.g. Late April–October"
               value={values.bestTime}
               onChange={(e) => setField("bestTime", e.target.value)}
             />
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Tips (one per line)
+          </AdminField>
+          <AdminField
+            label="Tips (one per line)"
+            htmlFor={tipsId}
+            tip="Travel tips listed on the guide page. For a new province the first three also become its preview bullets."
+            hint="Put each tip on its own line."
+          >
             <textarea
+              id={tipsId}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
               rows={3}
+              placeholder={"e.g. Book Deosai jeeps a day ahead\nCarry cash — ATMs are rare past Gilgit"}
               value={values.tipsInput}
               onChange={(e) => setField("tipsInput", e.target.value)}
             />
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Cost estimate
+          </AdminField>
+          <AdminField
+            label="Cost estimate"
+            htmlFor={req.id("costEstimate")}
+            required
+            tip="A rough price range shown on the guide page."
+            error={req.errorFor("costEstimate")}
+          >
             <input
+              {...req.fieldProps("costEstimate")}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+              placeholder="e.g. GB road packages PKR 45k–150k+ per person"
               value={values.costEstimate}
               onChange={(e) => setField("costEstimate", e.target.value)}
             />
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Match terms (comma-separated)
+          </AdminField>
+          <AdminField
+            label="Match terms (comma-separated)"
+            htmlFor={matchTermsId}
+            tip="Words used to link tours to this province automatically, matched against a tour's location."
+            hint="Separate terms with commas. They are saved in lowercase."
+          >
             <input
+              id={matchTermsId}
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+              placeholder="e.g. hunza, skardu, gilgit, fairy meadows"
               value={values.matchTermsInput}
               onChange={(e) => setField("matchTermsInput", e.target.value)}
             />
-          </label>
-          <label className="block text-xs font-semibold text-slate-600">
-            Sort order
+          </AdminField>
+          <AdminField
+            label="Sort order"
+            htmlFor={sortOrderId}
+            tip="Position in the guides list. Lower numbers come first."
+          >
             <input
+              id={sortOrderId}
               type="number"
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+              placeholder="e.g. 1"
               value={values.sortOrder}
               onChange={(e) => setField("sortOrder", e.target.value)}
-              required
             />
-          </label>
+          </AdminField>
           {editing ? (
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input
@@ -423,7 +500,7 @@ export function AdminProvincesPanel() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" {...req.submitProps} disabled={saving}>
               {saving ? "Saving…" : "Save"}
             </Button>
           </div>
