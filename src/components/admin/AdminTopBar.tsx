@@ -95,7 +95,7 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
           </button>
           <Link
             href="/"
-            className="shrink-0 text-lg font-bold tracking-tight text-foreground hover:text-brand-sun"
+            className="inline-flex min-h-10 shrink-0 items-center text-lg font-bold tracking-tight text-foreground hover:text-brand-sun"
           >
             JunketTours
           </Link>

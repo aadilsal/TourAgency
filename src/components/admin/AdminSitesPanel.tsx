@@ -5,7 +5,8 @@ import { api } from "@convex/_generated/api";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import type { Id } from "@convex/_generated/dataModel";
 import { useId, useMemo, useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
+import { IconAction } from "@/components/admin/shared/IconAction";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
@@ -240,7 +241,7 @@ export function AdminSitesPanel() {
       {rowsQuery.isLoading ? <p className="text-sm text-slate-500">Loading…</p> : null}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="min-w-full text-sm">
+        <table className="admin-stack-table min-w-full text-sm">
           <thead className="whitespace-nowrap bg-slate-50 text-left text-xs uppercase text-slate-500">
             <tr>
               <th className="px-4 py-3">Site</th>
@@ -266,26 +267,19 @@ export function AdminSitesPanel() {
                     {s.city ? s.city : null}
                   </p>
                 </td>
-                <td className="px-4 py-3">{s.provinceName}</td>
-                <td className="px-4 py-3 capitalize">{s.type}</td>
-                <td className="px-4 py-3">{s.featured ? "Yes" : "—"}</td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    type="button"
-                    className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
-                    onClick={() => openEdit(s)}
-                    aria-label={`Edit ${s.name}`}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg p-2 text-red-600 hover:bg-red-50"
-                    onClick={() => void handleDelete(s)}
-                    aria-label={`Delete ${s.name}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                <td data-label="Province" className="px-4 py-3">{s.provinceName}</td>
+                <td data-label="Type" className="px-4 py-3 capitalize">{s.type}</td>
+                <td data-label="Featured" className="px-4 py-3">{s.featured ? "Yes" : "—"}</td>
+                <td data-stack="actions" className="px-4 py-3 text-right">
+                  <div className="flex justify-end gap-1">
+                    <IconAction
+                      label={`Edit ${s.name}`}
+                      icon={Pencil}
+                      tone="neutral"
+                      onClick={() => openEdit(s)}
+                    />
+                    <IconAction label={`Delete ${s.name}`} onClick={() => void handleDelete(s)} />
+                  </div>
                 </td>
               </tr>
             ))}

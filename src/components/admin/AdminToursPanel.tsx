@@ -177,7 +177,7 @@ export function AdminToursPanel() {
       </label>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
-        <table className="min-w-[720px] w-full text-left text-sm">
+        <table className="admin-stack-table min-w-[720px] w-full text-left text-sm">
           <thead className="whitespace-nowrap border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Tour</th>
@@ -198,8 +198,8 @@ export function AdminToursPanel() {
                     <span className="sr-only">Web address: </span>/tours/{t.slug}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-slate-600">{t.location}</td>
-                <td className="px-4 py-3 text-slate-600">
+                <td data-label="Location" className="px-4 py-3 text-slate-600">{t.location}</td>
+                <td data-label="Destination" className="px-4 py-3 text-slate-600">
                   {(() => {
                     const ids = [
                       ...(Array.isArray(t.destinationIds) ? t.destinationIds : []),
@@ -211,11 +211,11 @@ export function AdminToursPanel() {
                     return names.length > 0 ? names.join(", ") : "-";
                   })()}
                 </td>
-                <td className="px-4 py-3 text-slate-600">
+                <td data-label="Types" className="px-4 py-3 text-slate-600">
                   {Array.isArray(t.types) && t.types.length > 0 ? t.types.join(", ") : "-"}
                 </td>
-                <td className="px-4 py-3 text-slate-600">{t.durationDays}</td>
-                <td className="px-4 py-3">
+                <td data-label="Days" className="px-4 py-3 text-slate-600">{t.durationDays}</td>
+                <td data-label="Active" className="px-4 py-3">
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
@@ -227,7 +227,7 @@ export function AdminToursPanel() {
                           : `${t.title}: hidden from site — click to show`
                       }
                       className={cn(
-                        "flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full p-[3px] transition-colors duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50 focus-visible:ring-offset-2",
+                        "relative flex h-6 w-10 shrink-0 cursor-pointer items-center rounded-full p-[3px] transition-colors before:absolute before:-inset-2.5 before:content-[''] duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50 focus-visible:ring-offset-2",
                         t.isActive ? "justify-end bg-emerald-500" : "justify-start bg-slate-300",
                       )}
                       onClick={() => void toggleActive(t._id, !t.isActive)}
@@ -247,7 +247,7 @@ export function AdminToursPanel() {
                     </span>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td data-stack="actions" className="px-4 py-3 text-right">
                   <div className="flex flex-wrap justify-end gap-1">
                     <IconActionLink
                       href={`/admin/tours/${t._id}/edit`}

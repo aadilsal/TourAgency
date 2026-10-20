@@ -296,7 +296,7 @@ export function AdminFaqsPanel() {
       ) : null}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
-        <table className="min-w-[880px] w-full text-left text-sm">
+        <table className="admin-stack-table min-w-[880px] w-full text-left text-sm">
           <thead className="whitespace-nowrap border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Question</th>
@@ -315,12 +315,12 @@ export function AdminFaqsPanel() {
                     <span className="line-clamp-1">{row.question}</span>
                   </span>
                 </td>
-                <td className="px-4 py-3 text-slate-600">
+                <td data-label="Category" className="px-4 py-3 text-slate-600">
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
                     {row.category}
                   </span>
                 </td>
-                <td className="px-4 py-3">
+                <td data-label="Position" className="px-4 py-3">
                   <SortOrderInput
                     value={row.sortOrder}
                     onCommit={(next) =>
@@ -330,11 +330,11 @@ export function AdminFaqsPanel() {
                     }
                   />
                 </td>
-                <td className="px-4 py-3">
+                <td data-label="Visible" className="px-4 py-3">
                   <button
                     type="button"
                     className={cn(
-                      "relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary",
+                      "relative inline-flex h-7 w-12 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors before:absolute before:-inset-2 before:content-[''] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary",
                       row.isActive ? "bg-emerald-500" : "bg-slate-200",
                     )}
                     role="switch"
@@ -362,7 +362,7 @@ export function AdminFaqsPanel() {
                     {row.isActive ? "Shown" : "Hidden"}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td data-stack="actions" className="px-4 py-3 text-right">
                   <div className="flex flex-wrap justify-end gap-1">
                     <IconAction
                       label="Edit FAQ"

@@ -81,7 +81,7 @@ export function AdminUsersTable() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-border bg-panel shadow-sm backdrop-blur-xl">
-        <table className="w-full min-w-[560px] text-left text-sm">
+        <table className="admin-stack-table w-full min-w-[560px] text-left text-sm">
           <thead className="whitespace-nowrap border-b border-border bg-black/5 text-xs font-semibold uppercase tracking-wide text-muted dark:bg-white/5">
             <tr>
               <th className="px-4 py-3">Name</th>
@@ -94,11 +94,11 @@ export function AdminUsersTable() {
             {rows.map((u) => (
               <tr key={u._id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3 font-medium text-foreground">{u.name}</td>
-                <td className="px-4 py-3 text-muted">{u.email}</td>
-                <td className="px-4 py-3">
+                <td data-label="Email" className="px-4 py-3 text-muted">{u.email}</td>
+                <td data-label="Role" className="px-4 py-3">
                   <AdminRoleBadge role={u.role} />
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td data-stack="actions" className="px-4 py-3 text-right">
                   <button
                     type="button"
                     className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-brand-cta hover:bg-panel-elevated"

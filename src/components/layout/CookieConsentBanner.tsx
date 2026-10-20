@@ -64,11 +64,11 @@ export function CookieConsentBanner() {
           type="button"
           onClick={() => choose("declined")}
           aria-label="Close and reject optional cookies"
-          className="absolute -right-1 -top-1 rounded-lg p-1.5 text-white/60 transition hover:bg-white/10 hover:text-white sm:hidden"
+          className="absolute -right-2 -top-2 inline-flex h-10 w-10 items-center justify-center rounded-lg text-white/60 transition hover:bg-white/10 hover:text-white sm:hidden"
         >
           <X className="h-4 w-4" aria-hidden />
         </button>
-        <div className="pr-8 sm:pr-0">
+        <div className="pr-10 sm:pr-0">
           <p id="cookie-consent-title" className="text-sm font-semibold text-white">
             Your privacy
           </p>

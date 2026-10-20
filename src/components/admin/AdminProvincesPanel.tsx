@@ -5,7 +5,8 @@ import { api } from "@convex/_generated/api";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import type { Id } from "@convex/_generated/dataModel";
 import { useId, useMemo, useState } from "react";
-import { Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Pencil, Plus, RefreshCw } from "lucide-react";
+import { IconAction } from "@/components/admin/shared/IconAction";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
@@ -291,7 +292,7 @@ export function AdminProvincesPanel() {
       {rowsQuery.isLoading ? <p className="text-sm text-slate-500">Loading…</p> : null}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
-        <table className="min-w-full text-sm">
+        <table className="admin-stack-table min-w-full text-sm">
           <thead className="whitespace-nowrap bg-slate-50 text-left text-xs uppercase text-slate-500">
             <tr>
               <th className="px-4 py-3">Province</th>
@@ -317,26 +318,19 @@ export function AdminProvincesPanel() {
                     <span className="sr-only">Web address: </span>/guides/{p.slug}
                   </p>
                 </td>
-                <td className="px-4 py-3">{p.siteCount}</td>
-                <td className="px-4 py-3">{p.tourCount}</td>
-                <td className="px-4 py-3">{p.sortOrder}</td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    type="button"
-                    className="rounded-lg p-2 text-slate-600 hover:bg-slate-100"
-                    onClick={() => openEdit(p)}
-                    aria-label={`Edit ${p.name}`}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    className="rounded-lg p-2 text-red-600 hover:bg-red-50"
-                    onClick={() => void handleDelete(p)}
-                    aria-label={`Delete ${p.name}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                <td data-label="Sites" className="px-4 py-3">{p.siteCount}</td>
+                <td data-label="Tours" className="px-4 py-3">{p.tourCount}</td>
+                <td data-label="Position" className="px-4 py-3">{p.sortOrder}</td>
+                <td data-stack="actions" className="px-4 py-3 text-right">
+                  <div className="flex justify-end gap-1">
+                    <IconAction
+                      label={`Edit ${p.name}`}
+                      icon={Pencil}
+                      tone="neutral"
+                      onClick={() => openEdit(p)}
+                    />
+                    <IconAction label={`Delete ${p.name}`} onClick={() => void handleDelete(p)} />
+                  </div>
                 </td>
               </tr>
             ))}

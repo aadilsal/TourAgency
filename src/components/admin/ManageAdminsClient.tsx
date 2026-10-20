@@ -222,7 +222,7 @@ export function ManageAdminsClient() {
           </p>
         </div>
         <div className="mt-3 overflow-x-auto rounded-xl border border-slate-200/90 bg-white shadow-sm">
-          <table className="min-w-[640px] w-full text-left text-sm">
+          <table className="admin-stack-table min-w-[640px] w-full text-left text-sm">
             <thead className="whitespace-nowrap border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-3">Name</th>
@@ -240,16 +240,16 @@ export function ManageAdminsClient() {
                   <td className="px-4 py-3 font-medium text-brand-ink">
                     {u.name}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{u.email}</td>
-                  <td className="px-4 py-3">
+                  <td data-label="Email" className="px-4 py-3 text-slate-600">{u.email}</td>
+                  <td data-label="Role" className="px-4 py-3">
                     <AdminRoleBadge role={u.role} />
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td data-stack="actions" className="px-4 py-3 text-right">
                     <div className="flex flex-wrap justify-end gap-2">
                       {u.role === "customer" ? (
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                          className="inline-flex min-h-9 items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
                           onClick={() => void changeRole("promote", u._id, u.name)}
                         >
                           <UserPlus className="h-3.5 w-3.5" aria-hidden />
@@ -259,7 +259,7 @@ export function ManageAdminsClient() {
                       {u.role === "admin" ? (
                         <button
                           type="button"
-                          className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                          className="inline-flex min-h-9 items-center gap-1 whitespace-nowrap rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-900 hover:bg-amber-100"
                           onClick={() => void changeRole("demote", u._id, u.name)}
                         >
                           <UserMinus className="h-3.5 w-3.5" aria-hidden />
