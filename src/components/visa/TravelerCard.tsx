@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -33,7 +34,12 @@ export function TravelerCard({
   onRemove,
   canRemove,
 }: Props) {
-  const prefix = `traveler-${traveler.clientId}`;
+  // useId, not traveler.clientId: clientId is a random UUID made separately on
+  // the server and in the browser, so ids built from it broke hydration
+  // (label htmlFor mismatch). useId is identical in SSR and on the client and
+  // stays stable per card (cards are keyed by clientId).
+  const uid = useId();
+  const prefix = `traveler-${uid.replace(/[^a-zA-Z0-9_-]/g, "")}`;
 
   return (
     <div

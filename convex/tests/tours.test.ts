@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { api } from "../_generated/api.js";
+import { api, internal } from "../_generated/api.js";
 import type { Id } from "../_generated/dataModel.js";
 import { newTest, signIn } from "./helpers.test-utils.js";
 
@@ -363,4 +363,37 @@ test("audience and related blog posts survive unrelated saves; null/[] clear the
   tour = await t.run((ctx) => ctx.db.get(tourId));
   expect(tour!.audience).toBeUndefined();
   expect(tour!.relatedBlogPostIds).toEqual([]);
+});
+
+test("setAudienceIfUnset fills only tours without an audience", async () => {
+  const t = newTest();
+  const sessionToken = await signIn(t);
+  const blank = await createTour(t, sessionToken, { slug: "blank" });
+  const chosen = await createTour(t, sessionToken, { slug: "chosen", audience: "pakistanis" });
+  const res = await t.mutation(internal.tours.setAudienceIfUnset, {
+    assignments: [
+      { tourId: blank, audience: "foreigners" },
+      { tourId: chosen, audience: "foreigners" },
+    ],
+  });
+  expect(res).toEqual({ updated: 1, skipped: 1 });
+  expect((await t.run((ctx) => ctx.db.get(blank)))!.audience).toBe("foreigners");
+  expect((await t.run((ctx) => ctx.db.get(chosen)))!.audience).toBe("pakistanis");
+});
+
+test("setAudienceIfUnset with expectedCurrent only changes an unchanged value", async () => {
+  const t = newTest();
+  const sessionToken = await signIn(t);
+  const a = await createTour(t, sessionToken, { slug: "a", audience: "pakistanis" });
+  const b = await createTour(t, sessionToken, { slug: "b", audience: "foreigners" });
+  const res = await t.mutation(internal.tours.setAudienceIfUnset, {
+    assignments: [
+      { tourId: a, audience: "foreigners", expectedCurrent: "pakistanis" },
+      // b was changed by an admin since — must be left alone.
+      { tourId: b, audience: "pakistanis", expectedCurrent: "pakistanis" },
+    ],
+  });
+  expect(res).toEqual({ updated: 1, skipped: 1 });
+  expect((await t.run((ctx) => ctx.db.get(a)))!.audience).toBe("foreigners");
+  expect((await t.run((ctx) => ctx.db.get(b)))!.audience).toBe("foreigners");
 });

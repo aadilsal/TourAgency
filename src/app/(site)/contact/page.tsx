@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@convex/_generated/api";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Mail, MapPin, MessageCircle, PhoneCall, Send } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -53,6 +53,13 @@ export default function ContactPage() {
     FieldErrorMap<"name" | "phone" | "message">
   >({});
   const submittingRef = useRef(false);
+  // False on the server and on the first client render, so both render the
+  // same markup (the session store may already be loaded on the client, which
+  // used to cause a hydration text mismatch). Also keeps Send disabled until
+  // React has attached the submit handler.
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => setHydrated(true), []);
+  const sessionPending = !hydrated || sessionToken === undefined;
 
   const resolvedPhone = siteSettings?.whatsappPhone?.trim() || PHONE;
   const resolvedEmail = siteSettings?.contactEmail?.trim() || EMAIL;
@@ -186,11 +193,11 @@ export default function ContactPage() {
                 type="submit"
                 variant="primary"
                 className="w-full py-3"
-                disabled={saving}
-                aria-busy={saving}
+                disabled={saving || !hydrated}
+                aria-busy={saving || !hydrated}
               >
                 <Send className="h-4 w-4" aria-hidden />
-                {saving ? "Sending…" : "Send message"}
+                {saving ? "Sending…" : hydrated ? "Send message" : "Loading form…"}
               </Button>
             </form>
           </Card>
@@ -259,7 +266,7 @@ export default function ContactPage() {
               </p>
             </Card>
 
-            {sessionToken === undefined ? (
+            {sessionPending ? (
               <p className="text-xs text-havezic-text-light">Preparing contact session…</p>
             ) : null}
 

@@ -51,19 +51,28 @@ export function ItinerarySection({
   }
 
   return (
-    <FormSection legend="Itinerary — day by day">
+    <FormSection
+      legend="Itinerary — day by day"
+      tip="The day-by-day plan shown on the tour page. Give each day a short title (e.g. “Islamabad — Naran via Kaghan Valley”) and a few lines on drives, stops and the overnight stay. At least one day needs a title before you can save. Use the arrows to reorder days."
+    >
       <div className="space-y-3">
         {days.map((d, idx) => (
           <div key={idx} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-500">Day</span>
               <input
+                id={`tour-editor-day-${idx}-number`}
+                aria-label={`Day number, row ${idx + 1}`}
+                title="Day number shown on the tour page"
                 type="number"
+                placeholder="1"
                 className="w-16 rounded-lg border border-slate-200 px-2 py-1.5 text-sm"
                 value={d.day}
                 onChange={(e) => updateDay(idx, { day: Number(e.target.value) })}
               />
               <input
+                id={`tour-editor-day-${idx}-title`}
+                aria-label={`Day ${d.day} title`}
                 className="min-w-0 flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium"
                 placeholder="Day title (e.g. Islamabad — Hunza)"
                 value={d.title}
@@ -103,9 +112,11 @@ export function ItinerarySection({
               </div>
             </div>
             <textarea
+              id={`tour-editor-day-${idx}-description`}
+              aria-label={`Day ${d.day} description`}
               rows={2}
               className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              placeholder="What happens this day…"
+              placeholder="What happens this day, e.g. Drive the Karakoram Highway (8–9 hrs), lunch stop at Besham, overnight at a hotel in Karimabad."
               value={d.description}
               onChange={(e) => updateDay(idx, { description: e.target.value })}
             />

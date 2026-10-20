@@ -34,7 +34,16 @@ export { fieldErrorMsgId, fieldHintId, isBlank };
  * `AdminField` that is the whole label row, so it is as wide as the field and
  * never spills out of a scrolling modal.
  */
-export function InfoTip({ children, label = "More info" }: { children: ReactNode; label?: string }) {
+export function InfoTip({
+  children,
+  label = "More info",
+  bubbleClassName,
+}: {
+  children: ReactNode;
+  label?: string;
+  /** Extra classes for the bubble, e.g. a fixed width when the anchor is narrow (a legend). */
+  bubbleClassName?: string;
+}) {
   const id = useId();
   const [pinned, setPinned] = useState(false);
   const [hover, setHover] = useState(false);
@@ -89,6 +98,7 @@ export function InfoTip({ children, label = "More info" }: { children: ReactNode
         className={cn(
           "pointer-events-none absolute left-0 right-0 top-full z-30 mt-1 rounded-lg bg-slate-900 px-3 py-2 text-xs font-normal normal-case leading-snug tracking-normal text-white shadow-lg",
           open ? "block" : "hidden",
+          bubbleClassName,
         )}
       >
         {children}

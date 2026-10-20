@@ -1,5 +1,6 @@
 "use client";
 
+import { InfoTip } from "@/components/admin/shared/AdminField";
 import { FormSection, OptionalNumberField } from "./fields";
 import {
   emptyPerHeadRow,
@@ -35,7 +36,10 @@ export function PricingSection({
   ];
 
   return (
-    <FormSection legend="Pricing">
+    <FormSection
+      legend="Pricing"
+      tip="All prices are optional. With a price the tour shows it publicly with a Book now button; without one it is a Customise (request-a-quote) tour. Visitors see USD or PKR depending on where they are."
+    >
       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
         Total tour price
       </p>
@@ -48,6 +52,8 @@ export function PricingSection({
       <div className="grid gap-3 sm:grid-cols-2">
         <OptionalNumberField
           label="Total tour price (USD) — shown to international visitors"
+          id="tour-editor-price-usd"
+          tip="Price for the whole tour in US dollars, shown to visitors outside Pakistan. Leave blank if you only quote in PKR or want a request-a-quote tour."
           min={0}
           placeholder="e.g. 1200"
           value={values.priceUsd}
@@ -55,6 +61,8 @@ export function PricingSection({
         />
         <OptionalNumberField
           label="Total tour price (PKR) — shown to Pakistan visitors"
+          id="tour-editor-price-pkr"
+          tip="Price for the whole tour in Pakistani rupees, shown to visitors in Pakistan. When both USD and PKR are set, the site offers a currency switch."
           min={0}
           placeholder="e.g. 250000"
           value={values.pricePkr}
@@ -62,9 +70,15 @@ export function PricingSection({
         />
       </div>
 
-      <p className="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-slate-500">
-        Price per head (optional)
-      </p>
+      <div className="relative mb-2 mt-5 flex items-center gap-1">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Price per head (optional)
+        </p>
+        <InfoTip label="About Price per head">
+          Per person rates that depend on group size, e.g. 2 persons → PKR 150,000 each, 4 persons →
+          PKR 110,000 each. Each row needs a group size and at least one amount (USD or PKR).
+        </InfoTip>
+      </div>
       <p className="mb-2 text-xs text-slate-500">
         Per person rates for specific group sizes, e.g.{" "}
         <span className="font-semibold">4 persons → $400 each</span>. Add as many options as you
@@ -91,6 +105,8 @@ export function PricingSection({
                 >
                   <span className="sm:hidden">{cell.label}</span>
                   <input
+                    id={`tour-editor-per-head-${i}-${cell.key}`}
+                    aria-label={`${cell.label}, option ${i + 1}`}
                     type="number"
                     min={cell.min}
                     className={cellInputClass}

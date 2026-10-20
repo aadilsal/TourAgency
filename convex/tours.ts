@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query, internalQuery } from "./_generated/server.js";
+import { internalMutation, mutation, query, internalQuery } from "./_generated/server.js";
 import type { MutationCtx, QueryCtx } from "./_generated/server.js";
 import { paginationOptsValidator } from "convex/server";
 import { internal } from "./_generated/api.js";
@@ -345,6 +345,39 @@ export const getTourForAdmin = query({
 });
 
 const tourAudienceValidator = v.union(v.literal("foreigners"), v.literal("pakistanis"));
+
+/**
+ * Bulk "Tour for" labelling from the CLI (e.g. an AI classification pass):
+ * `npx convex run tours:setAudienceIfUnset '{"assignments":[...]}'`.
+ * Only fills tours that have no audience yet — an admin-chosen value is never
+ * overwritten. To correct an earlier pass, send `expectedCurrent`: the tour
+ * changes only if it still has exactly that value. Touches no other field.
+ */
+export const setAudienceIfUnset = internalMutation({
+  args: {
+    assignments: v.array(
+      v.object({
+        tourId: v.id("tours"),
+        audience: tourAudienceValidator,
+        expectedCurrent: v.optional(tourAudienceValidator),
+      }),
+    ),
+  },
+  handler: async (ctx, { assignments }) => {
+    let updated = 0;
+    let skipped = 0;
+    for (const { tourId, audience, expectedCurrent } of assignments) {
+      const tour = await ctx.db.get(tourId);
+      if (!tour || tour.audience !== expectedCurrent) {
+        skipped++;
+        continue;
+      }
+      await ctx.db.patch(tourId, { audience });
+      updated++;
+    }
+    return { updated, skipped };
+  },
+});
 
 export const createTour = mutation({
   args: {

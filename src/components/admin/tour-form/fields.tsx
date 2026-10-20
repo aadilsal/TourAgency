@@ -1,17 +1,82 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
+import { AdminField, InfoTip, fieldHintId } from "@/components/admin/shared/AdminField";
 import type { NumberInput } from "./model";
 
 /** Reusable admin form primitives (same look as the original tour editor). */
 
 export const inputClass = "mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm";
-const labelClass = "block text-xs font-semibold text-slate-600";
 
-export function FormSection({ legend, children }: { legend: string; children: ReactNode }) {
+/**
+ * Bubble classes for an (i) tip whose anchor is narrow (a legend or a short
+ * label): give it a fixed readable width instead of the anchor's width.
+ */
+export const narrowTipBubbleClass = "!right-auto w-72 max-w-[80vw]";
+
+/**
+ * Extra props for the control, normally `form.fieldProps(name)` from
+ * `useRequiredFields` (id, aria-*, data-field, blur tracking).
+ */
+export type ControlProps = {
+  id?: string;
+  "data-field"?: string;
+  "aria-required"?: true;
+  "aria-invalid"?: true;
+  "aria-describedby"?: string;
+  onBlur?: () => void;
+};
+
+/** Shared wrapper props for the labelled primitives below. */
+type FieldChrome = {
+  label: ReactNode;
+  /** Red asterisk only (no native `required`; the form validates on save). */
+  required?: boolean;
+  /** Longer explanation in an (i) tooltip next to the label. */
+  tip?: ReactNode;
+  /** One short always-visible line under the control. */
+  hint?: ReactNode;
+  /** Error message (`form.errorFor(name)`); undefined until it should show. */
+  error?: string | null;
+  /** Control id. Defaults to `controlProps.id`, then a generated id. */
+  id?: string;
+  controlProps?: ControlProps;
+};
+
+function useControlId(id: string | undefined, controlProps: ControlProps | undefined) {
+  const auto = useId();
+  return id ?? controlProps?.id ?? `tour-field-${auto.replace(/[^a-zA-Z0-9_-]/g, "")}`;
+}
+
+function describedBy(fid: string, hint: ReactNode, controlProps: ControlProps | undefined) {
+  if (controlProps) return controlProps["aria-describedby"];
+  return hint ? fieldHintId(fid) : undefined;
+}
+
+export function FormSection({
+  legend,
+  tip,
+  children,
+}: {
+  legend: string;
+  /** Explanation of the whole section in an (i) tooltip next to the legend. */
+  tip?: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <fieldset className="rounded-lg border border-slate-200 p-3">
-      <legend className="px-1 text-xs font-semibold text-slate-600">{legend}</legend>
+      <legend className="px-1 text-xs font-semibold text-slate-600">
+        {tip ? (
+          <span className="relative flex items-center gap-1">
+            {legend}
+            <InfoTip label={`About ${legend}`} bubbleClassName={narrowTipBubbleClass}>
+              {tip}
+            </InfoTip>
+          </span>
+        ) : (
+          legend
+        )}
+      </legend>
       {children}
     </fieldset>
   );
@@ -24,26 +89,31 @@ export function TextField({
   required,
   placeholder,
   type = "text",
-}: {
-  label: ReactNode;
+  tip,
+  hint,
+  error,
+  id,
+  controlProps,
+}: FieldChrome & {
   value: string;
   onChange: (value: string) => void;
-  required?: boolean;
   placeholder?: string;
   type?: "text" | "email";
 }) {
+  const fid = useControlId(id, controlProps);
   return (
-    <label className={labelClass}>
-      {label}
+    <AdminField label={label} htmlFor={fid} required={required} tip={tip} hint={hint} error={error}>
       <input
+        {...controlProps}
+        id={fid}
+        aria-describedby={describedBy(fid, hint, controlProps)}
         type={type}
-        required={required}
         className={inputClass}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
-    </label>
+    </AdminField>
   );
 }
 
@@ -54,26 +124,31 @@ export function TextAreaField({
   rows = 3,
   required,
   placeholder,
-}: {
-  label: ReactNode;
+  tip,
+  hint,
+  error,
+  id,
+  controlProps,
+}: FieldChrome & {
   value: string;
   onChange: (value: string) => void;
   rows?: number;
-  required?: boolean;
   placeholder?: string;
 }) {
+  const fid = useControlId(id, controlProps);
   return (
-    <label className={labelClass}>
-      {label}
+    <AdminField label={label} htmlFor={fid} required={required} tip={tip} hint={hint} error={error}>
       <textarea
+        {...controlProps}
+        id={fid}
+        aria-describedby={describedBy(fid, hint, controlProps)}
         rows={rows}
-        required={required}
         className={inputClass}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
-    </label>
+    </AdminField>
   );
 }
 
@@ -86,8 +161,13 @@ export function OptionalNumberField({
   max,
   step,
   placeholder,
-}: {
-  label: ReactNode;
+  required,
+  tip,
+  hint,
+  error,
+  id,
+  controlProps,
+}: FieldChrome & {
   value: NumberInput;
   onChange: (value: NumberInput) => void;
   min?: number;
@@ -95,10 +175,13 @@ export function OptionalNumberField({
   step?: string;
   placeholder?: string;
 }) {
+  const fid = useControlId(id, controlProps);
   return (
-    <label className={labelClass}>
-      {label}
+    <AdminField label={label} htmlFor={fid} required={required} tip={tip} hint={hint} error={error}>
       <input
+        {...controlProps}
+        id={fid}
+        aria-describedby={describedBy(fid, hint, controlProps)}
         type="number"
         min={min}
         max={max}
@@ -108,7 +191,7 @@ export function OptionalNumberField({
         value={value}
         onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}
       />
-    </label>
+    </AdminField>
   );
 }
 
@@ -120,6 +203,7 @@ export function CheckboxGroupField<T extends string>({
   onChange,
   emptyHint,
   showUnknown = true,
+  tip,
 }: {
   legend: string;
   options: ReadonlyArray<{ value: T; label: string }>;
@@ -128,12 +212,14 @@ export function CheckboxGroupField<T extends string>({
   emptyHint?: string;
   /** Pass false while `options` is still loading. */
   showUnknown?: boolean;
+  /** Explanation in an (i) tooltip next to the legend. */
+  tip?: ReactNode;
 }) {
   const known = new Set(options.map((o) => o.value));
   const extras = showUnknown ? selected.filter((v) => !known.has(v)) : [];
   const all = [...options, ...extras.map((v) => ({ value: v, label: `${v} (not in list)` }))];
   return (
-    <FormSection legend={legend}>
+    <FormSection legend={legend} tip={tip}>
       {all.length === 0 && emptyHint ? (
         <p className="mt-1 text-xs text-slate-500">{emptyHint}</p>
       ) : null}

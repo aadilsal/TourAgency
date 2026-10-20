@@ -17,6 +17,7 @@ import {
   QueryErrorBanner,
   SaveStatusPill,
 } from "@/components/admin/shared/EditorStatus";
+import { RequiredFieldsNote, useRequiredFields } from "@/components/admin/shared/AdminField";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { TOUR_PDF_DRAFT_STORAGE_KEY } from "@/lib/tours/tour-draft";
 import type { TourPdfImportDraft } from "@/lib/tours/pdf/types";
@@ -105,6 +106,30 @@ export function AdminTourForm({
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [pdfImportWarnings, setPdfImportWarnings] = useState<string[]>([]);
+
+  // createTour requires title, description, durationDays (>= 1) and location
+  // (the inputs that were already `required`). Gates the Save button only.
+  const req = useRequiredFields(
+    [
+      { name: "title", label: "Title", value: values.title },
+      { name: "description", label: "Description", value: values.description },
+      {
+        name: "durationDays",
+        label: "Duration (days)",
+        value: values.durationDays,
+        isMissing: (v) => typeof v !== "number" || !Number.isFinite(v) || v < 1,
+        message: "Duration must be at least 1 day",
+      },
+      { name: "location", label: "Location", value: values.location },
+    ],
+    { idPrefix: "tour-editor" },
+  );
+
+  // Re-snapshot "untouched" values once the tour has loaded (edit mode).
+  const resetRequired = req.reset;
+  useEffect(() => {
+    if (initialized) resetRequired();
+  }, [initialized, resetRequired]);
 
   const dirty = initialized && !formValuesEqual(values, baseline);
   const dirtyRef = useRef(dirty);
@@ -216,6 +241,7 @@ export function AdminTourForm({
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!req.guardSubmit(e)) return;
     setMsg(null);
     if (typeof sessionToken !== "string") {
       setMsg(
@@ -369,7 +395,8 @@ export function AdminTourForm({
         </div>
       ) : null}
 
-      <form onSubmit={onSubmit} className="space-y-3">
+      <form noValidate onSubmit={onSubmit} className="space-y-3">
+        <RequiredFieldsNote />
         {pdfImportWarnings.length > 0 ? (
           <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950">
             <p className="font-semibold">PDF import checklist</p>
@@ -399,6 +426,7 @@ export function AdminTourForm({
           destinations={destinations}
           provinces={provinces}
           blogPosts={blogPostsQuery.data}
+          req={req}
         />
         <PricingSection values={values} onChange={onChange} />
         <DetailsSection
@@ -420,7 +448,11 @@ export function AdminTourForm({
         <ItinerarySection values={values} onChange={onChange} />
 
         <div className="flex flex-wrap items-center gap-2 pt-2">
-          <Button type="submit" disabled={saving || !hasConvexSessionToken}>
+          <Button
+            type="submit"
+            {...req.submitProps}
+            disabled={saving || !hasConvexSessionToken}
+          >
             {saving ? "Saving…" : mode === "edit" ? "Save changes" : "Create tour"}
           </Button>
           <Button type="button" variant="secondary" onClick={onCancel}>

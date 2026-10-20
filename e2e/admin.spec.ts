@@ -40,7 +40,7 @@ test.describe("authenticated admin (needs E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD)"
     await page.fill("#login-email", EMAIL!);
     await page.fill("#login-pass", PASSWORD!);
     await page.locator('form button[type="submit"]').click();
-    await page.waitForURL(/\/admin/);
+    await page.waitForURL((u) => u.pathname.startsWith("/admin"));
   }
 
   test("dashboard + every sidebar link opens", async ({ page }) => {
@@ -72,6 +72,28 @@ test.describe("authenticated admin (needs E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD)"
     const box = (await sc.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.mouse.wheel(0, 300);
+    await expect.poll(() => sc.evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
+  });
+
+  test("modal body scrolls with mouse wheel", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 420 });
+    await login(page);
+    await page.goto("/admin/faqs");
+    await page.getByRole("button", { name: /new faq/i }).first().click();
+    const dlg = page.getByRole("dialog", { name: /new faq/i });
+    await expect(dlg).toBeVisible();
+    const found = await dlg.evaluate((root) => {
+      const nodes = [root as HTMLElement, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
+      const el = nodes.find((n) => n.scrollHeight > n.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(n).overflowY));
+      if (!el) return false;
+      el.setAttribute("data-e2e-scroller", "modal");
+      return true;
+    });
+    expect(found, "scrollable modal body").toBeTruthy();
+    const sc = page.locator('[data-e2e-scroller="modal"]');
+    const box = (await sc.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, 200);
     await expect.poll(() => sc.evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
   });
 

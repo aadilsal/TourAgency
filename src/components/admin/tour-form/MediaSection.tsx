@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { useSafeQuery } from "@/hooks/useSafeQuery";
 import { IconAction } from "@/components/admin/shared/IconAction";
+import { InfoTip } from "@/components/admin/shared/AdminField";
 import { PENDING_IMAGE_PREFIX, type TourFormPatch, type TourFormValues } from "./model";
 
 /** Some browsers/OSes leave `File.type` empty even for real images from “Choose file”. */
@@ -166,7 +167,14 @@ export function MediaSection({
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
-      <p className="text-xs font-bold text-slate-700">Tour images</p>
+      <div className="relative flex items-center gap-1">
+        <p className="text-xs font-bold text-slate-700">Tour images (optional)</p>
+        <InfoTip label="About Tour images">
+          Photos for the tour page gallery and tour cards, used in the order listed here. Use wide
+          landscape shots of the actual route (e.g. Attabad Lake, Fairy Meadows), ideally about
+          1600px wide and under 1 MB each.
+        </InfoTip>
+      </div>
       <p className="mt-1 text-xs text-slate-500">
         Upload image files from your device — they are stored securely in Convex. Uploaded
         images register under this tour when you save.
@@ -180,6 +188,7 @@ export function MediaSection({
       <div className="mt-3 flex flex-wrap gap-2">
         <label className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-brand-primary hover:bg-slate-50">
           <input
+            id="tour-editor-images"
             type="file"
             accept="image/*"
             multiple

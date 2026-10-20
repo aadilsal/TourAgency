@@ -1,4 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
+import { existsSync, readFileSync } from "node:fs";
+
+// Load gitignored .env.e2e.local (E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD) without extra deps.
+if (existsSync(".env.e2e.local")) {
+  const text = readFileSync(".env.e2e.local", "utf8");
+  for (const line of text.split("\n")) {
+    const m = line.trim().match(/^([A-Z0-9_]+)=(.*)$/);
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+}
 
 // Local-only E2E. Targets a local Next server wired to the DEV Convex deployment via .env.local.
 const PORT = process.env.E2E_PORT ?? "3006";
