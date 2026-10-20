@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { AdminField, InfoTip, fieldHintId } from "@/components/admin/shared/AdminField";
 import type { NumberInput } from "./model";
 
@@ -245,5 +245,123 @@ export function CheckboxGroupField<T extends string>({
         })}
       </div>
     </FormSection>
+  );
+}
+
+/**
+ * Collapsed "Advanced (optional)" box for technical or rarely used fields.
+ * Closed by default; opens by itself when `forceOpen` turns true (e.g. a field
+ * inside has a validation error) and whenever a control inside is marked
+ * invalid (`aria-invalid` / `data-invalid`), so errors are never hidden.
+ * Children stay mounted while closed, so ids and values are unaffected.
+ */
+export function AdvancedSection({
+  children,
+  title = "Advanced (optional)",
+  summary = "Rarely needed. Leave these as they are unless you know you need them.",
+  forceOpen,
+  className,
+}: {
+  children: ReactNode;
+  title?: string;
+  summary?: ReactNode;
+  forceOpen?: boolean;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (forceOpen) setOpen(true);
+  }, [forceOpen]);
+
+  // Open automatically when something inside becomes invalid.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof MutationObserver === "undefined") return;
+    const check = () => {
+      if (el.querySelector('[aria-invalid="true"], [data-invalid="true"]')) setOpen(true);
+    };
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(el, { subtree: true, attributes: true, attributeFilter: ["aria-invalid", "data-invalid"] });
+    return () => obs.disconnect();
+  }, []);
+
+  return (
+    <details
+      ref={ref}
+      open={open}
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+      className={`group rounded-lg border border-dashed border-slate-300 bg-slate-50/60 ${className ?? ""}`}
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 [&::-webkit-details-marker]:hidden">
+        <span>{title}</span>
+        <span aria-hidden className="text-slate-400 transition-transform group-open:rotate-180">
+          ▾
+        </span>
+      </summary>
+      <div className="space-y-4 border-t border-slate-200 px-3 pb-3 pt-3">
+        {summary ? <p className="text-xs text-slate-500">{summary}</p> : null}
+        {children}
+      </div>
+    </details>
+  );
+}
+
+/**
+ * Small secondary "More" dropdown for rarely used actions (bulk upload,
+ * developer tools). Closes on pick, outside click or Escape.
+ */
+export function MoreMenu({
+  items,
+  label = "More",
+}: {
+  items: ReadonlyArray<{ label: string; onSelect: () => void; disabled?: boolean } | false | null | undefined>;
+  label?: string;
+}) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  const shown = items.filter(Boolean) as Array<{ label: string; onSelect: () => void; disabled?: boolean }>;
+
+  useEffect(() => {
+    function onDown(e: PointerEvent) {
+      const el = ref.current;
+      if (el?.open && !el.contains(e.target as Node)) el.open = false;
+    }
+    function onKey(e: KeyboardEvent) {
+      const el = ref.current;
+      if (e.key === "Escape" && el?.open) el.open = false;
+    }
+    window.addEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  if (shown.length === 0) return null;
+  return (
+    <details ref={ref} className="relative">
+      <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1 rounded-xl border border-border bg-white px-4 py-3 text-sm font-semibold text-foreground shadow-sm hover:border-border-strong hover:bg-havezic-background-light [&::-webkit-details-marker]:hidden">
+        {label} <span aria-hidden>▾</span>
+      </summary>
+      <div className="absolute left-0 z-20 mt-1 min-w-[14rem] rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+        {shown.map((item) => (
+          <button
+            key={item.label}
+            type="button"
+            disabled={item.disabled}
+            className="block w-full rounded-lg px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            onClick={() => {
+              if (ref.current) ref.current.open = false;
+              item.onSelect();
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </details>
   );
 }

@@ -35,6 +35,8 @@ type TemplateForm = {
   termsBlocks: TermsBlock[];
   defaultIncluded: string;
   defaultNotIncluded: string;
+  invoiceTerms: string;
+  invoiceCancellationPolicy: string;
 };
 
 const BANK_KEYS = ["bankName", "accountTitle", "accountNumber", "iban", "instruction"] as const;
@@ -73,6 +75,8 @@ export function AdminItineraryTemplatePanel() {
       termsBlocks: (s.termsBlocks ?? f.termsBlocks).map((b) => ({ title: b.title, body: b.body })),
       defaultIncluded: (s.defaultIncluded ?? f.defaultIncluded).join("\n"),
       defaultNotIncluded: (s.defaultNotIncluded ?? f.defaultNotIncluded).join("\n"),
+      invoiceTerms: s.invoiceTerms ?? "",
+      invoiceCancellationPolicy: s.invoiceCancellationPolicy ?? "",
     };
   }, [snap]);
 
@@ -165,6 +169,10 @@ export function AdminItineraryTemplatePanel() {
     }
     if (changedKeys.includes("defaultNotIncluded")) {
       args.defaultNotIncluded = splitLines(sent.defaultNotIncluded);
+    }
+    if (changedKeys.includes("invoiceTerms")) args.invoiceTerms = sent.invoiceTerms;
+    if (changedKeys.includes("invoiceCancellationPolicy")) {
+      args.invoiceCancellationPolicy = sent.invoiceCancellationPolicy;
     }
     setSaving(true);
     setSaveError(null);
@@ -473,6 +481,48 @@ export function AdminItineraryTemplatePanel() {
               value={values.defaultNotIncluded}
               onChange={(e) => form.setField("defaultNotIncluded", e.target.value)}
               placeholder={"Lunch & dinner\nAir tickets"}
+            />
+          </AdminField>
+        </div>
+      </Card>
+
+      <Card className="p-5">
+        <p className="text-xs font-bold uppercase tracking-wide text-muted">
+          Invoice text (new invoices)
+        </p>
+        <p className="mt-1 text-sm text-muted">
+          Copied into every new invoice. Leave a box empty to use the terms blocks above instead
+          (blocks titled “Cancellation” or “Refund” go to the cancellation policy). Existing
+          invoices are never changed.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <AdminField
+            label="Terms & conditions"
+            htmlFor="itin-template-invoiceTerms"
+            tip="Printed in the notes section of new invoices. You can still edit it per invoice."
+          >
+            <TextAreaField
+              id="itin-template-invoiceTerms"
+              rows={6}
+              value={values.invoiceTerms}
+              onChange={(e) => form.setField("invoiceTerms", e.target.value)}
+              placeholder={snap.invoiceDefaults.terms || "e.g. 50% advance confirms the booking."}
+            />
+          </AdminField>
+          <AdminField
+            label="Cancellation policy"
+            htmlFor="itin-template-invoiceCancellationPolicy"
+            tip="Printed under the terms on new invoices. You can still edit it per invoice."
+          >
+            <TextAreaField
+              id="itin-template-invoiceCancellationPolicy"
+              rows={6}
+              value={values.invoiceCancellationPolicy}
+              onChange={(e) => form.setField("invoiceCancellationPolicy", e.target.value)}
+              placeholder={
+                snap.invoiceDefaults.cancellationPolicy ||
+                "e.g. Free cancellation up to 15 days before departure."
+              }
             />
           </AdminField>
         </div>

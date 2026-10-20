@@ -5,8 +5,8 @@ export default function AdminBlogPage() {
     <main>
       <h1 className="text-2xl font-semibold text-zinc-900">Blog</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Editor in a modal, publish toggle on the list and in the editor. Drafts
-        stay private.
+        Write travel guides and blog posts for your website. Posts stay hidden until you switch
+        on “Published”.
       </p>
       <div className="mt-8">
         <AdminBlogPanel />

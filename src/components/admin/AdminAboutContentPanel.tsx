@@ -509,7 +509,7 @@ export function AdminAboutContentPanel() {
 
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <AdminField
-            label="Eyebrow"
+            label="Small line above the heading"
             htmlFor="about-eyebrow"
             tip="Small line shown above the main heading on the About Us page."
           >
@@ -523,7 +523,7 @@ export function AdminAboutContentPanel() {
           <AdminField
             label="Heading"
             htmlFor={req.id("heading")}
-            tip="The main section heading on the About Us page, under the eyebrow."
+            tip="The main section heading on the About Us page, under the small line."
             error={req.errorFor("heading")}
           >
             <TextInput
@@ -726,7 +726,7 @@ export function AdminAboutContentPanel() {
         <h2 className="text-lg font-bold text-foreground">Partner logos</h2>
         <p className="mt-2 text-sm text-muted">
           Add partner logos shown under “Our partners in holiday experiences”.
-          Save content once before adding partners.
+          Press “Save About content” once before adding partners.
         </p>
 
         <div className="mt-6 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
@@ -835,7 +835,7 @@ export function AdminAboutContentPanel() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-bold text-foreground">{p.name}</p>
                   <p className="truncate text-xs text-muted">
-                    {p.logoStorageId ? "Uploaded logo" : p.logoExternalUrl ? "External URL" : "No logo"}
+                    {p.logoStorageId ? "Uploaded logo" : p.logoExternalUrl ? "Logo from a web link" : "No logo"}
                   </p>
                 </div>
                 <button

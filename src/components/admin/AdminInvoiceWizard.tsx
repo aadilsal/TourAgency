@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import type { FunctionArgs } from "convex/server";
 import { api } from "@convex/_generated/api";
@@ -29,10 +29,20 @@ import { Modal } from "@/components/ui/Modal";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
 import { toAbsoluteUrl } from "@/lib/absoluteUrl";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
-import { PDFDownloadLink, PDFViewer } from "@react-pdf/renderer";
+import { PDFDownloadLink, PDFViewer, pdf } from "@react-pdf/renderer";
 import { InvoicePdf, type InvoicePdfModel } from "@/documents/invoice/InvoicePdf";
 import type { PackageTier } from "@/lib/tours/itineraryPackageMatrix";
 import { normalizePackageTier } from "@/components/admin/itinerary/itineraryModel";
+import {
+  INVOICE_STATUS_OPTIONS,
+  type InvoiceStatus,
+} from "@/components/admin/itinerary/documentStatus";
+import { SendToCustomerButtons } from "@/components/admin/itinerary/SendToCustomerButtons";
+import {
+  invoiceMessage,
+  isPhoneViewport,
+  openPdfInNewTab,
+} from "@/components/admin/itinerary/sendToCustomer";
 
 type Currency = "PKR" | "USD";
 type PaymentMethod = "bank" | "easypaisa" | "jazzcash";
@@ -47,10 +57,12 @@ type InvoiceDoc = {
   _id: Id<"invoices">;
   invoiceNumber?: string;
   clientName: string;
+  clientPhone?: string;
+  clientEmail?: string;
   itineraryId?: Id<"itineraries">;
   invoiceDate: string;
   currency: Currency;
-  status: "draft" | "paid";
+  status: InvoiceStatus;
   items: InvoiceItem[];
   /** Percentage 0–100 */
   discount: number;
@@ -67,6 +79,8 @@ type InvoiceDoc = {
 /** Editable fields — also the shape of the local crash backup. */
 type InvoiceForm = {
   clientName: string;
+  clientPhone: string;
+  clientEmail: string;
   invoiceDate: string;
   currency: Currency;
   items: InvoiceItem[];
@@ -94,15 +108,27 @@ function money(currency: Currency, n: number) {
   return `${sym} ${Number.isFinite(n) ? n.toLocaleString() : "0"}`;
 }
 
-function paymentTemplate(method: PaymentMethod) {
+type WalletAccounts = {
+  easypaisaAccountTitle?: string;
+  easypaisaNumber?: string;
+  jazzcashAccountTitle?: string;
+  jazzcashNumber?: string;
+};
+
+function paymentTemplate(method: PaymentMethod, wallets: WalletAccounts | undefined) {
   if (method === "easypaisa" || method === "jazzcash") {
+    const isEp = method === "easypaisa";
+    const title = (isEp ? wallets?.easypaisaAccountTitle : wallets?.jazzcashAccountTitle)?.trim();
+    const number = (isEp ? wallets?.easypaisaNumber : wallets?.jazzcashNumber)?.trim();
     return [
-      `${method === "easypaisa" ? "Easypaisa" : "JazzCash"} payment details`,
+      `${isEp ? "Easypaisa" : "JazzCash"} payment details`,
       "",
-      "Account title: Junket Tours",
-      "Account number: __________",
-      "Instructions: Share screenshot after payment.",
-    ].join("\n");
+      `Account title: ${title || "Junket Tours"}`,
+      number ? `Account number: ${number}` : "",
+      "Please share a screenshot after payment.",
+    ]
+      .filter((line, i) => i === 1 || line)
+      .join("\n");
   }
   // Bank account details are printed on every invoice automatically, so the
   // template only carries optional instructions.
@@ -112,6 +138,8 @@ function paymentTemplate(method: PaymentMethod) {
 function formFromDoc(doc: InvoiceDoc): InvoiceForm {
   return {
     clientName: doc.clientName ?? "",
+    clientPhone: doc.clientPhone ?? "",
+    clientEmail: doc.clientEmail ?? "",
     invoiceDate: doc.invoiceDate ?? new Date().toISOString().slice(0, 10),
     currency: doc.currency ?? "PKR",
     items: doc.items?.length ? doc.items : [blankItem("Trip package")],
@@ -127,6 +155,9 @@ function formFromDoc(doc: InvoiceDoc): InvoiceForm {
 }
 
 type LinkedItinerary = {
+  title?: string;
+  startDate?: string;
+  endDate?: string;
   packageTiers?: PackageTier[];
   packages?: Array<{
     name: string;
@@ -173,7 +204,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
 
   const createDraft = useMutation(api.invoices.createDraft);
   const patchDraft = useMutation(api.invoices.patchDraft);
-  const markPaid = useMutation(api.invoices.markPaid);
+  const setInvoiceStatus = useMutation(api.invoices.setStatus);
   const exportDocx = useAction(api.documentsActions.exportInvoiceDocx);
 
   const [step, setStep] = useState(1);
@@ -183,6 +214,8 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
 
   const [form, setForm] = useState<InvoiceForm>(() => ({
     clientName: "",
+    clientPhone: "",
+    clientEmail: "",
     invoiceDate: new Date().toISOString().slice(0, 10),
     currency: "PKR",
     items: [blankItem("Trip package")],
@@ -197,6 +230,8 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
   }));
   const {
     clientName,
+    clientPhone,
+    clientEmail,
     invoiceDate,
     currency,
     items,
@@ -228,12 +263,16 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
   const [docxLoading, setDocxLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [statusSaving, setStatusSaving] = useState(false);
 
   const companyLogoUrl = useQuery(api.media.getSiteAssetUrl, { key: "logo" });
-  const publicSettings = useQuery(api.siteSettings.getPublicSiteSettings, {});
+  const adminSettings = useSafeQuery(
+    api.siteSettings.getAdminSiteSettings,
+    canMutate ? { sessionToken } : "skip",
+  ).data;
   const fallbackLogoAbs = useMemo(() => toAbsoluteUrl(DEFAULT_LOGO_URL), []);
-  const settings = publicSettings as
-    | {
+  const settings = adminSettings as
+    | (WalletAccounts & {
         officeAddress?: string;
         whatsappPhone?: string;
         contactEmail?: string;
@@ -247,8 +286,40 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
           iban?: string;
           instruction?: string;
         };
-      }
+        invoiceDefaults?: { terms: string; cancellationPolicy: string };
+      })
     | undefined;
+  const invoiceDefaults = settings?.invoiceDefaults;
+  // A brand-new invoice starts with the default terms / cancellation text
+  // (once, only into empty boxes). Existing invoices are never changed.
+  const textDefaultsApplied = useRef(false);
+  useEffect(() => {
+    if (textDefaultsApplied.current || invoiceIdProp || invoiceId || !invoiceDefaults) return;
+    textDefaultsApplied.current = true;
+    setForm((f) => ({
+      ...f,
+      terms: f.terms.trim() ? f.terms : invoiceDefaults.terms,
+      cancellationPolicy: f.cancellationPolicy.trim()
+        ? f.cancellationPolicy
+        : invoiceDefaults.cancellationPolicy,
+    }));
+  }, [invoiceDefaults, invoiceId, invoiceIdProp]);
+
+  // Client-only screen (loaded with ssr: false), so reading the viewport here is safe.
+  const [isPhone, setIsPhone] = useState(() => isPhoneViewport());
+  useEffect(() => {
+    let mq: MediaQueryList | null = null;
+    try {
+      mq = window.matchMedia("(min-width: 1024px)");
+    } catch {
+      return;
+    }
+    const sync = () => setIsPhone(isPhoneViewport());
+    sync();
+    mq.addEventListener?.("change", sync);
+    return () => mq?.removeEventListener?.("change", sync);
+  }, []);
+
   const officeAddress = settings?.officeAddress?.trim() || undefined;
   const bankDetails = settings?.bankDetails;
 
@@ -284,13 +355,18 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
   ).data as LinkedItinerary | null | undefined;
   const importableItems = useMemo(() => itemsFromItinerary(linkedItinerary), [linkedItinerary]);
 
+  const typedDuringCreateRef = useRef<Partial<InvoiceForm> | null>(null);
   /** Id whose saved values are in the form. Nothing is saved before this. */
   const [hydratedId, setHydratedId] = useState<string | null>(null);
   const isHydrated = Boolean(invoiceId) && hydratedId === String(invoiceId);
 
   useEffect(() => {
     if (!invoiceDoc || !invoiceId || hydratedId === String(invoiceId)) return;
-    setForm(formFromDoc(invoiceDoc));
+    // Edits typed while the draft was being created stay on top (they are
+    // already queued for saving).
+    const overlay = typedDuringCreateRef.current;
+    typedDuringCreateRef.current = null;
+    setForm({ ...formFromDoc(invoiceDoc), ...(overlay ?? {}) });
     setHydratedId(String(invoiceId));
   }, [invoiceDoc, invoiceId, hydratedId]);
 
@@ -365,7 +441,11 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
         website: settings?.website?.trim() || undefined,
         officeAddress,
       },
-      client: { name: clientName },
+      client: {
+        name: clientName,
+        phone: clientPhone.trim() || undefined,
+        email: clientEmail.trim() || undefined,
+      },
       items: items.map((i) => ({
         name: i.name,
         description: i.description?.trim() || undefined,
@@ -386,6 +466,8 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
     invoiceDoc?.status,
     bankDetails,
     clientName,
+    clientPhone,
+    clientEmail,
     invoiceDate,
     currency,
     companyLogoUrl,
@@ -403,6 +485,47 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
     cancellationPolicy,
   ]);
 
+  const sendMessage = useMemo(
+    () =>
+      invoiceMessage({
+        clientName,
+        invoiceNumber: invoiceDoc?.invoiceNumber,
+        tripTitle: linkedItinerary?.title,
+        startDate: linkedItinerary?.startDate,
+        endDate: linkedItinerary?.endDate,
+        totalLabel: money(currency, total),
+        dueLabel:
+          invoiceDoc?.status === "paid" || remainingBalance <= 0.00001
+            ? undefined
+            : money(currency, remainingBalance),
+      }),
+    [clientName, currency, invoiceDoc?.invoiceNumber, invoiceDoc?.status, linkedItinerary, remainingBalance, total],
+  );
+  const pdfModelRef = useRef(pdfModel);
+  pdfModelRef.current = pdfModel;
+  const invoiceDateRef = useRef(invoiceDate);
+  invoiceDateRef.current = invoiceDate;
+  /** Invoice PDF for "Share PDF" / phone preview (edits saved first). */
+  const makePdf = useCallback(async () => {
+    await flushSave();
+    const model = pdfModelRef.current;
+    if (!model) throw new Error("Enter the client name first.");
+    const blob = await pdf(<InvoicePdf model={model} />).toBlob();
+    return { blob, fileName: `invoice-${invoiceDateRef.current}.pdf` };
+  }, [flushSave]);
+
+  function openPreview() {
+    if (!isPhone) {
+      setPreviewOpen(true);
+      return;
+    }
+    // Phones can't show an embedded PDF well: open it in a new tab instead.
+    setMsg(null);
+    void openPdfInNewTab(async () => (await makePdf()).blob).catch((e) =>
+      setMsg(`Couldn't open the PDF. ${toUserFacingErrorMessage(e)}`),
+    );
+  }
+
   async function onCreateDraft() {
     if (!sessionToken || creating || invoiceId) return;
     if (!clientName.trim()) {
@@ -413,23 +536,47 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
     setCreating(true);
     const sent = { ...form };
     try {
+      const serverFillsText = !textDefaultsApplied.current;
       const id = await createDraft({
         sessionToken,
         clientName: sent.clientName,
+        clientPhone: sent.clientPhone.trim() || undefined,
+        clientEmail: sent.clientEmail.trim() || undefined,
         invoiceDate: sent.invoiceDate,
         currency: sent.currency,
         advanceAmount: Math.max(0, sent.advanceAmount || 0),
         tripSummary: sent.tripSummary.trim() || undefined,
+        // Send what's on screen (the defaults the admin saw, or their edits).
+        // Before the defaults have loaded, leave them to the server.
+        terms: textDefaultsApplied.current || sent.terms.trim() ? sent.terms : undefined,
+        cancellationPolicy:
+          textDefaultsApplied.current || sent.cancellationPolicy.trim()
+            ? sent.cancellationPolicy
+            : undefined,
       });
       clearBackup();
       setInvoiceId(id);
-      setHydratedId(String(id));
       // Anything typed while the draft was being created is saved right away.
       const cur = formRef.current;
       const changed: InvoicePatch = {};
       if (cur.clientName !== sent.clientName) changed.clientName = cur.clientName;
+      if (cur.clientPhone !== sent.clientPhone) changed.clientPhone = cur.clientPhone;
+      if (cur.clientEmail !== sent.clientEmail) changed.clientEmail = cur.clientEmail;
+      if (cur.terms !== sent.terms) changed.terms = cur.terms;
+      if (cur.cancellationPolicy !== sent.cancellationPolicy) {
+        changed.cancellationPolicy = cur.cancellationPolicy;
+      }
       if (cur.invoiceDate !== sent.invoiceDate) changed.invoiceDate = cur.invoiceDate;
       if (cur.currency !== sent.currency) changed.currency = cur.currency;
+      if (serverFillsText && !sent.terms.trim() && !sent.cancellationPolicy.trim()) {
+        // The server filled in the default text: load the saved invoice so the
+        // form shows it, keeping anything typed meanwhile on top.
+        textDefaultsApplied.current = true;
+        typedDuringCreateRef.current = changed as Partial<InvoiceForm>;
+        setHydratedId(null);
+      } else {
+        setHydratedId(String(id));
+      }
       if (Object.keys(changed).length) queueSave(changed);
       // Refreshing now reopens this invoice instead of creating another one.
       window.history.replaceState(null, "", `/admin/invoices/${id}`);
@@ -497,7 +644,8 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
         <DraftRestoreBanner
           savedAt={restorable.savedAt}
           onRestore={() => {
-            const data = restorable.data;
+            // Older backups predate some fields (e.g. client phone): keep the current values for those.
+            const data = { ...formRef.current, ...restorable.data };
             setForm(data);
             if (invoiceId) queueSave(data);
             dismissBackup();
@@ -518,7 +666,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
         currentStep={step}
         onBack={step === 1 ? undefined : () => setStep((s) => clamp(s - 1, 1, STEPS.length))}
         onNext={next}
-        nextLabel={step === 1 && creating ? "Creating…" : step === STEPS.length ? (finishing ? "Saving…" : "Final") : "Next"}
+        nextLabel={step === 1 && creating ? "Creating…" : step === STEPS.length ? (finishing ? "Saving…" : "Done") : "Next"}
         backDisabled={step === 1}
         nextDisabled={step === 1 ? creating : finishing}
         rightActions={
@@ -529,7 +677,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                 Retry save
               </Button>
             ) : null}
-            <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
+            <Button type="button" variant="secondary" onClick={openPreview}>
               Preview PDF
             </Button>
           </>
@@ -553,6 +701,37 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                 placeholder="e.g. Ahmed Ali"
               />
             </AdminField>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <AdminField
+                label="Customer phone (optional)"
+                htmlFor="invoice-client-phone"
+                tip="Printed under the client name, and used by “Send on WhatsApp”."
+              >
+                <TextInput
+                  id="invoice-client-phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={clientPhone}
+                  onChange={(e) => update({ clientPhone: e.target.value })}
+                  placeholder="e.g. 0300 1234567"
+                />
+              </AdminField>
+              <AdminField
+                label="Customer email (optional)"
+                htmlFor="invoice-client-email"
+                tip="Printed under the client name, and used by “Send by email”."
+              >
+                <TextInput
+                  id="invoice-client-email"
+                  type="email"
+                  inputMode="email"
+                  value={clientEmail}
+                  onChange={(e) => update({ clientEmail: e.target.value })}
+                  placeholder="e.g. ahmed@gmail.com"
+                />
+              </AdminField>
+            </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <AdminField
@@ -850,7 +1029,21 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               <SelectField
                 id="invoice-payment-method"
                 value={paymentMethod}
-                onChange={(e) => update({ paymentMethod: e.target.value as PaymentMethod })}
+                onChange={(e) => {
+                  const method = e.target.value as PaymentMethod;
+                  // Fill the details box from Settings unless the admin wrote their own text.
+                  const cur = paymentDetails.trim();
+                  const isTemplate =
+                    !cur ||
+                    (["bank", "easypaisa", "jazzcash"] as const).some(
+                      (m) => paymentTemplate(m, settings) === cur,
+                    );
+                  update(
+                    isTemplate
+                      ? { paymentMethod: method, paymentDetails: paymentTemplate(method, settings) }
+                      : { paymentMethod: method },
+                  );
+                }}
               >
                 <option value="bank">Bank transfer</option>
                 <option value="easypaisa">Easypaisa</option>
@@ -883,7 +1076,12 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                   them below — use the box only for extra instructions.
                 </p>
               </div>
-            ) : null}
+            ) : (paymentMethod === "easypaisa" ? settings?.easypaisaNumber : settings?.jazzcashNumber)?.trim() ? null : (
+              <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                No {paymentMethod === "easypaisa" ? "Easypaisa" : "JazzCash"} number saved yet — add it in{" "}
+                <span className="font-semibold">Admin → Settings</span> and it will be filled in here.
+              </p>
+            )}
 
             <AdminField
               label="Payment details"
@@ -910,7 +1108,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
                     variant="secondary"
                     onClick={() => {
                       const method = key === "template" ? paymentMethod : key;
-                      const t = paymentTemplate(method);
+                      const t = paymentTemplate(method, settings);
                       if (
                         paymentDetails.trim() &&
                         paymentDetails.trim() !== t &&
@@ -940,6 +1138,29 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
           </div>
         ) : step === 5 ? (
           <div className="space-y-4">
+            {invoiceDefaults &&
+            ((!terms.trim() && invoiceDefaults.terms) ||
+              (!cancellationPolicy.trim() && invoiceDefaults.cancellationPolicy)) ? (
+              <div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    const patch: Partial<InvoiceForm> = {};
+                    if (!terms.trim() && invoiceDefaults.terms) patch.terms = invoiceDefaults.terms;
+                    if (!cancellationPolicy.trim() && invoiceDefaults.cancellationPolicy) {
+                      patch.cancellationPolicy = invoiceDefaults.cancellationPolicy;
+                    }
+                    update(patch);
+                  }}
+                >
+                  Fill empty boxes with our standard text
+                </Button>
+                <p className="mt-1 text-xs text-muted">
+                  Standard text is edited in PDF payment terms &amp; policies.
+                </p>
+              </div>
+            ) : null}
             <AdminField
               label="Terms & conditions"
               htmlFor="invoice-terms"
@@ -973,7 +1194,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
             <p className="text-sm text-muted">Preview and export your invoice PDF.</p>
 
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="secondary" onClick={() => setPreviewOpen(true)}>
+              <Button type="button" variant="secondary" onClick={openPreview}>
                 Preview
               </Button>
               {pdfModel ? (
@@ -1001,21 +1222,51 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
               >
                 {docxLoading ? "Preparing…" : "Download Word"}
               </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={!invoiceId || invoiceDoc?.status === "paid"}
-                onClick={() => {
+            </div>
+
+            <div className="rounded-2xl border border-border bg-panel-elevated p-4">
+              <p className="text-sm font-semibold text-foreground">Send to customer</p>
+              <p className="mt-1 text-xs text-muted">
+                Opens WhatsApp or email with a ready message (trip, total and amount due). Attach the
+                downloaded PDF — or on a phone use “Share PDF” to send the file directly.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <SendToCustomerButtons
+                  phone={clientPhone}
+                  email={clientEmail}
+                  message={sendMessage}
+                  emailSubject={`Invoice${invoiceDoc?.invoiceNumber ? ` ${invoiceDoc.invoiceNumber}` : ""} — JunketTours`}
+                  makePdf={pdfModel ? makePdf : undefined}
+                  onMessage={setMsg}
+                />
+              </div>
+            </div>
+
+            <AdminField
+              label="Payment status"
+              htmlFor="invoice-status"
+              tip="Unpaid, advance received, or fully paid. “Fully paid” stamps PAID on the invoice."
+            >
+              <SelectField
+                id="invoice-status"
+                value={invoiceDoc?.status ?? "draft"}
+                disabled={!invoiceId || statusSaving}
+                onChange={(e) => {
                   if (!invoiceId || !sessionToken) return;
+                  const status = e.target.value as InvoiceStatus;
+                  setStatusSaving(true);
                   void afterSave(async () => {
-                    await markPaid({ sessionToken, invoiceId });
-                    setMsg("Marked as paid.");
-                  });
+                    await setInvoiceStatus({ sessionToken, invoiceId, status });
+                  }).finally(() => setStatusSaving(false));
                 }}
               >
-                {invoiceDoc?.status === "paid" ? "Paid" : "Mark as paid"}
-              </Button>
-            </div>
+                {INVOICE_STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </SelectField>
+            </AdminField>
           </div>
         )}
       </WizardLayout>
@@ -1024,7 +1275,7 @@ export function AdminInvoiceWizard({ invoiceId: invoiceIdProp }: { invoiceId?: s
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
         title="Invoice preview"
-        description="This is the PDF preview (Option A)."
+        description="This is exactly what the customer will see."
         panelClassName="max-w-5xl"
         fullscreenOnMobile
       >

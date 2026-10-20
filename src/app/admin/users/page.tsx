@@ -5,8 +5,8 @@ export default function AdminUsersPage() {
     <main>
       <h1 className="text-2xl font-semibold text-zinc-900">Users</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        All registered users — open View for phone, verification, and join date.
-        Role changes: Manage admins 🔐.
+        Everyone who has created an account on your website. Click View to see their phone
+        number and when they joined. To change who is an admin, go to Manage admins.
       </p>
       <div className="mt-8">
         <AdminUsersTable />

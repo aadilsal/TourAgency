@@ -7,7 +7,7 @@ import { KnowBeforeYouGoContent } from "@/components/tours/KnowBeforeYouGo";
 import { TOUR_AUDIENCE_OPTIONS, parseTourAudience } from "@/lib/tours/tourAudience";
 import { AdminField, type RequiredFieldsForm } from "@/components/admin/shared/AdminField";
 import { CheckboxGroupField, TextAreaField, TextField, inputClass } from "./fields";
-import { slugify, type TourFormPatch, type TourFormValues } from "./model";
+import type { TourFormPatch, TourFormValues } from "./model";
 
 type Option<T> = { _id: T; name: string };
 
@@ -15,14 +15,12 @@ export function BasicsSection({
   values,
   onChange,
   destinations,
-  provinces,
   blogPosts,
   req,
 }: {
   values: TourFormValues;
   onChange: TourFormPatch;
   destinations: ReadonlyArray<Option<Id<"destinations">>> | undefined;
-  provinces: ReadonlyArray<Option<Id<"provinces">>> | undefined;
   blogPosts: ReadonlyArray<{ _id: Id<"blogPosts">; title: string; published: boolean }> | undefined;
   /** Required-field tracker from the editor (title, description, duration, location). */
   req?: RequiredFieldsForm;
@@ -33,7 +31,7 @@ export function BasicsSection({
       <AdminField
         label="Tour badge"
         htmlFor="tour-editor-audience"
-        tip="Optional badge on the tour's photo. “Most popular” tours are listed first on the home page; “International tour” ones also appear in the home page's International tours section. Both can be filtered on /tours. Choose No badge to show none."
+        tip="Optional badge on the tour's photo. “Most popular” tours are listed first on the home page; “International tour” ones also appear in the home page's International tours section. Visitors can filter by them on the Tours page. Choose No badge to show none."
       >
         <select
           id="tour-editor-audience"
@@ -49,29 +47,16 @@ export function BasicsSection({
           ))}
         </select>
       </AdminField>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <TextField
-          label="Title"
-          required
-          tip="The tour name shown on its page, on tour cards and in Google results. Keep it short and specific."
-          placeholder="e.g. 7-Day Hunza & Skardu Adventure"
-          error={req?.errorFor("title")}
-          controlProps={req?.fieldProps("title")}
-          value={values.title}
-          onChange={(title) => onChange({ title })}
-        />
-        <TextField
-          label="Slug"
-          id="tour-editor-slug"
-          tip="The last part of the tour page's web address. Leave blank to build it from the title. Changing it later redirects old links to the new address."
-          placeholder="e.g. hunza-skardu-7-days (auto from title if empty)"
-          value={values.slug}
-          onChange={(slug) => onChange({ slug })}
-        />
-      </div>
-      <p className="-mt-1 break-all text-xs text-slate-500">
-        Page URL: /tours/{slugify(values.slug || values.title) || "…"}
-      </p>
+      <TextField
+        label="Title"
+        required
+        tip="The tour name shown on its page, on tour cards and in Google results. Keep it short and specific."
+        placeholder="e.g. 7-Day Hunza & Skardu Adventure"
+        error={req?.errorFor("title")}
+        controlProps={req?.fieldProps("title")}
+        value={values.title}
+        onChange={(title) => onChange({ title })}
+      />
       <div>
         <TextAreaField
           label="Know before you go"
@@ -113,26 +98,18 @@ export function BasicsSection({
       />
       <CheckboxGroupField<string>
         legend="Tour types"
-        tip="Tick every style that fits. Visitors use these to filter tours on /tours (e.g. Family, Honeymoon, Adventure)."
+        tip="Tick every style that fits. Visitors use these to filter tours on the Tours page (e.g. Family, Honeymoon, Adventure)."
         options={TOUR_TYPE_OPTIONS}
         selected={values.types}
         onChange={(types) => onChange({ types })}
       />
       <CheckboxGroupField
         legend="Destinations"
-        tip="Places this tour visits (e.g. Hunza Valley, Skardu). The tour is listed on each ticked destination's page. Manage the list in Admin → Destinations."
+        tip="Places this tour visits (e.g. Hunza Valley, Skardu). The tour is listed on each ticked destination's page. Manage the list under Destinations in the menu."
         options={(destinations ?? []).map((d) => ({ value: d._id, label: d.name }))}
         selected={values.destinationIds}
         onChange={(destinationIds) => onChange({ destinationIds })}
         showUnknown={destinations !== undefined}
-      />
-      <CheckboxGroupField
-        legend="Provinces"
-        tip="Provinces or regions the tour passes through (e.g. Gilgit-Baltistan, Khyber Pakhtunkhwa). Used for the province pages and filters."
-        options={(provinces ?? []).map((p) => ({ value: p._id, label: p.name }))}
-        selected={values.provinceIds}
-        onChange={(provinceIds) => onChange({ provinceIds })}
-        showUnknown={provinces !== undefined}
       />
       <CheckboxGroupField
         legend="Related blog posts (shown on the tour page)"
@@ -168,7 +145,7 @@ export function BasicsSection({
         <TextField
           label="Location"
           required
-          tip="Where the tour starts or mainly takes place, shown on tour cards and the facts row."
+          tip="Where the tour starts or mainly takes place, shown on tour cards and in the quick facts."
           placeholder="e.g. Islamabad to Hunza, Gilgit-Baltistan"
           error={req?.errorFor("location")}
           controlProps={req?.fieldProps("location")}

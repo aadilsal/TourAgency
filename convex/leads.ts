@@ -98,15 +98,32 @@ const leadStatusValidator = v.union(
   v.literal("closed"),
 );
 
-/** Paginated leads inbox, newest first. */
+/**
+ * Paginated leads inbox, newest first, optional follow-up status filter.
+ * `status: "new"` also matches legacy leads that have no status yet.
+ * (Leads are small rows and have no status index, so the filter runs on the
+ * newest-first scan.)
+ */
 export const listLeadsPage = query({
   args: {
     sessionToken: v.string(),
     paginationOpts: paginationOptsValidator,
+    status: v.optional(leadStatusValidator),
   },
-  handler: async (ctx, { sessionToken, paginationOpts }) => {
+  handler: async (ctx, { sessionToken, paginationOpts, status }) => {
     await requireAdminFromSession(ctx, sessionToken);
-    return await ctx.db.query("leads").order("desc").paginate(paginationOpts);
+    const q = ctx.db.query("leads").order("desc");
+    if (!status) return await q.paginate(paginationOpts);
+    if (status === "new") {
+      return await q
+        .filter((f) =>
+          f.or(f.eq(f.field("status"), "new"), f.eq(f.field("status"), undefined)),
+        )
+        .paginate(paginationOpts);
+    }
+    return await q
+      .filter((f) => f.eq(f.field("status"), status))
+      .paginate(paginationOpts);
   },
 });
 

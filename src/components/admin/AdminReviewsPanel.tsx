@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { Star } from "lucide-react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
@@ -10,6 +10,11 @@ import { Button } from "@/components/ui/Button";
 import { IconAction } from "@/components/admin/shared/IconAction";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
+import { useSafeQuery } from "@/hooks/useSafeQuery";
+import { QueryErrorBanner } from "@/components/admin/shared/EditorStatus";
+import { useInboxFilter } from "@/components/admin/shared/inboxHooks";
+
+const FILTER_IDS = ["pending", "approved", "rejected", "all"] as const;
 
 type StatusFilter = "pending" | "approved" | "rejected" | "all";
 
@@ -22,9 +27,9 @@ function statusBadge(status: string) {
 export function AdminReviewsPanel() {
   const sessionToken = useConvexSessionToken();
   const canQuery = typeof sessionToken === "string";
-  const [filter, setFilter] = useState<StatusFilter>("pending");
+  const [filter, setFilter] = useInboxFilter<StatusFilter>(FILTER_IDS, "pending");
 
-  const rows = useQuery(
+  const { data: rows, error } = useSafeQuery(
     api.tourReviews.listForAdmin,
     canQuery
       ? { sessionToken, status: filter === "all" ? undefined : filter }
@@ -64,6 +69,7 @@ export function AdminReviewsPanel() {
 
   return (
     <div className="space-y-4">
+      <QueryErrorBanner error={error} />
       {msg ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
           {msg}
@@ -80,6 +86,7 @@ export function AdminReviewsPanel() {
             type="button"
             variant={filter === f.id ? "primary" : "secondary"}
             className="!px-3 !py-1.5 !text-xs"
+            aria-pressed={filter === f.id}
             onClick={() => setFilter(f.id)}
           >
             {f.label}
@@ -87,11 +94,13 @@ export function AdminReviewsPanel() {
         ))}
       </div>
 
-      {rows === undefined ? (
+      {rows === undefined && !error ? (
         <p className="text-sm text-muted">Loading…</p>
-      ) : rows.length === 0 ? (
+      ) : !rows || rows.length === 0 ? (
         <p className="rounded-xl border border-border bg-panel p-4 text-sm text-muted">
-          No reviews in this view.
+          {filter === "pending"
+            ? "No reviews waiting for approval — you're all caught up."
+            : "No reviews in this view."}
         </p>
       ) : (
         <ul className="space-y-3">
@@ -144,7 +153,7 @@ export function AdminReviewsPanel() {
                 {r.status !== "approved" ? (
                   <Button
                     type="button"
-                    className="!px-3 !py-1.5 !text-xs"
+                    className="!px-4 !py-2 !text-sm"
                     onClick={() =>
                       void act(() =>
                         setStatus({
@@ -162,7 +171,7 @@ export function AdminReviewsPanel() {
                   <Button
                     type="button"
                     variant="secondary"
-                    className="!px-3 !py-1.5 !text-xs"
+                    className="!px-4 !py-2 !text-sm"
                     onClick={() =>
                       void act(() =>
                         setStatus({

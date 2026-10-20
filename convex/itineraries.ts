@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server.js";
+import { internalQuery, mutation, query } from "./_generated/server.js";
 import type { QueryCtx } from "./_generated/server.js";
 import type { Doc } from "./_generated/dataModel.js";
 import { requireUserFromSession } from "./lib/authHelpers.js";
@@ -112,6 +112,8 @@ const TRIMMED_STRING_FIELDS = new Set([
   "pickupDropoff",
   "title",
   "clientName",
+  "clientPhone",
+  "clientEmail",
   "companyDescription",
   "contactPhone",
   "contactEmail",
@@ -134,6 +136,17 @@ function normalizeItineraryPatch(patch: Record<string, unknown>): Record<string,
     if (k === "startDate" || k === "endDate") {
       // `null` or a blank string clears the date.
       next[k] = typeof val === "string" && val.trim() ? val.trim() : undefined;
+      continue;
+    }
+    if (k === "clientPhone" || k === "clientEmail") {
+      // `null` clears the contact; strings are trimmed.
+      next[k] = typeof val === "string" ? val.trim() : undefined;
+      continue;
+    }
+    if (k === "adults" || k === "children") {
+      // `null` clears the count.
+      next[k] =
+        typeof val === "number" && Number.isFinite(val) ? Math.max(0, Math.floor(val)) : undefined;
       continue;
     }
     if (k === "coverImageStorageId") {
@@ -213,6 +226,134 @@ function normalizeItineraryPatch(patch: Record<string, unknown>): Record<string,
   return next;
 }
 
+type AtGlanceRow = { dayNumber: number; title: string; detail: string; overnight?: string };
+type TierArg = {
+  name: string;
+  pricePkr?: number;
+  vehicle?: string;
+  note?: string;
+  stays?: Array<{ location: string; hotel: string; nights: number }>;
+  hotels: Array<{ hotel: string; nights: number }>;
+};
+
+/** True when no day row has any text (what a fresh builder sends). */
+export function isBlankDayList(days: AtGlanceRow[] | undefined): boolean {
+  return (
+    !days ||
+    days.every((d) => !d.title.trim() && !d.detail.trim() && !(d.overnight ?? "").trim())
+  );
+}
+
+/** Auto-generated stay label ("Stop 1") the builder sends for an untouched row. */
+const AUTO_STOP_LABEL = /^stop \d+$/i;
+
+/** True when no package has a price, vehicle, note or hotel (a fresh builder's blank tier). */
+export function isBlankTierList(tiers: TierArg[] | undefined): boolean {
+  return (
+    !tiers ||
+    tiers.every(
+      (t) =>
+        typeof t.pricePkr !== "number" &&
+        !(t.vehicle ?? "").trim() &&
+        !(t.note ?? "").trim() &&
+        (t.stays ?? []).every(
+          (st) =>
+            !st.hotel.trim() && (!st.location.trim() || AUTO_STOP_LABEL.test(st.location.trim())),
+        ) &&
+        t.hotels.every((h) => !h.hotel.trim()),
+    )
+  );
+}
+
+/** YYYY-MM-DD + n days (calendar math in UTC), or undefined for a bad date. */
+function addDaysYmd(ymd: string, n: number): string | undefined {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd.trim());
+  if (!m) return undefined;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + n));
+  return Number.isFinite(d.getTime()) ? d.toISOString().slice(0, 10) : undefined;
+}
+
+type TourPrefillResult = {
+  days: number;
+  atGlanceDays?: AtGlanceRow[];
+  packageTiers?: TierArg[];
+  included?: string[];
+  notIncluded?: string[];
+};
+
+/**
+ * Content copied from the source tour into a NEW itinerary. Only fills what
+ * the caller left blank — anything the admin typed or passed always wins.
+ */
+export function tourPrefill(
+  tour: Pick<
+    Doc<"tours">,
+    "durationDays" | "itinerary" | "included" | "excluded" | "pricePkr" | "priceUsd" | "price"
+  >,
+  args: {
+    days: number;
+    atGlanceDays?: AtGlanceRow[];
+    packageTiers?: TierArg[];
+    included?: string[];
+    notIncluded?: string[];
+  },
+  siteDefaults: { included?: string[]; notIncluded?: string[] } = {},
+): TourPrefillResult {
+  const out: TourPrefillResult = { days: args.days };
+  const plan = [...(tour.itinerary ?? [])]
+    .sort((a, b) => a.day - b.day)
+    .filter((d) => d.title.trim() || d.description.trim());
+  if (isBlankDayList(args.atGlanceDays) && plan.length > 0) {
+    const count = Math.max(
+      1,
+      Math.min(60, Math.max(plan.length, Math.floor(tour.durationDays || 0))),
+    );
+    out.days = count;
+    out.atGlanceDays = Array.from({ length: count }, (_, i) => ({
+      dayNumber: i + 1,
+      title: plan[i]?.title.trim() ?? "",
+      detail: plan[i]?.description.trim() ?? "",
+    }));
+  }
+  const hasItems = (list: string[] | undefined) => (list ?? []).some((x) => x.trim());
+  if (!hasItems(args.included)) {
+    if (hasItems(tour.included)) out.included = tour.included;
+    else if (args.included === undefined && hasItems(siteDefaults.included)) {
+      out.included = siteDefaults.included;
+    }
+  }
+  if (!hasItems(args.notIncluded)) {
+    if (hasItems(tour.excluded)) out.notIncluded = tour.excluded;
+    else if (args.notIncluded === undefined && hasItems(siteDefaults.notIncluded)) {
+      out.notIncluded = siteDefaults.notIncluded;
+    }
+  }
+  const pkr =
+    typeof tour.pricePkr === "number" && tour.pricePkr > 0
+      ? tour.pricePkr
+      : typeof tour.price === "number" && tour.price > 0
+        ? tour.price
+        : undefined;
+  const usd = typeof tour.priceUsd === "number" && tour.priceUsd > 0 ? tour.priceUsd : undefined;
+  if (isBlankTierList(args.packageTiers) && (pkr !== undefined || usd !== undefined)) {
+    const nights = Math.max(1, out.days - 1);
+    out.packageTiers = [
+      {
+        name: args.packageTiers?.[0]?.name?.trim() || "Standard",
+        pricePkr: pkr,
+        // Package prices are PKR-only; a USD-only tour keeps its price visible as a note.
+        note:
+          pkr === undefined && usd !== undefined
+            ? `Price: USD ${usd.toLocaleString("en-US")}`
+            : undefined,
+        stays: [{ location: "", hotel: "", nights }],
+        hotels: [{ hotel: "", nights }],
+      },
+    ];
+  }
+  return out;
+}
+
 export const createDraft = mutation({
   args: {
     sessionToken: v.string(),
@@ -230,6 +371,11 @@ export const createDraft = mutation({
     sourceTourId: v.optional(v.id("tours")),
     sourceBookingId: v.optional(v.id("bookings")),
     sourceGuestBookingId: v.optional(v.id("guestBookings")),
+
+    clientPhone: v.optional(v.string()),
+    clientEmail: v.optional(v.string()),
+    adults: v.optional(v.number()),
+    children: v.optional(v.number()),
 
     /**
      * Optional content typed before the draft existed. Saved in the same
@@ -251,14 +397,49 @@ export const createDraft = mutation({
     assertAdminFromSession(user);
 
     const now = Date.now();
-    const safeDays = Math.max(1, Math.min(60, Math.floor(args.days)));
+    let safeDays = Math.max(1, Math.min(60, Math.floor(args.days)));
+
+    // Starting from a tour: copy its day plan, inclusions and price into the
+    // fields the admin left blank. Insert path only — an existing draft is
+    // never touched.
+    const tour = args.sourceTourId ? await ctx.db.get(args.sourceTourId) : null;
+    let fromTour: Record<string, unknown> = {};
+    if (tour) {
+      const settings = await ctx.db
+        .query("siteSettings")
+        .withIndex("by_key", (q) => q.eq("key", "global"))
+        .unique();
+      const { days, ...rest } = tourPrefill(
+        tour,
+        {
+          days: safeDays,
+          atGlanceDays: args.atGlanceDays,
+          packageTiers: args.packageTiers,
+          included: args.included,
+          notIncluded: args.notIncluded,
+        },
+        { included: settings?.defaultIncluded, notIncluded: settings?.defaultNotIncluded },
+      );
+      safeDays = days;
+      fromTour = normalizeItineraryPatch(rest);
+    }
+
     const atGlanceDays = Array.from({ length: safeDays }, (_, i) => ({
       dayNumber: i + 1,
       title: "",
       detail: "",
     }));
 
+    const startDate = args.startDate?.trim() || undefined;
+    const endDate =
+      args.endDate?.trim() ||
+      (tour && startDate ? addDaysYmd(startDate, safeDays - 1) : undefined);
+
     const initial = normalizeItineraryPatch({
+      clientPhone: args.clientPhone,
+      clientEmail: args.clientEmail,
+      adults: args.adults,
+      children: args.children,
       headline: args.headline,
       variantLabel: args.variantLabel,
       coverSubtitle: args.coverSubtitle,
@@ -278,10 +459,10 @@ export const createDraft = mutation({
       licenceNumber: "",
       pickupDropoff: "",
 
-      title: args.title.trim(),
+      title: args.title.trim() || tour?.title || "",
       clientName: args.clientName.trim(),
-      startDate: args.startDate?.trim() || undefined,
-      endDate: args.endDate?.trim() || undefined,
+      startDate,
+      endDate,
       days: safeDays,
       theme: args.theme,
       status: "draft",
@@ -300,6 +481,7 @@ export const createDraft = mutation({
       notIncluded: [],
       packages: [],
       ...(initial as Partial<Doc<"itineraries">>),
+      ...(fromTour as Partial<Doc<"itineraries">>),
       createdAt: now,
       updatedAt: now,
     });
@@ -329,6 +511,11 @@ export const patchDraft = mutation({
 
     title: v.optional(v.string()),
     clientName: v.optional(v.string()),
+    /** Pass `null` to clear. */
+    clientPhone: v.optional(v.union(v.string(), v.null())),
+    clientEmail: v.optional(v.union(v.string(), v.null())),
+    adults: v.optional(v.union(v.number(), v.null())),
+    children: v.optional(v.union(v.number(), v.null())),
     /** Pass `null` (or "") to clear the date. */
     startDate: v.optional(v.union(v.string(), v.null())),
     endDate: v.optional(v.union(v.string(), v.null())),
@@ -536,5 +723,46 @@ export const deleteItinerary = mutation({
       timestamp: Date.now(),
       details: `${itineraryId}`,
     });
+  },
+});
+
+/** Active tours for the "Start from a tour" picker on a new itinerary. */
+export const listTourOptionsForAdmin = query({
+  args: { sessionToken: v.string() },
+  handler: async (ctx, { sessionToken }) => {
+    const user = await requireUserFromSession(ctx, sessionToken);
+    assertAdminFromSession(user);
+    const rows = await ctx.db
+      .query("tours")
+      .withIndex("by_isActive", (q) => q.eq("isActive", true))
+      .take(300);
+    return rows
+      .map((t) => ({
+        _id: t._id,
+        title: t.title,
+        location: t.location,
+        durationDays: t.durationDays,
+        pricePkr: t.pricePkr ?? t.price,
+        priceUsd: t.priceUsd,
+        dayPlanCount: t.itinerary.length,
+      }))
+      .sort((a, b) => a.title.localeCompare(b.title));
+  },
+});
+
+/** The source tour's real day plan, used as the base for AI day drafting. */
+export const getTourPlanForAi = internalQuery({
+  args: { tourId: v.id("tours") },
+  handler: async (ctx, { tourId }) => {
+    const tour = await ctx.db.get(tourId);
+    if (!tour) return null;
+    return {
+      title: tour.title,
+      location: tour.location,
+      durationDays: tour.durationDays,
+      itinerary: [...tour.itinerary]
+        .sort((a, b) => a.day - b.day)
+        .map((d) => ({ day: d.day, title: d.title, description: d.description })),
+    };
   },
 });

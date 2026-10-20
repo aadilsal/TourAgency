@@ -28,7 +28,6 @@ import { Button } from "@/components/ui/Button";
 import { todayYmdLocal } from "@/lib/todayYmdLocal";
 import { toAbsoluteUrl } from "@/lib/absoluteUrl";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
-import { cn } from "@/lib/cn";
 import { PDFViewer, pdf } from "@react-pdf/renderer";
 import { ItineraryPdf, type ItineraryPdfModel } from "@/documents/itinerary/ItineraryPdf";
 import {
@@ -43,6 +42,7 @@ import {
   clamp,
   daysBetween,
   editablePackageTiersToPatchPayload,
+  fillBlankDays,
   itineraryFileName,
   legacyDayPlansToAtGlance,
   legacyPackagesToTiers,
@@ -60,6 +60,12 @@ import {
 import { AtGlanceDaysEditor } from "@/components/admin/itinerary/AtGlanceDaysEditor";
 import { PackageTiersEditor } from "@/components/admin/itinerary/PackageTiersEditor";
 import { LegacyItineraryContentPanel } from "@/components/admin/itinerary/LegacyItineraryContentPanel";
+import { SendToCustomerButtons } from "@/components/admin/itinerary/SendToCustomerButtons";
+import {
+  isPhoneViewport,
+  itineraryMessage,
+  openPdfInNewTab,
+} from "@/components/admin/itinerary/sendToCustomer";
 
 type ItineraryPatch = Omit<
   FunctionArgs<typeof api.itineraries.patchDraft>,
@@ -70,6 +76,11 @@ type ItineraryPatch = Omit<
 type BuilderSnapshot = {
   title: string;
   clientName: string;
+  clientPhone: string;
+  clientEmail: string;
+  /** Traveller counts as typed ("" = not set). */
+  adultsInput: string;
+  childrenInput: string;
   startDate: string;
   endDate: string;
   dayCount: number;
@@ -111,6 +122,24 @@ function removeLegacyBackup(itineraryId: string | null) {
   }
 }
 
+/** Traveller-count input → number, or null when blank / not a number. */
+function countFromInput(input: string | undefined): number | null {
+  const t = (input ?? "").trim();
+  if (!t) return null;
+  const n = Math.floor(Number(t));
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+/** URL count param ("2") → input text, ignoring junk. */
+function countParam(raw: string | undefined): string {
+  const n = countFromInput(raw);
+  return n === null ? "" : String(n);
+}
+
+function ymdParam(raw: string | undefined): string {
+  return raw && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim()) && parseYmdLocal(raw.trim()) ? raw.trim() : "";
+}
+
 /** Fields in a snapshot that would change the saved record. */
 function snapshotToPatch(s: BuilderSnapshot): Required<
   Pick<
@@ -129,8 +158,20 @@ function snapshotToPatch(s: BuilderSnapshot): Required<
     | "included"
     | "notIncluded"
   >
-> & { startDate: string | null; endDate: string | null } {
+> & {
+  startDate: string | null;
+  endDate: string | null;
+  clientPhone: string;
+  clientEmail: string;
+  adults: number | null;
+  children: number | null;
+} {
   return {
+    clientPhone: (s.clientPhone ?? "").trim(),
+    clientEmail: (s.clientEmail ?? "").trim(),
+    // `null` clears a count on the server.
+    adults: countFromInput(s.adultsInput),
+    children: countFromInput(s.childrenInput),
     headline: s.headline,
     variantLabel: s.variantLabel,
     coverSubtitle: s.coverSubtitle,
@@ -179,6 +220,11 @@ export function AdminItinerarySimpleBuilder({
   itineraryId: itineraryIdProp,
   initialTitle,
   initialClientName,
+  initialClientPhone,
+  initialClientEmail,
+  initialStartDate,
+  initialAdults,
+  initialChildren,
   sourceTourId,
   sourceBookingId,
   sourceGuestBookingId,
@@ -187,6 +233,12 @@ export function AdminItinerarySimpleBuilder({
   /** Prefill + linkage when arriving from a booking (see /admin/itineraries/new). */
   initialTitle?: string;
   initialClientName?: string;
+  initialClientPhone?: string;
+  initialClientEmail?: string;
+  /** YYYY-MM-DD */
+  initialStartDate?: string;
+  initialAdults?: string;
+  initialChildren?: string;
   sourceTourId?: string;
   sourceBookingId?: string;
   sourceGuestBookingId?: string;
@@ -207,6 +259,7 @@ export function AdminItinerarySimpleBuilder({
   const createDraft = useMutation(api.itineraries.createDraft);
   const patchDraft = useMutation(api.itineraries.patchDraft);
   const markFinal = useMutation(api.itineraries.markFinal);
+  const getOrCreateInvoice = useMutation(api.invoices.getOrCreateForItinerary);
   const draftItineraryDays = useAction(api.ai.draftItineraryDays);
   const generateUploadUrl = useMutation(api.media.generateItineraryImageUploadUrl);
   const addItineraryImageAsset = useMutation(api.media.addItineraryImageAsset);
@@ -227,11 +280,40 @@ export function AdminItinerarySimpleBuilder({
   );
   const adminSettings = settingsQuery.data as ItineraryDocumentSettings | undefined;
 
+  // "Start from a tour" choices — only needed before the draft exists.
+  const tourOptions = useSafeQuery(
+    api.itineraries.listTourOptionsForAdmin,
+    canMutate && !itineraryIdProp ? { sessionToken } : "skip",
+  ).data;
+
   // ── Form state ────────────────────────────────────────────────────────────
   const [title, setTitle] = useState(initialTitle ?? "");
   const [clientName, setClientName] = useState(initialClientName ?? "");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [clientPhone, setClientPhone] = useState(initialClientPhone?.trim() ?? "");
+  const [clientEmail, setClientEmail] = useState(initialClientEmail?.trim() ?? "");
+  const [adultsInput, setAdultsInput] = useState(() => countParam(initialAdults));
+  const [childrenInput, setChildrenInput] = useState(() => countParam(initialChildren));
+  const [startDate, setStartDate] = useState(() => ymdParam(initialStartDate));
+  const [endDate, setEndDate] = useState(() => {
+    const s = ymdParam(initialStartDate);
+    return s ? (addDaysToYmd(s, 5 - 1) ?? "") : "";
+  });
+  /** "Start from a tour" (new itineraries only). Content is copied server-side on create. */
+  const [selectedTourId, setSelectedTourId] = useState<string>(sourceTourId ?? "");
+  // Client-only screen (loaded with ssr: false), so reading the viewport here is safe.
+  const [isPhone, setIsPhone] = useState(() => isPhoneViewport());
+  useEffect(() => {
+    let mq: MediaQueryList | null = null;
+    try {
+      mq = window.matchMedia("(min-width: 1024px)");
+    } catch {
+      return;
+    }
+    const sync = () => setIsPhone(isPhoneViewport());
+    sync();
+    mq.addEventListener?.("change", sync);
+    return () => mq?.removeEventListener?.("change", sync);
+  }, []);
   const [dayCount, setDayCount] = useState(5);
   const [theme, setTheme] = useState<Theme>("luxury");
   const [headline, setHeadline] = useState(DEFAULT_HEADLINE);
@@ -246,6 +328,8 @@ export function AdminItinerarySimpleBuilder({
   const [packageTiers, setPackageTiers] = useState<EditablePackageTier[]>([
     blankPackageTier(1, "Standard"),
   ]);
+  const atGlanceDaysRef = useRef(atGlanceDays);
+  atGlanceDaysRef.current = atGlanceDays;
   const [includedInput, setIncludedInput] = useState("");
   const [notIncludedInput, setNotIncludedInput] = useState("");
 
@@ -255,7 +339,7 @@ export function AdminItinerarySimpleBuilder({
   const [drafting, setDrafting] = useState(false);
   const [finishing, setFinishing] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [mobileTab, setMobileTab] = useState<"form" | "pdf">("form");
+  const [makingInvoice, setMakingInvoice] = useState(false);
 
   /** Id whose saved values are loaded into state. Autosave stays off until then. */
   const [hydratedId, setHydratedId] = useState<string | null>(null);
@@ -267,7 +351,7 @@ export function AdminItinerarySimpleBuilder({
   const lastAutoNights = useRef<number>(1);
 
   // api.itineraries.createDraft requires title + clientName (v.string()). Only
-  // the explicit "Create itinerary draft" button is guarded — never autosave.
+  // the explicit "Create itinerary" button is guarded — never autosave.
   const req = useRequiredFields(
     [
       { name: "title", label: "Trip title", value: title },
@@ -287,6 +371,10 @@ export function AdminItinerarySimpleBuilder({
     () => ({
       title,
       clientName,
+      clientPhone,
+      clientEmail,
+      adultsInput,
+      childrenInput,
       startDate,
       endDate,
       dayCount: safeDays,
@@ -304,6 +392,10 @@ export function AdminItinerarySimpleBuilder({
     [
       title,
       clientName,
+      clientPhone,
+      clientEmail,
+      adultsInput,
+      childrenInput,
       startDate,
       endDate,
       safeDays,
@@ -365,6 +457,10 @@ export function AdminItinerarySimpleBuilder({
 
     setTitle(existing.title ?? "");
     setClientName(existing.clientName ?? "");
+    setClientPhone(existing.clientPhone ?? "");
+    setClientEmail(existing.clientEmail ?? "");
+    setAdultsInput(typeof existing.adults === "number" ? String(existing.adults) : "");
+    setChildrenInput(typeof existing.children === "number" ? String(existing.children) : "");
     setStartDate(existing.startDate ?? "");
     setEndDate(existing.endDate ?? "");
     setDayCount(count);
@@ -486,6 +582,10 @@ export function AdminItinerarySimpleBuilder({
   const applySnapshot = useCallback((s: Partial<BuilderSnapshot>) => {
     if (typeof s.title === "string") setTitle(s.title);
     if (typeof s.clientName === "string") setClientName(s.clientName);
+    if (typeof s.clientPhone === "string") setClientPhone(s.clientPhone);
+    if (typeof s.clientEmail === "string") setClientEmail(s.clientEmail);
+    if (typeof s.adultsInput === "string") setAdultsInput(s.adultsInput);
+    if (typeof s.childrenInput === "string") setChildrenInput(s.childrenInput);
     if (typeof s.startDate === "string") setStartDate(s.startDate);
     if (typeof s.endDate === "string") setEndDate(s.endDate);
     if (typeof s.dayCount === "number") setDayCount(clamp(s.dayCount, 1, MAX_DAYS));
@@ -502,6 +602,19 @@ export function AdminItinerarySimpleBuilder({
     if (typeof s.includedInput === "string") setIncludedInput(s.includedInput);
     if (typeof s.notIncludedInput === "string") setNotIncludedInput(s.notIncludedInput);
   }, []);
+
+  // A draft created from a tour is re-loaded from the server (it holds the
+  // copied tour content). Anything typed while it was being created is put
+  // back on top here, and autosave then saves it.
+  const snapshotRef = useRef(snapshot);
+  snapshotRef.current = snapshot;
+  const typedDuringCreateRef = useRef<Partial<BuilderSnapshot> | null>(null);
+  useEffect(() => {
+    const typed = typedDuringCreateRef.current;
+    if (!typed || !isHydrated) return;
+    typedDuringCreateRef.current = null;
+    applySnapshot(typed);
+  }, [applySnapshot, isHydrated]);
 
   useUnsavedChangesGuard(dirty || creatingDraft || uploadingCover);
 
@@ -535,6 +648,18 @@ export function AdminItinerarySimpleBuilder({
     },
     [endDate, minDate, startDate],
   );
+
+  // Picking a tour (or arriving with one in the URL) sets the day count and
+  // an empty title to match it, so the screen shows what will be created.
+  const selectedTour = tourOptions?.find((t) => t._id === selectedTourId) ?? null;
+  const tourAppliedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (itineraryId || !selectedTour || tourAppliedRef.current === selectedTour._id) return;
+    tourAppliedRef.current = selectedTour._id;
+    const count = Math.max(selectedTour.durationDays || 0, selectedTour.dayPlanCount || 0);
+    if (count > 0) setDayCountAndSync(count);
+    setTitle((cur) => (cur.trim() ? cur : selectedTour.title));
+  }, [itineraryId, selectedTour, setDayCountAndSync]);
 
   // ── Cover image & preview ────────────────────────────────────────────────
   const mapFallback = pickMapFallbackImage([title, pickupDropoff].filter(Boolean).join(" "));
@@ -628,13 +753,26 @@ export function AdminItinerarySimpleBuilder({
     if (!sessionToken || creatingDraft || itineraryId) return;
     setCreatingDraft(true);
     setMsg(null);
-    const sent = snapshotToPatch(snapshot);
+    const sentSnapshot = snapshot;
+    const sent = snapshotToPatch(sentSnapshot);
+    const tourId = selectedTourId ? (selectedTourId as Id<"tours">) : undefined;
+    // Lists still holding the untouched site defaults are left for the server
+    // to fill from the tour (it falls back to the same site defaults).
+    const untouched = (value: string, defaults: string[] | undefined) =>
+      !value.trim() || value === (defaults ?? []).join("\n");
+    const sendIncluded = !tourId || !untouched(includedInput, adminSettings?.defaultIncluded);
+    const sendNotIncluded =
+      !tourId || !untouched(notIncludedInput, adminSettings?.defaultNotIncluded);
     try {
       // One atomic mutation: everything typed so far is saved with the insert.
       const id = await createDraft({
         sessionToken,
         title: sent.title.trim() || "Untitled itinerary",
         clientName: sent.clientName.trim() || "Client",
+        clientPhone: sent.clientPhone || undefined,
+        clientEmail: sent.clientEmail || undefined,
+        adults: sent.adults ?? undefined,
+        children: sent.children ?? undefined,
         startDate: sent.startDate ?? undefined,
         endDate: sent.endDate ?? undefined,
         days: sent.days,
@@ -646,27 +784,80 @@ export function AdminItinerarySimpleBuilder({
         pickupDropoff: sent.pickupDropoff,
         atGlanceDays: sent.atGlanceDays,
         packageTiers: sent.packageTiers,
-        included: sent.included,
-        notIncluded: sent.notIncluded,
-        sourceTourId: sourceTourId as Id<"tours"> | undefined,
+        included: sendIncluded ? sent.included : undefined,
+        notIncluded: sendNotIncluded ? sent.notIncluded : undefined,
+        sourceTourId: tourId,
         sourceBookingId: sourceBookingId as Id<"bookings"> | undefined,
         sourceGuestBookingId: sourceGuestBookingId as Id<"guestBookings"> | undefined,
       });
-      // The server now holds exactly `sent`; anything typed during the request
-      // differs from this baseline and is autosaved right away.
-      baselineRef.current = serializeFields(sent);
       migrationPatchRef.current = null;
       clearBackup();
       removeLegacyBackup(null);
       setLegacyOffer(null);
       setItineraryId(id);
-      setHydratedId(String(id));
+      if (tourId) {
+        // The server copied the tour's days, prices and lists: load the saved
+        // record into the form (instead of keeping the blank rows on screen,
+        // which the next autosave would write back over the tour content).
+        const cur = snapshotRef.current;
+        const typed: Partial<BuilderSnapshot> = {};
+        for (const key of Object.keys(cur) as Array<keyof BuilderSnapshot>) {
+          if (JSON.stringify(cur[key]) !== JSON.stringify(sentSnapshot[key])) {
+            (typed as Record<string, unknown>)[key] = cur[key];
+          }
+        }
+        typedDuringCreateRef.current = Object.keys(typed).length ? typed : null;
+        baselineRef.current = null;
+        setHydratedId(null);
+      } else {
+        // The server now holds exactly `sent`; anything typed during the request
+        // differs from this baseline and is autosaved right away.
+        baselineRef.current = serializeFields(sent);
+        setHydratedId(String(id));
+      }
       // Update the URL without remounting, so a refresh reopens this draft.
       window.history.replaceState(null, "", `/admin/itineraries/${id}`);
     } catch (e) {
       setMsg(toUserFacingErrorMessage(e));
     } finally {
       setCreatingDraft(false);
+    }
+  }
+
+  const primaryTier = packageTiers[0];
+  const sendMessage = useMemo(
+    () =>
+      itineraryMessage({
+        clientName,
+        title,
+        startDate,
+        endDate,
+        days: safeDays,
+        priceLabel:
+          primaryTier?.pricePkr != null
+            ? `PKR ${primaryTier.pricePkr.toLocaleString()}${primaryTier.name ? ` (${primaryTier.name})` : ""}`
+            : undefined,
+      }),
+    [clientName, endDate, primaryTier, safeDays, startDate, title],
+  );
+
+  const pdfModelRef = useRef(pdfModel);
+  pdfModelRef.current = pdfModel;
+  const titleRef = useRef(title);
+  titleRef.current = title;
+  /** PDF for "Share PDF" — saved edits first, so the file matches the record. */
+  const makePdf = useCallback(async () => {
+    await flushSave();
+    const blob = await pdf(<ItineraryPdf model={pdfModelRef.current} />).toBlob();
+    return { blob, fileName: itineraryFileName(titleRef.current, "pdf") };
+  }, [flushSave]);
+
+  async function openPreviewOnPhone() {
+    setMsg(null);
+    try {
+      await openPdfInNewTab(async () => (await pdf(<ItineraryPdf model={pdfModel} />).toBlob()));
+    } catch (e) {
+      setMsg(`Couldn't open the PDF. ${toUserFacingErrorMessage(e)}`);
     }
   }
 
@@ -704,20 +895,15 @@ export function AdminItinerarySimpleBuilder({
     try {
       await flushSave();
       const res = await draftItineraryDays({ sessionToken, itineraryId });
-      const byDay = new Map(res.days.map((d) => [d.dayNumber, d]));
-      let filled = 0;
-      setAtGlanceDays((prev) =>
-        prev.map((row) => {
-          const draft = byDay.get(row.dayNumber);
-          if (row.title.trim() || row.detail.trim() || !draft) return row;
-          if (!draft.title.trim() && !draft.detail.trim()) return row;
-          filled++;
-          return { ...row, title: draft.title, detail: draft.detail, overnight: row.overnight ?? draft.overnight };
-        }),
-      );
+      // Merge against the latest form state; rows with any text are never touched.
+      const merged = fillBlankDays(atGlanceDaysRef.current, res.days);
+      setAtGlanceDays((prev) => fillBlankDays(prev, res.days).days);
+      const fromTour = res.copiedFromTour ?? 0;
       setMsg(
-        filled > 0
-          ? `Drafted ${filled} day${filled === 1 ? "" : "s"}. Review the text, then add hotels and prices yourself.`
+        merged.filled > 0
+          ? `Filled ${merged.filled} empty day${merged.filled === 1 ? "" : "s"}${
+              fromTour > 0 ? ` (${fromTour} from the tour's day plan)` : ""
+            }. Review the text, then add hotels and prices yourself.`
           : "The assistant returned nothing usable. Try again.",
       );
     } catch (e) {
@@ -784,7 +970,7 @@ export function AdminItinerarySimpleBuilder({
           {itineraryId ? (
             <SaveStatusPill status={autosave.status} error={autosave.error} />
           ) : (
-            <span>Not saved yet — create the draft to start autosaving.</span>
+            <span>Not saved yet — press “Create itinerary” to start autosaving.</span>
           )}
           {autosave.status === "error" ? (
             <Button type="button" variant="secondary" onClick={() => void flushSave().catch(() => undefined)}>
@@ -795,12 +981,17 @@ export function AdminItinerarySimpleBuilder({
         <div className="flex flex-wrap gap-2">
           <Link href="/admin/itinerary-template">
             <Button type="button" variant="secondary">
-              Edit itinerary constants
+              PDF payment terms &amp; policies
             </Button>
           </Link>
           <Button type="button" variant="secondary" onClick={() => void copyWhatsappMessage()}>
             Copy WhatsApp blurb
           </Button>
+          {isPhone ? (
+            <Button type="button" variant="secondary" onClick={() => void openPreviewOnPhone()}>
+              Open PDF preview
+            </Button>
+          ) : null}
           {itineraryId ? (
             <>
               <Button
@@ -810,6 +1001,28 @@ export function AdminItinerarySimpleBuilder({
               >
                 {downloading ? "Preparing…" : "Download PDF"}
               </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={makingInvoice}
+                onClick={() =>
+                  void afterSave(async () => {
+                    if (!sessionToken || !itineraryId) return;
+                    const res = await getOrCreateInvoice({ sessionToken, itineraryId });
+                    router.push(`/admin/invoices/${res.invoiceId}`);
+                  }, setMakingInvoice)
+                }
+              >
+                {makingInvoice ? "Opening…" : "Make invoice"}
+              </Button>
+              <SendToCustomerButtons
+                phone={clientPhone}
+                email={clientEmail}
+                message={sendMessage}
+                emailSubject={`Your trip plan${title.trim() ? `: ${title.trim()}` : ""} — JunketTours`}
+                makePdf={makePdf}
+                onMessage={setMsg}
+              />
               <Button
                 type="button"
                 variant="ghost"
@@ -873,34 +1086,45 @@ export function AdminItinerarySimpleBuilder({
 
       {msg ? <div className="rounded-xl border border-border bg-panel-elevated p-3 text-sm">{msg}</div> : null}
 
-      <div className="lg:hidden">
-        <div className="grid grid-cols-2 gap-2 rounded-2xl border border-border bg-panel-elevated p-2">
-          {(["form", "pdf"] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setMobileTab(tab)}
-              className={cn(
-                "rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
-                mobileTab === tab
-                  ? "bg-brand-sun/18 text-foreground ring-1 ring-brand-sun/25"
-                  : "text-muted hover:bg-black/5 hover:text-foreground",
-              )}
-            >
-              {tab === "form" ? "Edit" : "PDF preview"}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-start">
-        <div className={cn("space-y-6 pb-24", mobileTab !== "form" && "hidden lg:block")}>
+        <div className="space-y-6 pb-24">
           {!itineraryId ? (
             <div className="rounded-2xl border border-border bg-panel-elevated p-4">
               <p className="text-sm font-semibold text-foreground">Start</p>
               <p className="mt-1 text-sm text-muted">
-                Enter trip details, then create the draft. Everything autosaves after that.
+                Pick a tour to copy its day plan, inclusions and price — or start blank. Then create
+                the draft. Everything autosaves after that.
               </p>
+              <AdminField
+                className="mt-3"
+                label="Start from a tour (optional)"
+                htmlFor="itinerary-source-tour"
+                tip="Copies the tour's day-by-day plan, Included / Not included lists and price into the new itinerary. You can change everything afterwards."
+                hint={
+                  selectedTour
+                    ? `Creating the draft copies ${selectedTour.title}'s day plan, inclusions and price.`
+                    : undefined
+                }
+              >
+                <SelectField
+                  id="itinerary-source-tour"
+                  value={selectedTourId}
+                  onChange={(e) => {
+                    tourAppliedRef.current = null;
+                    setSelectedTourId(e.target.value);
+                  }}
+                >
+                  <option value="">Start blank</option>
+                  {selectedTourId && tourOptions && !selectedTour ? (
+                    <option value={selectedTourId}>Tour from the booking</option>
+                  ) : null}
+                  {(tourOptions ?? []).map((t) => (
+                    <option key={t._id} value={t._id}>
+                      {t.title} — {t.durationDays} days
+                    </option>
+                  ))}
+                </SelectField>
+              </AdminField>
             </div>
           ) : null}
 
@@ -938,6 +1162,64 @@ export function AdminItinerarySimpleBuilder({
                   value={clientName}
                   onChange={(e) => setClientName(e.target.value)}
                   placeholder="e.g. Ahmed Ali & family"
+                />
+              </AdminField>
+              <AdminField
+                label="Customer phone (optional)"
+                htmlFor="itinerary-client-phone"
+                tip="Used by “Send on WhatsApp”. Not printed on the PDF."
+              >
+                <TextInput
+                  id="itinerary-client-phone"
+                  type="tel"
+                  inputMode="tel"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  placeholder="e.g. 0300 1234567"
+                />
+              </AdminField>
+              <AdminField
+                label="Customer email (optional)"
+                htmlFor="itinerary-client-email"
+                tip="Used by “Send by email”. Not printed on the PDF."
+              >
+                <TextInput
+                  id="itinerary-client-email"
+                  type="email"
+                  inputMode="email"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  placeholder="e.g. ahmed@gmail.com"
+                />
+              </AdminField>
+              <AdminField
+                label="Adults"
+                htmlFor="itinerary-adults"
+                tip="How many adults are travelling. Copied to the invoice summary."
+              >
+                <TextInput
+                  id="itinerary-adults"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={adultsInput}
+                  onChange={(e) => setAdultsInput(e.target.value)}
+                  placeholder="e.g. 2"
+                />
+              </AdminField>
+              <AdminField
+                label="Children"
+                htmlFor="itinerary-children"
+                tip="How many children are travelling. Copied to the invoice summary."
+              >
+                <TextInput
+                  id="itinerary-children"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={childrenInput}
+                  onChange={(e) => setChildrenInput(e.target.value)}
+                  placeholder="e.g. 1"
                 />
               </AdminField>
               <AdminField
@@ -990,17 +1272,6 @@ export function AdminItinerarySimpleBuilder({
                 />
               </AdminField>
               <AdminField
-                label="Theme"
-                htmlFor="itinerary-theme"
-                tip="Colour and style of the PDF and Word export."
-              >
-                <SelectField id="itinerary-theme" value={theme} onChange={(e) => setTheme(e.target.value as Theme)}>
-                  <option value="luxury">Luxury</option>
-                  <option value="minimal">Minimal</option>
-                  <option value="adventure">Adventure</option>
-                </SelectField>
-              </AdminField>
-              <AdminField
                 className="sm:col-span-2"
                 label="Pickup & drop-off"
                 htmlFor="itinerary-pickup"
@@ -1027,7 +1298,7 @@ export function AdminItinerarySimpleBuilder({
                     void handleCreateDraft();
                   }}
                 >
-                  {creatingDraft ? "Creating…" : "Create itinerary draft"}
+                  {creatingDraft ? "Creating…" : "Create itinerary"}
                 </Button>
               </div>
             ) : null}
@@ -1036,44 +1307,8 @@ export function AdminItinerarySimpleBuilder({
           {itineraryId ? (
             <>
               <div className="rounded-2xl border border-border bg-panel-elevated p-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-muted">Cover lines</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-muted">Cover photo</p>
                 <div className="mt-3 grid gap-3">
-                  <AdminField
-                    label="Headline"
-                    htmlFor="itinerary-headline"
-                    tip="Large line at the top of the PDF cover, above the trip title."
-                  >
-                    <TextInput
-                      id="itinerary-headline"
-                      value={headline}
-                      onChange={(e) => setHeadline(e.target.value)}
-                      placeholder={`e.g. ${DEFAULT_HEADLINE}`}
-                    />
-                  </AdminField>
-                  <AdminField
-                    label="Variant label"
-                    htmlFor="itinerary-variant"
-                    tip="Small tag on the cover describing the trip type."
-                  >
-                    <TextInput
-                      id="itinerary-variant"
-                      value={variantLabel}
-                      onChange={(e) => setVariantLabel(e.target.value)}
-                      placeholder="e.g. Customised, Honeymoon, Family"
-                    />
-                  </AdminField>
-                  <AdminField
-                    label="Cover subtitle"
-                    htmlFor="itinerary-cover-subtitle"
-                    tip="Optional line under the title on the cover. Leave blank to hide it."
-                  >
-                    <TextInput
-                      id="itinerary-cover-subtitle"
-                      value={coverSubtitle}
-                      onChange={(e) => setCoverSubtitle(e.target.value)}
-                      placeholder="e.g. Lahore → Hunza → Skardu by road"
-                    />
-                  </AdminField>
                   <AdminField
                     label="Cover image"
                     htmlFor="cover-upload"
@@ -1129,25 +1364,86 @@ export function AdminItinerarySimpleBuilder({
                       </div>
                     </div>
                   </AdminField>
-                  <AdminField
-                    label="Compliance line"
-                    htmlFor="itinerary-compliance"
-                    tip="Registration / licence line printed in small text on the PDF."
-                  >
-                    <TextAreaField
-                      id="itinerary-compliance"
-                      rows={2}
-                      value={complianceLine}
-                      onChange={(e) => setComplianceLine(e.target.value)}
-                      placeholder={`e.g. ${DEFAULT_COMPLIANCE_LINE}`}
-                    />
-                  </AdminField>
                 </div>
+                <details className="mt-4 rounded-xl border border-border bg-panel p-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-foreground">
+                    Advanced (optional)
+                  </summary>
+                  <p className="mt-1 text-xs text-muted">
+                    PDF look and cover wording. The defaults are fine for most trips.
+                  </p>
+                  <div className="mt-3 grid gap-3">
+                    <AdminField
+                      label="Headline"
+                      htmlFor="itinerary-headline"
+                      tip="Large line at the top of the PDF cover, above the trip title."
+                    >
+                      <TextInput
+                        id="itinerary-headline"
+                        value={headline}
+                        onChange={(e) => setHeadline(e.target.value)}
+                        placeholder={`e.g. ${DEFAULT_HEADLINE}`}
+                      />
+                    </AdminField>
+                    <AdminField
+                      label="Trip tag (e.g. Family)"
+                      htmlFor="itinerary-variant"
+                      tip="Small tag on the cover describing the trip type."
+                    >
+                      <TextInput
+                        id="itinerary-variant"
+                        value={variantLabel}
+                        onChange={(e) => setVariantLabel(e.target.value)}
+                        placeholder="e.g. Customised, Honeymoon, Family"
+                      />
+                    </AdminField>
+                    <AdminField
+                      label="Cover subtitle"
+                      htmlFor="itinerary-cover-subtitle"
+                      tip="Optional line under the title on the cover. Leave blank to hide it."
+                    >
+                      <TextInput
+                        id="itinerary-cover-subtitle"
+                        value={coverSubtitle}
+                        onChange={(e) => setCoverSubtitle(e.target.value)}
+                        placeholder="e.g. Lahore → Hunza → Skardu by road"
+                      />
+                    </AdminField>
+                    <AdminField
+                      label="Licence line"
+                      htmlFor="itinerary-compliance"
+                      tip="Registration / licence line printed in small text on the PDF."
+                    >
+                      <TextAreaField
+                        id="itinerary-compliance"
+                        rows={2}
+                        value={complianceLine}
+                        onChange={(e) => setComplianceLine(e.target.value)}
+                        placeholder={`e.g. ${DEFAULT_COMPLIANCE_LINE}`}
+                      />
+                    </AdminField>
+                    <AdminField
+                      label="Theme"
+                      htmlFor="itinerary-theme"
+                      tip="Colour and style of the PDF and Word export."
+                    >
+                      <SelectField
+                        id="itinerary-theme"
+                        value={theme}
+                        onChange={(e) => setTheme(e.target.value as Theme)}
+                      >
+                        <option value="luxury">Luxury</option>
+                        <option value="minimal">Minimal</option>
+                        <option value="adventure">Adventure</option>
+                      </SelectField>
+                    </AdminField>
+                  </div>
+                </details>
               </div>
 
               <div className="rounded-2xl border border-border bg-panel-elevated p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-bold uppercase tracking-wide text-muted">Itinerary at a glance</p>
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted">Day-by-day plan</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs text-muted">{safeDays} days</span>
                     <Button type="button" variant="secondary" onClick={() => void draftDaysWithAi()} disabled={drafting}>
@@ -1255,7 +1551,7 @@ export function AdminItinerarySimpleBuilder({
                 <p className="mt-2 text-sm text-muted">
                   Payment terms, bank, and legal text come from{" "}
                   <Link href="/admin/itinerary-template" className="font-semibold underline">
-                    Itinerary constants
+                    PDF payment terms &amp; policies
                   </Link>
                   . Office &amp; license:{" "}
                   <Link href="/admin/settings" className="font-semibold underline">
@@ -1279,23 +1575,44 @@ export function AdminItinerarySimpleBuilder({
                     }, setFinishing)
                   }
                 >
-                  {finishing ? "Finishing…" : "Finish (download + mark final)"}
+                  {finishing ? "Finishing…" : "Done — download PDF"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={makingInvoice}
+                  onClick={() =>
+                    void afterSave(async () => {
+                      if (!sessionToken || !itineraryId) return;
+                      const res = await getOrCreateInvoice({ sessionToken, itineraryId });
+                      router.push(`/admin/invoices/${res.invoiceId}`);
+                    }, setMakingInvoice)
+                  }
+                >
+                  {makingInvoice ? "Opening…" : "Make invoice"}
                 </Button>
               </div>
+              <FieldHint>
+                “Done” saves everything, marks the itinerary <strong>Ready to send</strong> and downloads
+                the PDF. “Make invoice” opens this trip&apos;s invoice (it is created, with the package
+                price filled in, the first time).
+              </FieldHint>
             </>
           ) : null}
         </div>
 
-        <div className={cn("lg:sticky lg:top-24", mobileTab !== "pdf" && "hidden lg:block")}>
-          <div className="rounded-2xl border border-border bg-panel-elevated p-2">
-            <p className="px-2 py-2 text-xs font-bold uppercase tracking-wide text-muted">Live PDF</p>
-            <div className="h-[min(720px,75vh)] w-full overflow-hidden rounded-xl border border-border bg-white">
-              <PDFViewer width="100%" height="100%" showToolbar className="border-0">
-                <ItineraryPdf model={previewModel} />
-              </PDFViewer>
+        {isPhone ? null : (
+          <div className="hidden lg:sticky lg:top-24 lg:block">
+            <div className="rounded-2xl border border-border bg-panel-elevated p-2">
+              <p className="px-2 py-2 text-xs font-bold uppercase tracking-wide text-muted">Live PDF</p>
+              <div className="h-[min(720px,75vh)] w-full overflow-hidden rounded-xl border border-border bg-white">
+                <PDFViewer width="100%" height="100%" showToolbar className="border-0">
+                  <ItineraryPdf model={previewModel} />
+                </PDFViewer>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

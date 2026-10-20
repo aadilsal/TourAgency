@@ -5,7 +5,7 @@ export default function AdminNewInvoicePage() {
     <main>
       <h1 className="text-2xl font-semibold text-brand-ink">Create invoice</h1>
       <p className="mt-1 text-sm text-brand-muted">
-        Step-by-step builder. Your progress autosaves.
+        Fill in each step to make an invoice. Your work is saved as you go.
       </p>
       <div className="mt-8">
         <AdminInvoiceWizard />

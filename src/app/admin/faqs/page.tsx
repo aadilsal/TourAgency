@@ -5,7 +5,7 @@ export default function AdminFaqsPage() {
     <main>
       <h1 className="text-2xl font-semibold text-zinc-900">FAQs</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Create and manage FAQs shown on the public FAQs page.
+        The questions and answers shown in the FAQ section of your website.
       </p>
       <div className="mt-8">
         <AdminFaqsPanel />

@@ -3,6 +3,7 @@
 import { v } from "convex/values";
 import { action, internalAction } from "./_generated/server.js";
 import { api, internal } from "./_generated/api.js";
+import type { Id } from "./_generated/dataModel.js";
 
 const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 
@@ -80,10 +81,48 @@ export const draftItineraryDays = action({
       pickupDropoff?: string;
       startDate?: string;
       endDate?: string;
+      sourceTourId?: Id<"tours">;
+      atGlanceDays?: Array<{ dayNumber: number; title: string; detail: string; overnight?: string }>;
     } | null;
     if (!itin) throw new Error("Itinerary not found");
 
     const days = Math.max(1, Math.min(60, Math.floor(itin.days || 1)));
+
+    // Days the admin already wrote are never redrafted (the builder also only
+    // fills blank rows — see fillBlankDays).
+    const current = itin.atGlanceDays ?? [];
+    const isBlank = (i: number) => {
+      const d = current[i];
+      return !d || (!d.title.trim() && !d.detail.trim());
+    };
+
+    // The source tour's real day plan is the base: blank days it covers are
+    // copied as-is, and the AI only drafts the days left over.
+    const tourPlan = itin.sourceTourId
+      ? await ctx.runQuery(internal.itineraries.getTourPlanForAi, { tourId: itin.sourceTourId })
+      : null;
+    const tourDays = (tourPlan?.itinerary ?? []).filter(
+      (d) => d.title.trim() || d.description.trim(),
+    );
+    const fromTour = new Map<number, { title: string; detail: string }>();
+    for (let i = 0; i < days; i++) {
+      const t = tourDays[i];
+      if (isBlank(i) && t) fromTour.set(i, { title: t.title.trim(), detail: t.description.trim() });
+    }
+    const needsAi = Array.from({ length: days }, (_, i) => i).some(
+      (i) => isBlank(i) && !fromTour.has(i),
+    );
+
+    if (!needsAi) {
+      const copied = Array.from({ length: days }, (_, i) => ({
+        dayNumber: i + 1,
+        title: fromTour.get(i)?.title ?? "",
+        detail: fromTour.get(i)?.detail ?? "",
+        overnight: undefined as string | undefined,
+      }));
+      return { days: copied, copiedFromTour: fromTour.size };
+    }
+
     const system = `You draft day-by-day route outlines for JunketTours, a Pakistan tour operator.
 Reply with STRICT JSON only, no prose, in this exact shape:
 {"days":[{"dayNumber":1,"title":"...","detail":"...","overnight":"..."}]}
@@ -101,6 +140,20 @@ Rules:
       `Total days: ${days}`,
       itin.pickupDropoff?.trim() ? `Pickup / drop-off: ${itin.pickupDropoff.trim()}` : "",
       itin.startDate && itin.endDate ? `Travel dates: ${itin.startDate} to ${itin.endDate}` : "",
+      tourPlan && tourDays.length
+        ? [
+            `Base plan — our published tour "${tourPlan.title}" (${tourPlan.location}). Follow this route, its places and its order; keep these days as they are:`,
+            ...tourDays.map((d, i) => `Day ${i + 1}: ${d.title.trim()} — ${d.description.trim()}`),
+          ].join("\n")
+        : "",
+      current.some((_, i) => !isBlank(i))
+        ? [
+            "Days our team already wrote (keep the route consistent with them; they will not be replaced):",
+            ...current
+              .map((d, i) => (isBlank(i) ? "" : `Day ${i + 1}: ${d.title.trim()} — ${d.detail.trim()}`))
+              .filter(Boolean),
+          ].join("\n")
+        : "",
     ]
       .filter(Boolean)
       .join("\n");
@@ -121,6 +174,11 @@ Rules:
 
     const rows = Array.isArray(parsed.days) ? parsed.days : [];
     const drafted = Array.from({ length: days }, (_, i) => {
+      // The tour's real text wins over the AI's version of the same day.
+      const tourDay = fromTour.get(i);
+      if (tourDay) {
+        return { dayNumber: i + 1, ...tourDay, overnight: undefined as string | undefined };
+      }
       const row = rows[i] ?? {};
       const overnight = stripMoney(String(row.overnight ?? "")).slice(0, 120);
       return {
@@ -138,7 +196,7 @@ Rules:
       type: "draftItineraryDays",
     });
 
-    return { days: drafted };
+    return { days: drafted, copiedFromTour: fromTour.size };
   },
 });
 

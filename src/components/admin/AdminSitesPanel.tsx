@@ -14,6 +14,7 @@ import { useEditorForm } from "@/hooks/useEditorForm";
 import { confirmDiscard } from "@/hooks/useUnsavedChangesGuard";
 import { QueryErrorBanner } from "@/components/admin/shared/EditorStatus";
 import { AdminField, InfoTip, RequiredFieldsNote, useRequiredFields } from "@/components/admin/shared/AdminField";
+import { AdvancedSection } from "@/components/admin/tour-form/fields";
 
 type SiteRow = {
   _id: Id<"sites">;
@@ -143,7 +144,7 @@ export function AdminSitesPanel() {
     setMsg(null);
     const sortOrder = Number(values.sortOrder);
     if (values.sortOrder.trim() === "" || !Number.isFinite(sortOrder)) {
-      setMsg("Sort order must be a number.");
+      setMsg("Position in list must be a number.");
       return;
     }
     if (!values.provinceId) {
@@ -198,7 +199,7 @@ export function AdminSitesPanel() {
   async function handleDelete(s: SiteRow) {
     setMsg(null);
     if (!canMutate) {
-      setMsg("Session expired — refresh and sign in again.");
+      setMsg("You have been signed out. Refresh the page and sign in again.");
       return;
     }
     if (!window.confirm(`Delete the site "${s.name}"? This cannot be undone.`)) return;
@@ -261,7 +262,9 @@ export function AdminSitesPanel() {
                       </span>
                     ) : null}
                   </p>
-                  <p className="text-xs text-slate-500">{s.slug}</p>
+                  <p className="text-xs text-slate-400">
+                    {s.city ? s.city : null}
+                  </p>
                 </td>
                 <td className="px-4 py-3">{s.provinceName}</td>
                 <td className="px-4 py-3 capitalize">{s.type}</td>
@@ -295,6 +298,7 @@ export function AdminSitesPanel() {
         onClose={() => setModalOpen(false)}
         confirmClose={dirty}
         title={editing ? "Edit site" : "Add site"}
+        description="A place to see, listed on its province’s guide page."
       >
         <form
           noValidate
@@ -312,7 +316,7 @@ export function AdminSitesPanel() {
             label="Province"
             htmlFor={req.id("provinceId")}
             required
-            tip="The province guide (/guides/…) this site is listed under."
+            tip="The province guide page this site is listed under."
             error={req.errorFor("provinceId")}
           >
             <select
@@ -413,10 +417,10 @@ export function AdminSitesPanel() {
                 checked={values.featured}
                 onChange={(e) => setField("featured", e.target.checked)}
               />
-              Featured in scrolly preview
+              Show in the province preview
             </label>
             <InfoTip label="About Featured">
-              Featured sites appear in the scrolling province preview on the guides page.
+              Ticked sites appear in the scrolling province preview on the Guides page.
             </InfoTip>
           </div>
           <div className="relative flex items-center gap-1">
@@ -426,26 +430,28 @@ export function AdminSitesPanel() {
                 checked={values.isActive}
                 onChange={(e) => setField("isActive", e.target.checked)}
               />
-              Active
+              Active (visible on site)
             </label>
             <InfoTip label="About Active">
-              Untick to hide this site from the public site without deleting it.
+              Untick to hide this site from your website without deleting it.
             </InfoTip>
           </div>
-          <AdminField
-            label="Sort order"
-            htmlFor={sortOrderId}
-            tip="Position within its province. Lower numbers come first."
-          >
-            <input
-              id={sortOrderId}
-              type="number"
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
-              placeholder="e.g. 1"
-              value={values.sortOrder}
-              onChange={(e) => setField("sortOrder", e.target.value)}
-            />
-          </AdminField>
+          <AdvancedSection forceOpen={Boolean(msg && /position/i.test(msg))}>
+            <AdminField
+              label="Position in list"
+              htmlFor={sortOrderId}
+              tip="Where this site appears within its province. Lower numbers come first."
+            >
+              <input
+                id={sortOrderId}
+                type="number"
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2"
+                placeholder="e.g. 1"
+                value={values.sortOrder}
+                onChange={(e) => setField("sortOrder", e.target.value)}
+              />
+            </AdminField>
+          </AdvancedSection>
           <div className="flex justify-end gap-2">
             <Button
               type="button"

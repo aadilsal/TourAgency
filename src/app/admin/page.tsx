@@ -14,8 +14,8 @@ export default async function AdminHomePage() {
           Dashboard
         </h1>
         <p className="mt-3 max-w-2xl text-base leading-relaxed text-muted">
-          Manage bookings, tours, content, and AI custom plan requests from one
-          place.
+          See every new booking, message, trip request, visa request and review in
+          one list, and reply to customers on WhatsApp or by phone in one tap.
         </p>
       </header>
       <p className="mt-4 text-sm text-muted">
@@ -23,7 +23,7 @@ export default async function AdminHomePage() {
         <span className="font-semibold text-foreground">{s?.email}</span>
       </p>
       {s?.role === "admin" || s?.role === "super_admin" ? (
-        <div className="mt-10">
+        <div className="mt-8">
           <AdminDashboardClient role={s.role} />
         </div>
       ) : null}

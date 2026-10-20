@@ -76,7 +76,7 @@ export function ManageAdminsClient() {
     if (!window.confirm(question)) return;
     setMsg(null);
     if (typeof sessionToken !== "string") {
-      setMsg("Session expired — refresh and sign in again.");
+      setMsg("You have been signed out. Refresh the page and sign in again.");
       return;
     }
     try {
@@ -91,7 +91,7 @@ export function ManageAdminsClient() {
     e.preventDefault();
     setMsg(null);
     if (typeof sessionToken !== "string") {
-      setMsg("Session expired — refresh and sign in again.");
+      setMsg("You have been signed out. Refresh the page and sign in again.");
       return;
     }
     if (!pwOk) {
@@ -132,8 +132,8 @@ export function ManageAdminsClient() {
           <p className="text-sm font-bold text-brand-ink">Create admin account</p>
         </div>
         <p className="text-xs text-slate-500">
-          New account with admin role. Existing customers can also be promoted
-          below.
+          Creates a new login that can use this admin area. To give admin access to someone who
+          already has an account, find them below instead.
         </p>
         <RequiredFieldsNote />
         <AdminField
@@ -195,10 +195,10 @@ export function ManageAdminsClient() {
       </form>
 
       <div>
-        <p className="text-sm font-bold text-brand-ink">Users & roles</p>
+        <p className="text-sm font-bold text-brand-ink">Who can use the admin area</p>
         <p className="mt-1 text-xs text-slate-500">
-          Promote a customer to admin, or demote an admin to customer. Super
-          admin accounts cannot be changed here.
+          Give a customer admin access, or take it away from an admin. The main owner accounts
+          (super admins) can’t be changed here.
         </p>
         <div className="mt-4 space-y-3">
           <QueryErrorBanner error={admins.error ?? found.error} />
@@ -253,7 +253,7 @@ export function ManageAdminsClient() {
                           onClick={() => void changeRole("promote", u._id, u.name)}
                         >
                           <UserPlus className="h-3.5 w-3.5" aria-hidden />
-                          Promote to admin
+                          Make admin
                         </button>
                       ) : null}
                       {u.role === "admin" ? (
@@ -263,7 +263,7 @@ export function ManageAdminsClient() {
                           onClick={() => void changeRole("demote", u._id, u.name)}
                         >
                           <UserMinus className="h-3.5 w-3.5" aria-hidden />
-                          Demote to customer
+                          Remove admin access
                         </button>
                       ) : null}
                       {u.role === "super_admin" ? (

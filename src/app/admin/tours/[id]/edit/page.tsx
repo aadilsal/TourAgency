@@ -7,7 +7,7 @@ export default function EditTourPage({ params }: { params: { id: string } }) {
     <main>
       <h1 className="text-2xl font-semibold text-zinc-900">Edit tour</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Update this tour’s itinerary, images, and pricing.
+        Change this tour’s details, day-by-day plan, photos and prices.
       </p>
       <div className="mt-8">
         <AdminTourForm mode="edit" tourId={id as Id<"tours">} />

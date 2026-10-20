@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server.js";
+import type { QueryCtx } from "./_generated/server.js";
 import { requireUserFromSession } from "./lib/authHelpers.js";
 import { normalizeGoogleMapsEmbedUrl } from "./lib/googleMapsEmbed.js";
 
@@ -122,6 +123,12 @@ const TEXT_FIELDS = [
   "governmentLicenseNo",
   "governmentLicenseNo2",
   "mapsEmbedUrl",
+  "easypaisaAccountTitle",
+  "easypaisaNumber",
+  "jazzcashAccountTitle",
+  "jazzcashNumber",
+  "invoiceTerms",
+  "invoiceCancellationPolicy",
 ] as const;
 type TextField = (typeof TEXT_FIELDS)[number];
 
@@ -178,11 +185,20 @@ function mergeAdminSiteSettings(rawDoc: StoredDoc | null | undefined) {
     termsBlocks: base.termsBlocks ?? [...tmpl.termsBlocks],
     defaultIncluded: base.defaultIncluded ?? [...tmpl.defaultIncluded],
     defaultNotIncluded: base.defaultNotIncluded ?? [...tmpl.defaultNotIncluded],
+    /** Text a NEW invoice starts with (terms + cancellation policy). */
+    invoiceDefaults: invoiceTextDefaultsFromDoc(doc),
     /** Raw DB values for editing forms (never pre-filled with fallbacks). */
     stored: storedValues(doc),
     /** What the site shows for a field that was never set. */
     fallbacks: {
       ...env,
+      // No fallback: blank until an admin types them.
+      easypaisaAccountTitle: "",
+      easypaisaNumber: "",
+      jazzcashAccountTitle: "",
+      jazzcashNumber: "",
+      invoiceTerms: "",
+      invoiceCancellationPolicy: "",
       paymentTerms: [...tmpl.paymentTerms],
       bankDetails: { ...tmpl.bankDetails },
       termsBlocks: [...tmpl.termsBlocks],
@@ -190,6 +206,56 @@ function mergeAdminSiteSettings(rawDoc: StoredDoc | null | undefined) {
       defaultNotIncluded: [...tmpl.defaultNotIncluded],
     },
   };
+}
+
+const CANCELLATION_TITLE = /cancel|refund/i;
+
+/**
+ * Default "Terms & conditions" and "Cancellation policy" text for a NEW
+ * invoice. Uses the invoice text saved in the itinerary template; when that
+ * was never written, falls back to the itinerary terms blocks (cancellation /
+ * refund blocks go to the cancellation policy). Insert path only — never used
+ * to overwrite an existing invoice.
+ */
+export function invoiceTextDefaultsFromDoc(
+  doc:
+    | {
+        termsBlocks?: Array<{ title: string; body: string }>;
+        invoiceTerms?: string;
+        invoiceCancellationPolicy?: string;
+      }
+    | null
+    | undefined,
+): { terms: string; cancellationPolicy: string } {
+  const blocks = (doc?.termsBlocks ?? [...itineraryTemplateDefaults().termsBlocks]).filter(
+    (b) => b.title.trim() || b.body.trim(),
+  );
+  const fmt = (b: { title: string; body: string }) =>
+    [b.title.trim(), b.body.trim()].filter(Boolean).join(": ");
+  const terms =
+    doc?.invoiceTerms?.trim() ||
+    blocks
+      .filter((b) => !CANCELLATION_TITLE.test(b.title))
+      .map(fmt)
+      .join("\n");
+  const cancellationPolicy =
+    doc?.invoiceCancellationPolicy?.trim() ||
+    blocks
+      .filter((b) => CANCELLATION_TITLE.test(b.title))
+      .map((b) => b.body.trim())
+      .filter(Boolean)
+      .join("\n");
+  return { terms, cancellationPolicy };
+}
+
+export async function invoiceTextDefaults(
+  ctx: QueryCtx,
+): Promise<{ terms: string; cancellationPolicy: string }> {
+  const doc = await ctx.db
+    .query("siteSettings")
+    .withIndex("by_key", (q) => q.eq("key", GLOBAL_SETTINGS_KEY))
+    .unique();
+  return invoiceTextDefaultsFromDoc(doc);
 }
 
 export const getPublicSiteSettings = query({
@@ -257,6 +323,12 @@ export const upsertAdminSiteSettings = mutation({
     governmentLicenseNo: v.optional(v.string()),
     governmentLicenseNo2: v.optional(v.string()),
     mapsEmbedUrl: v.optional(v.string()),
+    easypaisaAccountTitle: v.optional(v.string()),
+    easypaisaNumber: v.optional(v.string()),
+    jazzcashAccountTitle: v.optional(v.string()),
+    jazzcashNumber: v.optional(v.string()),
+    invoiceTerms: v.optional(v.string()),
+    invoiceCancellationPolicy: v.optional(v.string()),
     paymentTerms: v.optional(v.array(paymentTermValidator)),
     bankDetails: v.optional(bankDetailsValidator),
     termsBlocks: v.optional(v.array(termsBlockValidator)),

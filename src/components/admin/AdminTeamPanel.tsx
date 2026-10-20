@@ -14,6 +14,7 @@ import { AdminField, RequiredFieldsNote, useRequiredFields } from "@/components/
 import { cn } from "@/lib/cn";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
+import { MoreMenu } from "@/components/admin/tour-form/fields";
 import { asBoolean, asNumber, asString } from "@/lib/bulkUpload/coerce";
 import { importInBatches } from "@/lib/bulkUpload/importInBatches";
 import { useUnsavedChangesGuard } from "@/hooks/useUnsavedChangesGuard";
@@ -141,13 +142,15 @@ export function AdminTeamPanel() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => setBulkOpen(true)}
-              disabled={!canMutate}
-            >
-              Bulk upload
-            </Button>
+            <MoreMenu
+              items={[
+                {
+                  label: "Upload many team members from a spreadsheet",
+                  onSelect: () => setBulkOpen(true),
+                  disabled: !canMutate,
+                },
+              ]}
+            />
           </div>
         </div>
 
@@ -247,7 +250,7 @@ export function AdminTeamPanel() {
       <Card className="p-6 md:p-8">
         <h2 className="text-lg font-bold text-foreground">Team members</h2>
         <p className="mt-2 text-sm text-muted">
-          Use arrows to reorder. Toggle active to show/hide on the public page.
+          Use the arrows to change the order. Switch “Active” off to hide someone from the About page.
         </p>
 
         {!canMutate ? (
@@ -359,12 +362,16 @@ export function AdminTeamPanel() {
       <BulkUploadModal
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
-        title="Bulk upload team members"
-        description="Upload a .json or .xlsx file. Rows are upserted by (name + role). Image uploads are not supported in bulk; provide imageStorageId if needed."
+        title="Upload many team members from a spreadsheet"
+        description="Upload an Excel (.xlsx) or .json file with one person per row. Rows with the same name and role update the existing person; new names are added. Photos can't be uploaded this way — add them one by one afterwards."
         templateHint={
           <div className="space-y-1">
-            <p className="font-semibold">Columns / keys</p>
-            <p className="font-mono text-xs">name, role, isActive, sortOrder, imageStorageId</p>
+            <p className="font-semibold">Spreadsheet columns</p>
+            <p className="font-mono text-xs">name, role, isActive, sortOrder</p>
+            <p className="text-xs text-slate-600">
+              “isActive” is TRUE to show the person or FALSE to hide them. “sortOrder” is their
+              position in the list (lower numbers first).
+            </p>
           </div>
         }
         transformRow={(row) => {

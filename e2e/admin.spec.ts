@@ -101,7 +101,7 @@ test.describe("authenticated admin (needs E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD)"
     const w = watch(page);
     await login(page);
     await page.goto("/admin/tours/new");
-    for (const t of [/tour for/i, /know before you go/i, /related blog posts/i]) {
+    for (const t of [/tour badge/i, /know before you go/i, /related blog posts/i]) {
       await expect(page.getByText(t).first(), String(t)).toBeAttached();
     }
     report("admin tour new", w);

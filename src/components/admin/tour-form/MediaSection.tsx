@@ -176,14 +176,8 @@ export function MediaSection({
         </InfoTip>
       </div>
       <p className="mt-1 text-xs text-slate-500">
-        Upload image files from your device — they are stored securely in Convex. Uploaded
-        images register under this tour when you save.
-      </p>
-      <p className="mt-2 text-[11px] leading-relaxed text-slate-600">
-        <span className="font-semibold text-slate-700">Image folder</span>{" "}
-        <code className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-800 ring-1 ring-slate-200">
-          {folderKey}
-        </code>
+        Choose photos from your device. The first photo is the main one. Photos are added to the
+        tour when you save.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         <label className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-brand-primary hover:bg-slate-50">
@@ -225,8 +219,8 @@ export function MediaSection({
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <span className="break-all font-mono text-slate-700">
-                    {isPending ? "Uploading…" : ref.length > 64 ? `${ref.slice(0, 64)}…` : ref}
+                  <span className="font-medium text-slate-700">
+                    {isPending ? "Uploading…" : i === 0 ? "Photo 1 (main photo)" : `Photo ${i + 1}`}
                   </span>
                   <IconAction
                     label="Remove image"

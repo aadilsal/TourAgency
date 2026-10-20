@@ -391,6 +391,14 @@ export default defineSchema({
     ),
     defaultIncluded: v.optional(v.array(v.string())),
     defaultNotIncluded: v.optional(v.array(v.string())),
+    /** Mobile wallet accounts printed on invoices paid by Easypaisa / JazzCash. */
+    easypaisaAccountTitle: v.optional(v.string()),
+    easypaisaNumber: v.optional(v.string()),
+    jazzcashAccountTitle: v.optional(v.string()),
+    jazzcashNumber: v.optional(v.string()),
+    /** Default invoice text, copied into new invoices only (never into existing ones). */
+    invoiceTerms: v.optional(v.string()),
+    invoiceCancellationPolicy: v.optional(v.string()),
     updatedAt: v.number(),
     updatedBy: v.optional(v.id("users")),
   }).index("by_key", ["key"]),
@@ -519,6 +527,12 @@ export default defineSchema({
 
     title: v.string(),
     clientName: v.string(),
+    /** Customer contact (for "Send on WhatsApp" / "Send by email"). Optional. */
+    clientPhone: v.optional(v.string()),
+    clientEmail: v.optional(v.string()),
+    /** Traveller counts (prefilled from the booking). Optional. */
+    adults: v.optional(v.number()),
+    children: v.optional(v.number()),
     startDate: v.optional(v.string()),
     endDate: v.optional(v.string()),
     days: v.number(),
@@ -721,10 +735,14 @@ export default defineSchema({
     /** Unique invoice number label, e.g. "INV/26-27/0001" */
     invoiceNumber: v.optional(v.string()),
     clientName: v.string(),
+    /** Customer contact (copied from the itinerary). Optional. */
+    clientPhone: v.optional(v.string()),
+    clientEmail: v.optional(v.string()),
     itineraryId: v.optional(v.id("itineraries")),
     invoiceDate: v.string(),
     currency: v.union(v.literal("PKR"), v.literal("USD")),
-    status: v.union(v.literal("draft"), v.literal("paid")),
+    /** "draft" = Unpaid, "advance_paid" = Advance paid, "paid" = Fully paid. */
+    status: v.union(v.literal("draft"), v.literal("advance_paid"), v.literal("paid")),
 
     items: v.array(
       v.object({

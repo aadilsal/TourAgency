@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { cn } from "@/lib/cn";
 import { isAdminNavLinkActive, visibleAdminNav } from "@/components/admin/shared/adminNav";
+import { useInboxCounts } from "@/components/admin/shared/inboxHooks";
+import { NavBadge } from "@/components/admin/shared/NavBadge";
 
 export function AdminSidebar({
   showManageAdmins,
@@ -13,6 +15,7 @@ export function AdminSidebar({
 }) {
   const pathname = usePathname();
   const sections = useMemo(() => visibleAdminNav(showManageAdmins), [showManageAdmins]);
+  const counts = useInboxCounts();
 
   return (
     // Desktop only (lg+). On tablets a 240px rail left too little room for the
@@ -53,7 +56,8 @@ export function AdminSidebar({
                           )}
                           aria-hidden
                         />
-                        {l.label}
+                        <span className="min-w-0 truncate">{l.label}</span>
+                        <NavBadge link={l} counts={counts} />
                       </Link>
                     </li>
                   );

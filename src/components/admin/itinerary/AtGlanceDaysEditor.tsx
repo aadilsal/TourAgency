@@ -28,7 +28,7 @@ export function AtGlanceDaysEditor({
               className="mt-2"
               label="Title"
               htmlFor={`${base}-title`}
-              tip="Short heading for this day in the 'Itinerary at a glance' list on the PDF."
+              tip="Short heading for this day in the day-by-day plan on the PDF."
             >
               <TextInput
                 id={`${base}-title`}

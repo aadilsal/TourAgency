@@ -48,7 +48,7 @@ export function PackageTiersEditor({
             <div className="flex flex-wrap items-end gap-2">
               <AdminField
                 className="min-w-[120px] flex-1"
-                label="Tier name"
+                label="Package name (Standard / Deluxe)"
                 htmlFor={`${base}-name`}
                 tip="Package name shown as a column/heading in the PDF price table, e.g. Standard or Deluxe."
               >
@@ -132,7 +132,7 @@ export function PackageTiersEditor({
 
               <div className="flex items-center justify-between gap-2">
                 <div className="relative flex items-center gap-1">
-                  <FieldLabel className="text-xs uppercase tracking-wide text-muted">Stay rows</FieldLabel>
+                  <FieldLabel className="text-xs uppercase tracking-wide text-muted">Hotels</FieldLabel>
                   <InfoTip label="About stay rows">
                     One row per hotel stop for this tier: the town, the hotel and how many nights. Printed in the
                     package table on the PDF.

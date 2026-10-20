@@ -31,6 +31,8 @@ export type AdminNavLink = {
   superAdminOnly?: boolean;
   /** Other routes that should highlight this link (e.g. legacy redirects). */
   aliases?: string[];
+  /** Red "new items" count badge from `dashboard.getInboxCounts`. */
+  badgeKey?: "bookings" | "leads" | "trips" | "visa" | "reviews";
 };
 
 export type AdminNavSection = {
@@ -54,16 +56,22 @@ export const ADMIN_NAV: AdminNavSection[] = [
     id: "inbox",
     label: "Inbox",
     links: [
-      { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
+      { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck, badgeKey: "bookings" },
       {
         href: "/admin/custom-itineraries",
         label: "Trip requests",
         icon: Sparkles,
         aliases: ["/admin/ai-planner"],
+        badgeKey: "trips",
       },
-      { href: "/admin/visa-invitations", label: "Visa invitations", icon: Stamp },
-      { href: "/admin/contact", label: "Leads", icon: MessageSquare },
-      { href: "/admin/reviews", label: "Reviews", icon: Star },
+      {
+        href: "/admin/visa-invitations",
+        label: "Visa invitations",
+        icon: Stamp,
+        badgeKey: "visa",
+      },
+      { href: "/admin/contact", label: "Leads", icon: MessageSquare, badgeKey: "leads" },
+      { href: "/admin/reviews", label: "Reviews", icon: Star, badgeKey: "reviews" },
     ],
   },
   {

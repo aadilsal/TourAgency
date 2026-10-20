@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation, usePaginatedQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import type { Id } from "@convex/_generated/dataModel";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +11,11 @@ import { StatusBadge } from "@/components/admin/shared/StatusSelect";
 import { InlineNoteEditor } from "@/components/admin/shared/InlineNoteEditor";
 import { DecisionWithNote, type Decision } from "@/components/admin/shared/DecisionWithNote";
 import { InboxFilterTabs, LoadMoreFooter } from "@/components/admin/shared/InboxControls";
+import { useSafePaginatedQuery } from "@/hooks/useSafePaginatedQuery";
+import { QueryErrorBanner } from "@/components/admin/shared/EditorStatus";
+import { ContactActions } from "@/components/admin/shared/ContactActions";
+import { useInboxFilter } from "@/components/admin/shared/inboxHooks";
+import { TRIP_STATUS_LABEL } from "@/components/admin/shared/statusLabels";
 
 type StatusFilter = "all" | "pending" | "approved" | "rejected";
 type ReviewStatus = "approved" | "rejected";
@@ -20,24 +25,25 @@ const PAGE_SIZE = 20;
 const FILTERS = [
   { id: "pending", label: "Pending" },
   { id: "all", label: "All" },
-  { id: "approved", label: "Approved" },
-  { id: "rejected", label: "Rejected" },
+  { id: "approved", label: "Quote sent" },
+  { id: "rejected", label: "Declined" },
 ] as const;
+const FILTER_IDS = FILTERS.map((f) => f.id);
 
 const DECISIONS: readonly Decision<ReviewStatus>[] = [
   {
     status: "approved",
-    label: "Approve",
+    label: "Send quote",
     variant: "primary",
-    confirmLabel: "Confirm approval",
-    noteLabel: "Note to client (optional)",
+    confirmLabel: "Send quote email",
+    noteLabel: "Message to the customer with your quote (optional)",
   },
   {
     status: "rejected",
-    label: "Reject",
+    label: "Decline politely",
     variant: "secondary",
-    confirmLabel: "Confirm rejection",
-    noteLabel: "Reason / note to client (optional)",
+    confirmLabel: "Send polite decline",
+    noteLabel: "Short reason for the customer (optional)",
   },
 ];
 
@@ -52,8 +58,8 @@ const CLIENT_NOTE_HINT =
 export function AdminAiPlannerRequestsPanel() {
   const sessionToken = useConvexSessionToken();
   const canMutate = typeof sessionToken === "string";
-  const [filter, setFilter] = useState<StatusFilter>("pending");
-  const { results, status, loadMore } = usePaginatedQuery(
+  const [filter, setFilter] = useInboxFilter<StatusFilter>(FILTER_IDS, "pending");
+  const { results, status, loadMore, error } = useSafePaginatedQuery(
     api.customItineraries.listForAdminPage,
     canMutate
       ? { sessionToken, ...(filter === "all" ? {} : { status: filter }) }
@@ -75,6 +81,7 @@ export function AdminAiPlannerRequestsPanel() {
 
   return (
     <div className="space-y-6">
+      <QueryErrorBanner error={error} />
       <InboxFilterTabs options={FILTERS} value={filter} onChange={setFilter} />
 
       {results.length > 0 ? (
@@ -89,11 +96,11 @@ export function AdminAiPlannerRequestsPanel() {
                 <Card className="p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <StatusBadge status={r.status} />
+                      <StatusBadge status={r.status} label={TRIP_STATUS_LABEL[r.status]} />
                       <p className="mt-2 font-semibold text-brand-ink">
                         {r.name} · {r.phone}
                       </p>
-                      {r.email ? <p className="text-sm text-brand-muted">{r.email}</p> : null}
+                      {r.email ? <p className="break-words text-sm text-brand-muted">{r.email}</p> : null}
                       {(r.preferredStart ||
                         r.preferredEnd ||
                         r.adults != null ||
@@ -128,9 +135,17 @@ export function AdminAiPlannerRequestsPanel() {
                     <p className="mt-1 text-sm text-brand-ink">{r.summary}</p>
                   </div>
 
+                  <ContactActions
+                    className="mt-4"
+                    name={r.name}
+                    phone={r.phone}
+                    email={r.email}
+                    about="custom trip request"
+                  />
+
                   <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
                     <p className="mb-2 text-xs font-bold uppercase text-brand-muted">
-                      {r.status === "pending" ? "Decision" : "Change decision"}
+                      {r.status === "pending" ? "Reply to the customer" : "Change reply"}
                     </p>
                     <DecisionWithNote
                       decisions={r.status === "pending" ? DECISIONS : remainingDecisions}
@@ -153,7 +168,7 @@ export function AdminAiPlannerRequestsPanel() {
                       label="Note"
                       hint={
                         r.status === "pending"
-                          ? "Saved on the request. It's emailed to the client when you approve or reject."
+                          ? "Saved on the request. It's emailed to the customer when you send the quote or decline."
                           : "Saving a changed note emails the client an update."
                       }
                       onSave={(note) =>
@@ -170,7 +185,7 @@ export function AdminAiPlannerRequestsPanel() {
                     <div className="mt-6 grid gap-6 lg:grid-cols-2">
                       <div>
                         <p className="text-xs font-bold uppercase text-brand-muted">
-                          AI output (saved)
+                          AI’s suggested plan
                         </p>
                         <pre className="mt-2 max-h-80 overflow-auto whitespace-pre-wrap rounded-lg bg-brand-surface p-3 text-xs text-brand-ink">
                           {r.proposal}
@@ -181,8 +196,8 @@ export function AdminAiPlannerRequestsPanel() {
                         value={r.adminDraft}
                         disabled={!canMutate}
                         rows={10}
-                        label="Draft plan (ops workspace)"
-                        hint="Internal — saved on the request so the team can collaborate."
+                        label="Your reply / quote"
+                        hint="Internal working copy — saved on the request so the team can work on it together."
                         placeholder="Write the final itinerary/quote here."
                         emptyText="No draft yet."
                         saveLabel="Save draft"
@@ -197,7 +212,7 @@ export function AdminAiPlannerRequestsPanel() {
 
                       <div className="lg:col-span-2">
                         <p className="text-xs font-bold uppercase text-brand-muted">
-                          Full AI Planner transcript
+                          Chat with the AI planner
                         </p>
                         {r.thread?.length ? (
                           <div className="mt-2 max-h-[520px] overflow-auto rounded-lg border border-slate-200 bg-white">
@@ -205,7 +220,7 @@ export function AdminAiPlannerRequestsPanel() {
                               {r.thread.map((m, idx) => (
                                 <li key={idx} className="p-3">
                                   <p className="text-[10px] font-bold uppercase tracking-wide text-brand-muted">
-                                    {m.role}
+                                    {m.role === "user" ? "Customer" : "AI"}
                                   </p>
                                   <p className="mt-1 whitespace-pre-wrap text-sm text-brand-ink">
                                     {m.content}
@@ -234,7 +249,13 @@ export function AdminAiPlannerRequestsPanel() {
         count={results.length}
         onLoadMore={() => loadMore(PAGE_SIZE)}
         noun="requests"
-        emptyText="No requests in this view."
+        emptyText={
+          filter === "pending"
+            ? "No new trip requests — you're all caught up."
+            : filter === "all"
+              ? "No trip requests yet."
+              : "No trip requests in this view."
+        }
       />
     </div>
   );

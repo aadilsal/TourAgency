@@ -5,7 +5,6 @@ import { api } from "@convex/_generated/api";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
 import { BarChart3, CalendarCheck, Coins, Users } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import { WhatsAppBrandIcon } from "@/components/icons/WhatsAppBrandIcon";
 
 type Snapshot = {
   headline?: {
@@ -19,15 +18,22 @@ type Snapshot = {
   capped?: Record<string, boolean>;
 };
 
+/** Plain names for the counts the server sends; anything not listed is not shown. */
+const COUNT_LABELS: Array<{ key: string; label: string; hint: string }> = [
+  { key: "guestBookings", label: "Bookings from guests", hint: "Booked without an account" },
+  { key: "userBookings", label: "Bookings from members", hint: "Booked while signed in" },
+  { key: "leads", label: "Enquiries", hint: "People who asked about a trip" },
+  { key: "aiRequests", label: "AI trip plans", hint: "Plans requested from the AI planner" },
+  { key: "tours", label: "Tours", hint: "Tours on your website" },
+  { key: "users", label: "Registered visitors", hint: "People who created an account" },
+];
+
 export function AdminAnalyticsClient() {
   const sessionToken = useConvexSessionToken();
   const snap = useQuery(
     api.analytics.getAnalyticsSnapshot,
     typeof sessionToken === "string" ? { sessionToken } : "skip",
   );
-  const wa = useQuery(api.whatsapp.getWhatsAppClickLink, {
-    presetMessage: "Hi JunketTours — I saw a tour on your site.",
-  });
 
   if (snap === undefined) {
     return <p className="text-sm text-brand-muted">Loading…</p>;
@@ -57,7 +63,7 @@ export function AdminAnalyticsClient() {
                 {data.capped?.guestBookings || data.capped?.userBookings ? "+" : ""}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Guest + registered member bookings
+                From guests and signed-in members
               </p>
             </div>
             <span className="rounded-xl bg-brand-primary/10 p-2.5 text-brand-primary">
@@ -76,7 +82,7 @@ export function AdminAnalyticsClient() {
                 {data.capped?.leads ? "+" : ""}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Inquiries captured (AI, booking, manual)
+                People who asked about a trip (AI planner, booking form, added by you)
               </p>
             </div>
             <span className="rounded-xl bg-brand-sun/15 p-2.5 text-brand-sun">
@@ -95,7 +101,7 @@ export function AdminAnalyticsClient() {
                 {data.capped?.revenue ? "+" : ""}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Confirmed member totals + confirmed guest (tour × travelers)
+                From confirmed bookings only
               </p>
             </div>
             <span className="rounded-xl bg-emerald-500/10 p-2.5 text-emerald-700">
@@ -108,54 +114,35 @@ export function AdminAnalyticsClient() {
       <div>
         <p className="mb-3 flex items-center gap-2 text-sm font-bold text-brand-ink">
           <BarChart3 className="h-4 w-4 text-brand-muted" aria-hidden />
-          More counts
+          At a glance
         </p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Object.entries(data.counts).map(([k, v]) => (
-            <div
-              key={k}
-              className="rounded-xl border border-slate-200/90 bg-white p-4 text-sm shadow-sm"
-            >
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                {k.replace(/([A-Z])/g, " $1").replace(/_/g, " ")}
-              </p>
-              <p className="mt-1 text-xl font-semibold tabular-nums text-brand-ink">
-                {typeof v === "number" ? v : String(v)}
-                {data.capped?.[k] ? "+" : ""}
-              </p>
-            </div>
-          ))}
+          {COUNT_LABELS.filter(({ key }) => typeof data.counts[key] === "number").map(
+            ({ key, label, hint }) => (
+              <div
+                key={key}
+                className="rounded-xl border border-slate-200/90 bg-white p-4 text-sm shadow-sm"
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {label}
+                </p>
+                <p className="mt-1 text-xl font-semibold tabular-nums text-brand-ink">
+                  {data.counts[key]}
+                  {data.capped?.[key] ? "+" : ""}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">{hint}</p>
+              </div>
+            ),
+          )}
         </div>
       </div>
 
       <div className="rounded-xl border border-slate-200/90 bg-white p-4 text-sm shadow-sm">
-        <p className="font-semibold text-brand-ink">Pending bookings</p>
+        <p className="font-semibold text-brand-ink">Bookings not yet confirmed</p>
         <p className="mt-1 text-slate-600">
-          Guest: {data.pending.guestBookings} · Member:{" "}
+          From guests: {data.pending.guestBookings} · From members:{" "}
           {data.pending.userBookings}
         </p>
-      </div>
-
-      <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 text-sm">
-        <p className="font-semibold text-brand-ink">WhatsApp</p>
-        <p className="mt-1 text-xs text-slate-500">Business line +92 320 9973486</p>
-        {wa === undefined ? (
-          <p className="mt-2 text-slate-500">Loading link…</p>
-        ) : wa ? (
-          <a
-            href={wa}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#25D366] text-white shadow-md transition hover:brightness-110"
-            aria-label="Open WhatsApp chat"
-          >
-            <WhatsAppBrandIcon className="h-6 w-6" />
-          </a>
-        ) : (
-          <p className="mt-2 text-slate-500">
-            WhatsApp link unavailable — check Convex deployment.
-          </p>
-        )}
       </div>
     </div>
   );

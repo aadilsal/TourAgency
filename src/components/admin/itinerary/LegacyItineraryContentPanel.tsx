@@ -60,7 +60,7 @@ export function LegacyItineraryContentPanel({ doc }: { doc: ItineraryRecord }) {
       <p className="mt-2 text-xs text-muted">
         This itinerary was created with the previous editor. Everything it saved is still stored and
         shown below. Day activities were copied into the day details above; payment terms, bank and
-        legal text on the PDF now come from Itinerary constants. Copy anything else you still need
+        legal text on the PDF now come from PDF payment terms &amp; policies. Copy anything else you still need
         into the fields above.
       </p>
       <dl className="mt-4 space-y-3">

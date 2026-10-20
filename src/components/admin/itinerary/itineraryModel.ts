@@ -68,6 +68,11 @@ export type ItineraryRecord = {
   pickupDropoff?: string;
   title: string;
   clientName: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  adults?: number;
+  children?: number;
+  sourceTourId?: Id<"tours">;
   startDate?: string;
   endDate?: string;
   days: number;
@@ -100,7 +105,7 @@ export type ItineraryRecord = {
   updatedAt?: number;
 };
 
-/** Site-wide constants the documents print (Settings + Itinerary constants). */
+/** Site-wide constants the documents print (Settings + PDF payment terms & policies). */
 export type ItineraryDocumentSettings = {
   whatsappPhone?: string;
   contactEmail?: string;
@@ -181,6 +186,36 @@ export function daysBetween(startDate: string, endDate: string): number | null {
 
 function isDefaultDayTitle(title: string, dayNumber: number) {
   return title.trim().toLowerCase().replace(/\s+/g, "") === `day${dayNumber}`;
+}
+
+function isBlankDay(d: AtGlanceDay | undefined) {
+  // An overnight town alone does not count: it is kept, and the text is filled around it.
+  return !d || (!d.title.trim() && !d.detail.trim());
+}
+
+/**
+ * Merges drafted days (AI / tour plan) into the form, filling ONLY rows that
+ * are completely blank. A row with any text the admin wrote is never touched.
+ */
+export function fillBlankDays(
+  current: AtGlanceDay[],
+  drafted: Array<{ dayNumber: number; title: string; detail: string; overnight?: string }>,
+): { days: AtGlanceDay[]; filled: number } {
+  const byDay = new Map(drafted.map((d) => [d.dayNumber, d]));
+  let filled = 0;
+  const days = current.map((row) => {
+    const draft = byDay.get(row.dayNumber);
+    if (!isBlankDay(row) || !draft) return row;
+    if (!draft.title.trim() && !draft.detail.trim()) return row;
+    filled++;
+    return {
+      ...row,
+      title: draft.title,
+      detail: draft.detail,
+      overnight: row.overnight?.trim() ? row.overnight : draft.overnight,
+    };
+  });
+  return { days, filled };
 }
 
 /** Resizes the day list to `newDays`, never touching the content of kept days. */

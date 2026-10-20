@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import { useAction } from "convex/react";
 import { FileUp } from "lucide-react";
 import { api } from "@convex/_generated/api";
-import { Button } from "@/components/ui/Button";
+import { Button, type ButtonVariant } from "@/components/ui/Button";
 import { extractDocumentText } from "@/lib/tours/pdf/extractDocumentText";
 import type { TourPdfImportDraft } from "@/lib/tours/pdf/types";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
@@ -16,6 +16,10 @@ type Props = {
   disabled?: boolean;
   onDraft: (draft: TourPdfImportDraft) => void;
   onError?: (message: string) => void;
+  /** Button look; defaults to secondary. */
+  variant?: ButtonVariant;
+  /** Button text; defaults to "Import from file (PDF / Word / TXT)". */
+  label?: string;
 };
 
 function logImportError(stage: string, err: unknown) {
@@ -34,6 +38,8 @@ export function TourPdfImportButton({
   disabled,
   onDraft,
   onError,
+  variant = "secondary",
+  label = "Import from file (PDF / Word / TXT)",
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const parseTourPdf = useAction(api.tourPdfImport.parseTourPdf);
@@ -96,12 +102,12 @@ export function TourPdfImportButton({
       />
       <Button
         type="button"
-        variant="secondary"
+        variant={variant}
         disabled={disabled || busy || typeof sessionToken !== "string"}
         onClick={() => inputRef.current?.click()}
       >
         <FileUp className="h-4 w-4" aria-hidden />
-        {busy ? "Parsing document…" : "Import from file (PDF / Word / TXT)"}
+        {busy ? "Reading your document…" : label}
       </Button>
     </>
   );

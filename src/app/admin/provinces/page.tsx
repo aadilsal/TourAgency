@@ -6,7 +6,8 @@ export default function AdminProvincesPage() {
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Provinces</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Manage province guides for /guides — sync from seed or edit copy.
+          The province travel guides on your website’s Guides page. Edit their text, tips and
+          order.
         </p>
       </div>
       <AdminProvincesPanel />

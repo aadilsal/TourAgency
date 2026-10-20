@@ -150,12 +150,14 @@ export const listForAdmin = query({
     const user = await requireUserFromSession(ctx, sessionToken);
     assertAdmin(user);
 
+    // Bounded: newest 500 in this view (the admin screen shows recent reviews).
     const rows = status
       ? await ctx.db
           .query("tourReviews")
           .withIndex("by_status", (q) => q.eq("status", status))
-          .collect()
-      : await ctx.db.query("tourReviews").collect();
+          .order("desc")
+          .take(500)
+      : await ctx.db.query("tourReviews").order("desc").take(500);
     rows.sort((a, b) => b.createdAt - a.createdAt);
 
     return await Promise.all(

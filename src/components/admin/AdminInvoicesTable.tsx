@@ -19,6 +19,12 @@ import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { cn } from "@/lib/cn";
 import { PopoverMenu } from "@/components/ui/PopoverMenu";
 import { IconAction } from "@/components/admin/shared/IconAction";
+import {
+  INVOICE_STATUS_OPTIONS,
+  invoiceStatusLabel,
+  invoiceStatusTone,
+  type InvoiceStatus,
+} from "@/components/admin/itinerary/documentStatus";
 
 type Row = {
   _id: Id<"invoices">;
@@ -27,7 +33,7 @@ type Row = {
   itineraryId?: Id<"itineraries">;
   invoiceDate: string;
   currency: "PKR" | "USD";
-  status: "draft" | "paid";
+  status: InvoiceStatus;
   createdAt: number;
   updatedAt: number;
 };
@@ -50,8 +56,19 @@ export function AdminInvoicesTable() {
   const [msg, setMsg] = useState<string | null>(null);
 
   const deleteInvoice = useMutation(api.invoices.deleteInvoice);
-  const markPaid = useMutation(api.invoices.markPaid);
-  const markDraft = useMutation(api.invoices.markDraft);
+  const setInvoiceStatus = useMutation(api.invoices.setStatus);
+
+  function changeStatus(id: Id<"invoices">, next: InvoiceStatus) {
+    if (!canQuery) return;
+    setMsg(null);
+    void (async () => {
+      try {
+        await setInvoiceStatus({ sessionToken, invoiceId: id, status: next });
+      } catch (e) {
+        setMsg(toUserFacingErrorMessage(e));
+      }
+    })();
+  }
 
   const { results, status, loadMore, error: listError } = useSafePaginatedQuery(
     api.invoices.listForAdmin,
@@ -70,7 +87,7 @@ export function AdminInvoicesTable() {
     serverResults,
     term: searchTerm,
     haystack: (r) =>
-      `${r.invoiceNumber ?? ""}\n${r.clientName}\n${r.currency}\n${r.status}\n${r.invoiceDate}`,
+      `${r.invoiceNumber ?? ""}\n${r.clientName}\n${r.currency}\n${invoiceStatusLabel(r.status)}\n${r.invoiceDate}`,
   });
 
   const emptyLabel = searching
@@ -137,12 +154,10 @@ export function AdminInvoicesTable() {
                 <span
                   className={cn(
                     "inline-flex shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ring-1",
-                    r.status === "paid"
-                      ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
-                      : "bg-amber-100 text-amber-900 ring-amber-200",
+                    invoiceStatusTone(r.status),
                   )}
                 >
-                  {r.status}
+                  {invoiceStatusLabel(r.status)}
                 </span>
               </div>
 
@@ -157,30 +172,10 @@ export function AdminInvoicesTable() {
                   buttonLabel="More"
                   buttonClassName="inline-flex items-center justify-center rounded-xl border border-border bg-panel-elevated px-3 py-2 text-sm font-semibold text-foreground"
                   items={[
-                    {
-                      label: r.status === "paid" ? "Mark draft" : "Mark paid",
-                      onClick: () => {
-                        if (!canQuery) return;
-                        setMsg(null);
-                        void (async () => {
-                          try {
-                            if (r.status === "paid") {
-                              await markDraft({
-                                sessionToken,
-                                invoiceId: r._id as Id<"invoices">,
-                              });
-                            } else {
-                              await markPaid({
-                                sessionToken,
-                                invoiceId: r._id as Id<"invoices">,
-                              });
-                            }
-                          } catch (e) {
-                            setMsg(toUserFacingErrorMessage(e));
-                          }
-                        })();
-                      },
-                    },
+                    ...INVOICE_STATUS_OPTIONS.filter((o) => o.value !== r.status).map((o) => ({
+                      label: `Mark ${o.label.toLowerCase()}`,
+                      onClick: () => changeStatus(r._id as Id<"invoices">, o.value),
+                    })),
                     {
                       label: "Delete",
                       tone: "danger",
@@ -246,13 +241,11 @@ export function AdminInvoicesTable() {
                 <td className="px-4 py-3 text-muted">{r.currency}</td>
                 <td className="px-4 py-3">
                   <span
-                    className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ring-1 ${
-                      r.status === "paid"
-                        ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
-                        : "bg-amber-100 text-amber-900 ring-amber-200"
-                    }`}
+                    className={`inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase ring-1 ${invoiceStatusTone(
+                      r.status,
+                    )}`}
                   >
-                    {r.status}
+                    {invoiceStatusLabel(r.status)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-muted tabular-nums">{fmt(r.updatedAt)}</td>
@@ -264,33 +257,20 @@ export function AdminInvoicesTable() {
                     >
                       Edit
                     </Link>
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-border bg-panel px-2.5 py-1 text-xs font-semibold text-foreground hover:bg-panel-elevated"
-                      onClick={() => {
-                        if (!canQuery) return;
-                        setMsg(null);
-                        void (async () => {
-                          try {
-                            if (r.status === "paid") {
-                              await markDraft({
-                                sessionToken,
-                                invoiceId: r._id as Id<"invoices">,
-                              });
-                            } else {
-                              await markPaid({
-                                sessionToken,
-                                invoiceId: r._id as Id<"invoices">,
-                              });
-                            }
-                          } catch (e) {
-                            setMsg(toUserFacingErrorMessage(e));
-                          }
-                        })();
-                      }}
+                    <select
+                      aria-label={`Payment status for ${r.clientName || "invoice"}`}
+                      className="min-h-8 rounded-lg border border-border bg-panel px-2 py-1 text-xs font-semibold text-foreground"
+                      value={r.status}
+                      onChange={(e) =>
+                        changeStatus(r._id as Id<"invoices">, e.target.value as InvoiceStatus)
+                      }
                     >
-                      {r.status === "paid" ? "Mark draft" : "Mark paid"}
-                    </button>
+                      {INVOICE_STATUS_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
                     <IconAction
                       label="Delete invoice"
                       onClick={() => {

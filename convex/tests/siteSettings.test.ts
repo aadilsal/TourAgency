@@ -105,3 +105,37 @@ test("an invalid maps URL is rejected instead of silently dropped", async () => 
   const admin = await t.query(api.siteSettings.getAdminSiteSettings, { sessionToken });
   expect(admin.stored.mapsEmbedUrl).toContain("pb=keep");
 });
+
+test("Easypaisa / JazzCash and invoice text are patch-only like every other field", async () => {
+  const t = newTest();
+  const sessionToken = await signIn(t);
+  await t.mutation(api.siteSettings.upsertAdminSiteSettings, {
+    sessionToken,
+    easypaisaNumber: " 0300 1234567 ",
+    easypaisaAccountTitle: "Junket Tours",
+    jazzcashNumber: "0301 7654321",
+  });
+  // Another screen saves only its own fields.
+  await t.mutation(api.siteSettings.upsertAdminSiteSettings, {
+    sessionToken,
+    officeAddress: "Lahore",
+    invoiceTerms: "Advance confirms booking",
+  });
+  // And the wallet screen saves just one field.
+  await t.mutation(api.siteSettings.upsertAdminSiteSettings, {
+    sessionToken,
+    jazzcashAccountTitle: "JT",
+  });
+
+  const s = await t.query(api.siteSettings.getAdminSiteSettings, { sessionToken });
+  expect(s.stored.easypaisaNumber).toBe("0300 1234567");
+  expect(s.stored.easypaisaAccountTitle).toBe("Junket Tours");
+  expect(s.stored.jazzcashNumber).toBe("0301 7654321");
+  expect(s.stored.jazzcashAccountTitle).toBe("JT");
+  expect(s.stored.officeAddress).toBe("Lahore");
+  expect(s.stored.invoiceTerms).toBe("Advance confirms booking");
+  expect(s.invoiceDefaults.terms).toBe("Advance confirms booking");
+  // Never set: no fallback value is invented.
+  expect(s.stored.invoiceCancellationPolicy).toBeNull();
+  expect(s.fallbacks.easypaisaNumber).toBe("");
+});

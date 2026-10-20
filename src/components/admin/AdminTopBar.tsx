@@ -11,6 +11,9 @@ import { cn } from "@/lib/cn";
 import { useBodyScrollLock } from "@/components/ui/useBodyScrollLock";
 import { useFocusTrap } from "@/components/ui/useFocusTrap";
 import { isAdminNavLinkActive, visibleAdminNav } from "@/components/admin/shared/adminNav";
+import { formatBadgeCount, useInboxCounts } from "@/components/admin/shared/inboxHooks";
+import { NavBadge } from "@/components/admin/shared/NavBadge";
+import { CustomerSearch } from "@/components/admin/shared/CustomerSearch";
 
 type Props = {
   email: string;
@@ -38,6 +41,7 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
 
   // Same config as the desktop sidebar — the two menus can't drift apart.
   const sections = useMemo(() => visibleAdminNav(showManageAdmins), [showManageAdmins]);
+  const counts = useInboxCounts();
 
   useEffect(() => {
     // Close drawer on route change.
@@ -72,12 +76,22 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
           ) : null}
           <button
             type="button"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-panel-elevated text-foreground shadow-sm hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-sun lg:hidden"
-            aria-label="Open menu"
+            className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-border bg-panel-elevated text-foreground shadow-sm hover:bg-black/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-sun lg:hidden"
+            aria-label={
+              counts && counts.total > 0 ? `Open menu (${counts.total} new)` : "Open menu"
+            }
             aria-expanded={open}
             onClick={() => setOpen(true)}
           >
             <Menu className="h-5 w-5" />
+            {counts && counts.total > 0 ? (
+              <span
+                className="absolute -right-1.5 -top-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold leading-none text-white tabular-nums"
+                aria-hidden
+              >
+                {formatBadgeCount(counts.total, counts.cap)}
+              </span>
+            ) : null}
           </button>
           <Link
             href="/"
@@ -93,6 +107,7 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
             Admin
           </span>
         </div>
+        <CustomerSearch className="mx-2 hidden w-full max-w-sm md:block" />
         <div className="flex max-w-full items-center gap-2 sm:gap-3">
           {closeHref ? (
             <Link
@@ -104,7 +119,7 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
             </Link>
           ) : null}
           <span
-            className="hidden max-w-[220px] truncate text-sm text-muted md:inline"
+            className="hidden max-w-[220px] truncate text-sm text-muted xl:inline"
             title={email}
           >
             {email}
@@ -176,6 +191,11 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
                   </div>
                 </div>
 
+                {/* Customer search (phones / tablets) */}
+                <div className="shrink-0 border-b border-border bg-panel px-4 py-3">
+                  <CustomerSearch variant="inline" onNavigate={() => setOpen(false)} />
+                </div>
+
                 {/* Scrollable nav area */}
                 <nav
                   aria-label="Admin"
@@ -214,6 +234,7 @@ export function AdminTopBar({ email, role, showManageAdmins }: Props) {
                                   aria-hidden
                                 />
                                 <span className="min-w-0 truncate">{l.label}</span>
+                                <NavBadge link={l} counts={counts} />
                               </Link>
                             );
                           })}

@@ -21,6 +21,7 @@ import { useLocalDraft } from "@/hooks/useLocalDraft";
 import { confirmDiscard } from "@/hooks/useUnsavedChangesGuard";
 import { DraftRestoreBanner } from "@/components/admin/shared/EditorStatus";
 import { AdminField, RequiredFieldsNote, useRequiredFields } from "@/components/admin/shared/AdminField";
+import { AdvancedSection, MoreMenu } from "@/components/admin/tour-form/fields";
 
 type Post = {
   _id: Id<"blogPosts">;
@@ -146,7 +147,7 @@ export function AdminBlogPanel() {
   async function togglePublished(postId: Id<"blogPosts">, published: boolean) {
     setListErr(null);
     if (typeof sessionToken !== "string") {
-      setListErr("Session expired — refresh and sign in again.");
+      setListErr("You have been signed out. Refresh the page and sign in again.");
       return;
     }
     try {
@@ -159,7 +160,7 @@ export function AdminBlogPanel() {
   async function removePost(postId: Id<"blogPosts">) {
     setListErr(null);
     if (typeof sessionToken !== "string") {
-      setListErr("Session expired — refresh and sign in again.");
+      setListErr("You have been signed out. Refresh the page and sign in again.");
       return;
     }
     try {
@@ -172,7 +173,7 @@ export function AdminBlogPanel() {
   async function runSeedPosts() {
     setListErr(null);
     if (typeof sessionToken !== "string") {
-      setListErr("Session expired — refresh and sign in again.");
+      setListErr("You have been signed out. Refresh the page and sign in again.");
       return;
     }
     try {
@@ -193,7 +194,7 @@ export function AdminBlogPanel() {
     }
     const slug = values.slug.trim() || slugFromTitle(values.title);
     if (!slug) {
-      setErr("Add a title or slug.");
+      setErr("Add a title.");
       return;
     }
     setSaving(true);
@@ -255,14 +256,17 @@ export function AdminBlogPanel() {
           <Plus className="h-4 w-4" aria-hidden />
           New post
         </Button>
-        <Button type="button" variant="secondary" onClick={() => setBulkOpen(true)}>
-          Bulk upload
-        </Button>
-        <Button type="button" variant="secondary" onClick={() => void runSeedPosts()}>
-          Seed sample posts
-        </Button>
+        <MoreMenu
+          items={[
+            { label: "Upload many posts from a spreadsheet", onSelect: () => setBulkOpen(true) },
+            process.env.NODE_ENV === "development" && {
+              label: "Seed sample posts (developer only)",
+              onSelect: () => void runSeedPosts(),
+            },
+          ]}
+        />
         <p className="text-xs text-slate-500">
-          Editor supports long-form content; Cmd/Ctrl+Enter saves from the modal.
+          Tip: press Ctrl+Enter (Cmd+Enter on Mac) while writing to save the post.
         </p>
       </div>
 
@@ -277,7 +281,6 @@ export function AdminBlogPanel() {
           <thead className="whitespace-nowrap border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Title</th>
-              <th className="px-4 py-3">Slug</th>
               <th className="px-4 py-3">Published</th>
               <th className="px-4 py-3">Created</th>
               <th className="px-4 py-3 text-right">Actions</th>
@@ -304,8 +307,10 @@ export function AdminBlogPanel() {
                       {p.kind === "blog" ? "Blog" : "Guide"}
                     </span>
                   </span>
+                  <span className="block text-xs font-normal text-slate-400">
+                    <span className="sr-only">Web address: </span>/blog/{p.slug}
+                  </span>
                 </td>
-                <td className="px-4 py-3 text-slate-600">/{p.slug}</td>
                 <td className="px-4 py-3">
                   <button
                     type="button"
@@ -389,7 +394,7 @@ export function AdminBlogPanel() {
         onClose={closeEditor}
         confirmClose={dirty}
         title={editingId ? "Edit post" : "New post"}
-        description="Write in the large editor below. Toggle publish when ready."
+        description="Write your post below. Switch on “Published” when it is ready to go live."
         panelClassName="max-w-3xl"
       >
         <form noValidate onSubmit={onSave} className="space-y-3">
@@ -412,7 +417,7 @@ export function AdminBlogPanel() {
           <AdminField
             label="Type"
             htmlFor="blog-post-kind"
-            tip="Guides are evergreen travel guides, listed under Guides (/blog). Blog posts are news and stories, listed under Blog (/travel-blog). The post's own web address is the same either way."
+            tip="Guides are lasting travel guides, listed under Guides. Blog posts are news and stories, listed under Blog. The post's own web address is the same either way."
           >
             <select
               id="blog-post-kind"
@@ -424,43 +429,27 @@ export function AdminBlogPanel() {
               <option value="blog">Blog post — shown under “Blog”</option>
             </select>
           </AdminField>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <AdminField
-              label="Title"
-              htmlFor={req.id("title")}
-              required
-              tip="The post headline, shown at the top of the article and on the /blog list."
-              error={req.errorFor("title")}
-            >
-              <input
-                {...req.fieldProps("title")}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                placeholder="e.g. Best time to visit Hunza Valley"
-                value={values.title}
-                onChange={(e) => setField("title", e.target.value)}
-              />
-            </AdminField>
-            <AdminField
-              label="Slug"
-              htmlFor="blog-editor-slug"
-              tip="The last part of the post's web address: /blog/your-slug. Changing it breaks old links."
-              hint="Leave blank to build it from the title."
-            >
-              <input
-                id="blog-editor-slug"
-                aria-describedby="blog-editor-slug-hint"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                placeholder="e.g. best-time-to-visit-hunza"
-                value={values.slug}
-                onChange={(e) => setField("slug", e.target.value)}
-              />
-            </AdminField>
-          </div>
+          <AdminField
+            label="Title"
+            htmlFor={req.id("title")}
+            required
+            tip="The post headline, shown at the top of the article and in the list of posts."
+            error={req.errorFor("title")}
+          >
+            <input
+              {...req.fieldProps("title")}
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              placeholder="e.g. Best time to visit Hunza Valley"
+              value={values.title}
+              onChange={(e) => setField("title", e.target.value)}
+            />
+          </AdminField>
           <AdminField
             label="Content"
             htmlFor={req.id("content")}
             required
             tip="The full article body shown on the post page."
+            hint="Just type normally. Leave an empty line between paragraphs — each block becomes its own paragraph on the website."
             error={req.errorFor("content")}
           >
             <textarea
@@ -472,38 +461,55 @@ export function AdminBlogPanel() {
               onChange={(e) => setField("content", e.target.value)}
             />
           </AdminField>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <AdvancedSection forceOpen={Boolean(err && /slug|address/i.test(err))}>
             <AdminField
-              label="Meta title (SEO)"
-              htmlFor="blog-editor-meta-title"
-              tip="The title Google shows in search results. Leave blank to use the post title."
-              hint="Keep it under 60 characters."
+              label="Web address (auto from title)"
+              htmlFor="blog-editor-slug"
+              tip="The end of the post's web address, e.g. /blog/best-time-to-visit-hunza. Changing it later breaks old links to the post."
+              hint="Leave blank to build it from the title."
             >
               <input
-                id="blog-editor-meta-title"
-                aria-describedby="blog-editor-meta-title-hint"
+                id="blog-editor-slug"
+                aria-describedby="blog-editor-slug-hint"
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                placeholder="e.g. Best Time to Visit Hunza | JunketTours"
-                value={values.metaTitle}
-                onChange={(e) => setField("metaTitle", e.target.value)}
+                placeholder="e.g. best-time-to-visit-hunza"
+                value={values.slug}
+                onChange={(e) => setField("slug", e.target.value)}
               />
             </AdminField>
-            <AdminField
-              label="Meta description"
-              htmlFor="blog-editor-meta-description"
-              tip="The short summary Google shows under the title in search results."
-              hint="Aim for 120-160 characters."
-            >
-              <input
-                id="blog-editor-meta-description"
-                aria-describedby="blog-editor-meta-description-hint"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                placeholder="e.g. Month-by-month guide to Hunza weather, blossoms and autumn colours."
-                value={values.metaDescription}
-                onChange={(e) => setField("metaDescription", e.target.value)}
-              />
-            </AdminField>
-          </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <AdminField
+                label="Google title"
+                htmlFor="blog-editor-meta-title"
+                tip="The title Google shows in search results. Leave blank to use the post title."
+                hint="Keep it under 60 characters."
+              >
+                <input
+                  id="blog-editor-meta-title"
+                  aria-describedby="blog-editor-meta-title-hint"
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="e.g. Best Time to Visit Hunza | JunketTours"
+                  value={values.metaTitle}
+                  onChange={(e) => setField("metaTitle", e.target.value)}
+                />
+              </AdminField>
+              <AdminField
+                label="Google summary"
+                htmlFor="blog-editor-meta-description"
+                tip="The short summary Google shows under the title in search results."
+                hint="Aim for 120-160 characters."
+              >
+                <input
+                  id="blog-editor-meta-description"
+                  aria-describedby="blog-editor-meta-description-hint"
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="e.g. Month-by-month guide to Hunza weather, blossoms and autumn colours."
+                  value={values.metaDescription}
+                  onChange={(e) => setField("metaDescription", e.target.value)}
+                />
+              </AdminField>
+            </div>
+          </AdvancedSection>
           <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
             <span>
               <span className="block text-sm font-semibold text-brand-ink">
@@ -551,13 +557,17 @@ export function AdminBlogPanel() {
       <BulkUploadModal
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
-        title="Bulk upload blog posts"
-        description="Upload a .json or .xlsx file. Rows are upserted by slug. Blank meta cells keep the existing SEO text."
+        title="Upload many posts from a spreadsheet"
+        description="Upload an Excel (.xlsx) or .json file with one post per row. Rows with the same web address as an existing post update that post; new ones are added. Empty Google title / summary cells keep the current text."
         templateHint={
           <div className="space-y-1">
-            <p className="font-semibold">Columns / keys</p>
+            <p className="font-semibold">Spreadsheet columns</p>
             <p className="font-mono text-xs">
               title, slug, content, metaTitle, metaDescription, published
+            </p>
+            <p className="text-xs text-slate-600">
+              “slug” is the web address, “metaTitle” / “metaDescription” are the Google title and
+              summary, and “published” is yes or no.
             </p>
           </div>
         }

@@ -29,7 +29,7 @@ export default function NewTourPage() {
     <main>
       <h1 className="text-2xl font-semibold text-zinc-900">New tour</h1>
       <p className="mt-1 text-sm text-zinc-500">
-        Create a tour with its itinerary, images, and pricing.
+        Fill in the tour details, day-by-day plan, photos and prices, then save.
       </p>
       <div className="mt-8">
         <AdminTourForm mode="create" initialDraft={draft} />

@@ -29,20 +29,35 @@ import { TourHeroGallery } from "@/components/tours/TourHeroGallery";
 import { KnowBeforeYouGoContent } from "@/components/tours/KnowBeforeYouGo";
 import { parseKnowBeforeYouGo } from "@/lib/tours/knowBeforeYouGo";
 import { tourAudienceBadge } from "@/lib/tours/tourAudience";
-import { BlogPostCard, type BlogPostCardData } from "@/components/blog/BlogPostCard";
+import { TourBookingInfo } from "@/components/tours/TourBookingInfo";
+import {
+  BlogPostCard,
+  type BlogPostCardData,
+} from "@/components/blog/BlogPostCard";
 import { decodeSlugParam, loadTourBySlug } from "@/lib/server/tours-server";
 import { getConvexServer } from "@/lib/server/convex-server";
 import { getServerCurrency } from "@/lib/server/currency-server";
-import { formatTourPrice, getPerHeadOptions, tourHasPrice } from "@/lib/tours/tourPricing";
+import {
+  formatTourPrice,
+  getPerHeadOptions,
+  tourHasPrice,
+} from "@/lib/tours/tourPricing";
 import { TourViewEvent } from "@/components/analytics/TourViewEvent";
 import { getTourDisplayRating } from "@/lib/tours/tourRating";
-import { TourLivePrice, type TourPriceFields } from "@/components/tours/TourLivePrice";
+import {
+  TourLivePrice,
+  type TourPriceFields,
+} from "@/components/tours/TourLivePrice";
 
 function lazyBlock(label: string, minH: string) {
   // Skeleton sized like the lazy block (not a spinner) to avoid layout shift.
   function LoadingBlock() {
     return (
-      <div role="status" aria-label={label} className={`${minH} rounded-2xl border border-border bg-panel p-5`}>
+      <div
+        role="status"
+        aria-label={label}
+        className={`${minH} rounded-2xl border border-border bg-panel p-5`}
+      >
         <Skeleton className="h-5 w-1/3 rounded-md" />
         <Skeleton className="mt-4 h-[calc(100%-2.25rem)] min-h-[8rem] w-full" />
       </div>
@@ -89,7 +104,11 @@ type TourDetail = {
   price: number;
   pricePkr?: number;
   priceUsd?: number;
-  perHeadPrices?: Array<{ persons: number; pricePkr?: number; priceUsd?: number }>;
+  perHeadPrices?: Array<{
+    persons: number;
+    pricePkr?: number;
+    priceUsd?: number;
+  }>;
   durationDays: number;
   location: string;
   maxPeople?: number;
@@ -113,7 +132,8 @@ type Props = { params: { slug: string } };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const tour = await loadTourBySlug(params.slug);
-    if (!tour || !tour.isActive) return { title: "Tour not found", robots: { index: false } };
+    if (!tour || !tour.isActive)
+      return { title: "Tour not found", robots: { index: false } };
     const days =
       tour.durationDays > 0 && !/\bdays?\b/i.test(tour.title)
         ? ` (${tour.durationDays} Days)`
@@ -134,16 +154,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 /** Extract a clean place name from a day title, for Start/End facts. */
 function cleanPlace(raw: string, takeLast = false): string {
-  const base = raw.replace(/^\s*day\s*\d+\s*[:.\-]?\s*/i, "").trim();
+  const base = raw
+    .replace(/^\s*day\s*\d+\s*[:.\-]?\s*/i, "")
+    // Drop notes like "(4/5 hour drive)" — they are not place names.
+    .replace(/\([^)]*\)?/g, "")
+    .trim();
   const parts = base
     .split(/\s*(?:-|–|—|→|\bto\b|,|&)\s*/i)
     .map((x) => x.trim())
     .filter(Boolean);
   const pick = takeLast ? parts[parts.length - 1] : parts[0];
   const cleaned = (pick || base)
-    .replace(/\b(explore|arrive in|arrive|arrival|departure|depart|drive|travel|visit|day)\b/gi, "")
+    .replace(
+      /\b(explore|arrive in|arrive|arrival|departure|depart|drive|travel|visit|day)\b/gi,
+      "",
+    )
+    .replace(/^\s*(?:in|at|from|to|the|and)\b\s*/i, "")
+    .replace(/\s+/g, " ")
     .trim();
-  return (cleaned || base).slice(0, 32);
+  // Not a usable place name (empty, numbers, too long) → caller falls back.
+  if (!cleaned || /\d/.test(cleaned) || cleaned.length > 32) return "";
+  return cleaned;
 }
 
 export default async function TourDetailPage({ params }: Props) {
@@ -190,9 +221,12 @@ export default async function TourDetailPage({ params }: Props) {
   let relatedPosts: BlogPostCardData[] = [];
   if (tour.relatedBlogPostIds && tour.relatedBlogPostIds.length > 0) {
     try {
-      relatedPosts = await getConvexServer().query(api.blog.listPublishedByIds, {
-        ids: tour.relatedBlogPostIds,
-      });
+      relatedPosts = await getConvexServer().query(
+        api.blog.listPublishedByIds,
+        {
+          ids: tour.relatedBlogPostIds,
+        },
+      );
     } catch {
       relatedPosts = [];
     }
@@ -209,17 +243,26 @@ export default async function TourDetailPage({ params }: Props) {
     perHeadPrices: tour.perHeadPrices ?? [],
   };
   const rating = getTourDisplayRating(tour);
-  const summaryPrice = tourHasPrice(initialPrices) ? formatTourPrice(initialPrices, currency) : null;
+  const summaryPrice = tourHasPrice(initialPrices)
+    ? formatTourPrice(initialPrices, currency)
+    : null;
   const summaryPerHead = getPerHeadOptions(initialPrices, currency)
-    .map((o) => `${o.label} each for ${o.persons} ${o.persons === 1 ? "traveller" : "travellers"}`)
+    .map(
+      (o) =>
+        `${o.label} each for ${o.persons} ${o.persons === 1 ? "traveller" : "travellers"}`,
+    )
     .join("; ");
 
-  const startCity = tour.itinerary[0]
-    ? cleanPlace(tour.itinerary[0].title)
-    : tour.location;
-  const endCity = tour.itinerary.length
-    ? cleanPlace(tour.itinerary[tour.itinerary.length - 1]!.title, true)
-    : tour.location;
+  const startCity =
+    (tour.itinerary[0] && cleanPlace(tour.itinerary[0].title)) || tour.location;
+  const endCity =
+    (tour.itinerary.length > 0 &&
+      cleanPlace(tour.itinerary[tour.itinerary.length - 1]!.title, true)) ||
+    startCity;
+  const routeLabel =
+    startCity.toLowerCase() === endCity.toLowerCase()
+      ? `Starts & ends in ${startCity}`
+      : `${startCity} → ${endCity}`;
 
   const highlights =
     tour.highlights && tour.highlights.length > 0 ? tour.highlights : [];
@@ -228,7 +271,10 @@ export default async function TourDetailPage({ params }: Props) {
   const excluded =
     tour.excluded && tour.excluded.length > 0 ? tour.excluded : [];
   const knowBeforeYouGo = parseKnowBeforeYouGo(tour.knowBeforeYouGo);
-  const tripCode = tour.slug.replace(/[^a-z0-9]/gi, "").slice(0, 8).toUpperCase();
+  const tripCode = tour.slug
+    .replace(/[^a-z0-9]/gi, "")
+    .slice(0, 8)
+    .toUpperCase();
 
   const tabs = [
     { id: "overview", label: "About the trip" },
@@ -237,13 +283,18 @@ export default async function TourDetailPage({ params }: Props) {
     ...(knowBeforeYouGo.length > 0
       ? [{ id: "know-before-you-go", label: "Know before you go" }]
       : []),
+    { id: "book", label: bookable ? "Dates & prices" : "Plan this tour" },
     { id: "reviews", label: "Reviews" },
   ];
 
   return (
     <main className="min-h-screen pb-28 lg:pb-16">
       <TourJsonLd tour={tour} rating={rating} />
-      <TourViewEvent slug={tour.slug} title={tour.title} location={tour.location} />
+      <TourViewEvent
+        slug={tour.slug}
+        title={tour.title}
+        location={tour.location}
+      />
       <BreadcrumbJsonLd
         items={[
           { name: "Home", path: "/" },
@@ -254,10 +305,17 @@ export default async function TourDetailPage({ params }: Props) {
 
       <PageContainer className="py-6 md:py-8">
         {/* Breadcrumb */}
-        <nav className="flex flex-wrap items-center gap-1.5 text-sm text-muted" aria-label="Breadcrumb">
-          <Link href="/" className="hover:text-havezic-primary">Home</Link>
+        <nav
+          className="flex flex-wrap items-center gap-1.5 text-sm text-muted"
+          aria-label="Breadcrumb"
+        >
+          <Link href="/" className="hover:text-havezic-primary">
+            Home
+          </Link>
           <ChevronRight className="h-3.5 w-3.5 opacity-60" aria-hidden />
-          <Link href="/tours" className="hover:text-havezic-primary">Tours</Link>
+          <Link href="/tours" className="hover:text-havezic-primary">
+            Tours
+          </Link>
           <ChevronRight className="h-3.5 w-3.5 opacity-60" aria-hidden />
           <span className="font-semibold text-foreground">{tour.title}</span>
         </nav>
@@ -285,16 +343,17 @@ export default async function TourDetailPage({ params }: Props) {
                   AI assistants can quote directly. */}
               <p className="mb-4 rounded-xl bg-havezic-background-light px-4 py-3 text-sm leading-relaxed text-foreground">
                 <span className="font-semibold">{tour.title}</span> is a{" "}
-                {tour.durationDays}-day guided tour of {tour.location}, Pakistan, run by{" "}
-                <span className="font-semibold">Junket Tours</span>, a licensed operator based in
-                Lahore.{" "}
+                {tour.durationDays}-day guided tour of {tour.location},
+                Pakistan, run by{" "}
+                <span className="font-semibold">Junket Tours</span>, a licensed
+                operator based in Lahore.{" "}
                 {summaryPrice
                   ? `Listed price: ${summaryPrice} for the whole tour.`
                   : summaryPerHead
                     ? `Listed per-person prices: ${summaryPerHead}.`
                     : "Pricing is a tailored quote on request."}{" "}
-                Send an enquiry online or on WhatsApp and the team replies with availability and
-                payment details.
+                Send an enquiry online or on WhatsApp and the team replies with
+                availability and payment details.
               </p>
               {tour.description.split("\n").filter(Boolean)[0] ? (
                 <p className="text-lg font-semibold text-foreground">
@@ -302,8 +361,11 @@ export default async function TourDetailPage({ params }: Props) {
                 </p>
               ) : null}
               <div className="mt-2 whitespace-pre-wrap leading-relaxed text-muted">
-                {tour.description.split("\n").filter(Boolean).slice(1).join("\n") ||
-                  tour.description}
+                {tour.description
+                  .split("\n")
+                  .filter(Boolean)
+                  .slice(1)
+                  .join("\n") || tour.description}
               </div>
             </section>
           </div>
@@ -313,7 +375,10 @@ export default async function TourDetailPage({ params }: Props) {
             <div className="rounded-2xl border border-border bg-panel p-6 shadow-sm">
               {rating ? (
                 <a href="#reviews" className="flex items-center gap-2 text-sm">
-                  <Star className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
+                  <Star
+                    className="h-5 w-5 fill-amber-400 text-amber-400"
+                    aria-hidden
+                  />
                   <span className="text-lg font-bold text-foreground">
                     {rating.average.toFixed(1)}
                   </span>
@@ -323,7 +388,10 @@ export default async function TourDetailPage({ params }: Props) {
                 </a>
               ) : (
                 <p className="flex items-center gap-2 text-sm text-muted">
-                  <Star className="h-5 w-5 fill-amber-400 text-amber-400" aria-hidden />
+                  <Star
+                    className="h-5 w-5 fill-amber-400 text-amber-400"
+                    aria-hidden
+                  />
                   New — be the first to review
                 </p>
               )}
@@ -342,24 +410,32 @@ export default async function TourDetailPage({ params }: Props) {
               <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-4 border-t border-border pt-4 text-sm">
                 <div>
                   <dt className="text-muted">Duration</dt>
-                  <dd className="font-semibold text-foreground">{tour.durationDays} days</dd>
+                  <dd className="font-semibold text-foreground">
+                    {tour.durationDays} days
+                  </dd>
                 </div>
                 {typeof tour.maxPeople === "number" && tour.maxPeople > 0 ? (
                   <div>
                     <dt className="text-muted">Group size</dt>
-                    <dd className="font-semibold text-foreground">1 to {tour.maxPeople}</dd>
+                    <dd className="font-semibold text-foreground">
+                      1 to {tour.maxPeople}
+                    </dd>
                   </div>
                 ) : null}
                 {typeof tour.minAge === "number" && tour.minAge > 0 ? (
                   <div>
                     <dt className="text-muted">Minimum age</dt>
-                    <dd className="font-semibold text-foreground">{tour.minAge} years</dd>
+                    <dd className="font-semibold text-foreground">
+                      {tour.minAge} years
+                    </dd>
                   </div>
                 ) : null}
                 {tour.tourTypeLabel ? (
                   <div>
                     <dt className="text-muted">Style</dt>
-                    <dd className="font-semibold text-foreground">{tour.tourTypeLabel}</dd>
+                    <dd className="font-semibold text-foreground">
+                      {tour.tourTypeLabel}
+                    </dd>
                   </div>
                 ) : null}
                 {tour.types && tour.types.length > 0 ? (
@@ -387,7 +463,9 @@ export default async function TourDetailPage({ params }: Props) {
                 </a>
               </div>
 
-              <p className="mt-4 text-right text-xs text-muted">Trip code: {tripCode}</p>
+              <p className="mt-4 text-right text-xs text-muted">
+                Trip code: {tripCode}
+              </p>
             </div>
           </aside>
         </div>
@@ -420,10 +498,13 @@ export default async function TourDetailPage({ params }: Props) {
         </div>
 
         {/* Itinerary: map + accordion */}
-        <section id="tour-plan" className="mt-10 scroll-mt-32 md:mt-14">
-          <h2 className="text-2xl font-bold text-foreground md:text-3xl">Itinerary</h2>
+        <section id="tour-plan" className="mt-10 scroll-mt-40 md:mt-14">
+          <h2 className="text-2xl font-bold text-foreground md:text-3xl">
+            Itinerary
+          </h2>
           <p className="mt-2 max-w-2xl text-sm text-muted">
-            Day-by-day flow — timings may shift slightly with weather and road conditions.
+            Day-by-day flow — timings may shift slightly with weather and road
+            conditions.
           </p>
           {/* grid-cols-1 = minmax(0,1fr): an implicit `auto` track grows to the
               map's min-content width and pushed the itinerary off-screen on phones. */}
@@ -442,7 +523,7 @@ export default async function TourDetailPage({ params }: Props) {
         </section>
 
         {/* Inclusions and activities */}
-        <section id="inclusions" className="mt-12 scroll-mt-32 md:mt-16">
+        <section id="inclusions" className="mt-12 scroll-mt-40 md:mt-16">
           <h2 className="text-2xl font-bold text-foreground md:text-3xl">
             Inclusions and activities
           </h2>
@@ -450,25 +531,38 @@ export default async function TourDetailPage({ params }: Props) {
             <div className="grid gap-8 md:grid-cols-2">
               <div className="space-y-6">
                 <div className="flex gap-3">
-                  <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-foreground" aria-hidden />
+                  <MapPin
+                    className="mt-0.5 h-5 w-5 shrink-0 text-foreground"
+                    aria-hidden
+                  />
                   <div>
                     <p className="font-bold text-foreground">Destinations</p>
                     <p className="mt-1 text-sm text-muted">{tour.location}</p>
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <Clock className="mt-0.5 h-5 w-5 shrink-0 text-foreground" aria-hidden />
+                  <Clock
+                    className="mt-0.5 h-5 w-5 shrink-0 text-foreground"
+                    aria-hidden
+                  />
                   <div>
                     <p className="font-bold text-foreground">Duration</p>
-                    <p className="mt-1 text-sm text-muted">{tour.durationDays} days</p>
+                    <p className="mt-1 text-sm text-muted">
+                      {tour.durationDays} days
+                    </p>
                   </div>
                 </div>
                 {typeof tour.maxPeople === "number" && tour.maxPeople > 0 ? (
                   <div className="flex gap-3">
-                    <Users className="mt-0.5 h-5 w-5 shrink-0 text-foreground" aria-hidden />
+                    <Users
+                      className="mt-0.5 h-5 w-5 shrink-0 text-foreground"
+                      aria-hidden
+                    />
                     <div>
                       <p className="font-bold text-foreground">Group size</p>
-                      <p className="mt-1 text-sm text-muted">1 to {tour.maxPeople} travellers</p>
+                      <p className="mt-1 text-sm text-muted">
+                        1 to {tour.maxPeople} travellers
+                      </p>
                     </div>
                   </div>
                 ) : null}
@@ -477,13 +571,19 @@ export default async function TourDetailPage({ params }: Props) {
               <div className="space-y-6">
                 {included.length > 0 ? (
                   <div className="flex gap-3">
-                    <Utensils className="mt-0.5 h-5 w-5 shrink-0 text-foreground" aria-hidden />
+                    <Utensils
+                      className="mt-0.5 h-5 w-5 shrink-0 text-foreground"
+                      aria-hidden
+                    />
                     <div>
                       <p className="font-bold text-foreground">Included</p>
                       <ul className="mt-2 space-y-1.5 text-sm text-muted">
                         {included.map((x) => (
                           <li key={x} className="flex gap-2">
-                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+                            <Check
+                              className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600"
+                              aria-hidden
+                            />
                             <span>{x}</span>
                           </li>
                         ))}
@@ -493,13 +593,19 @@ export default async function TourDetailPage({ params }: Props) {
                 ) : null}
                 {excluded.length > 0 ? (
                   <div className="flex gap-3">
-                    <XIcon className="mt-0.5 h-5 w-5 shrink-0 text-foreground" aria-hidden />
+                    <XIcon
+                      className="mt-0.5 h-5 w-5 shrink-0 text-foreground"
+                      aria-hidden
+                    />
                     <div>
                       <p className="font-bold text-foreground">Not included</p>
                       <ul className="mt-2 space-y-1.5 text-sm text-muted">
                         {excluded.map((x) => (
                           <li key={x} className="flex gap-2">
-                            <XIcon className="mt-0.5 h-4 w-4 shrink-0 text-rose-500" aria-hidden />
+                            <XIcon
+                              className="mt-0.5 h-4 w-4 shrink-0 text-rose-500"
+                              aria-hidden
+                            />
                             <span>{x}</span>
                           </li>
                         ))}
@@ -519,8 +625,13 @@ export default async function TourDetailPage({ params }: Props) {
 
         {/* Know before you go */}
         {knowBeforeYouGo.length > 0 ? (
-          <section id="know-before-you-go" className="mt-12 scroll-mt-32 md:mt-16">
-            <h2 className="text-2xl font-bold text-foreground md:text-3xl">Know before you go</h2>
+          <section
+            id="know-before-you-go"
+            className="mt-12 scroll-mt-40 md:mt-16"
+          >
+            <h2 className="text-2xl font-bold text-foreground md:text-3xl">
+              Know before you go
+            </h2>
             <div className="mt-6 flex gap-4 rounded-3xl border border-border bg-panel p-6 md:gap-5 md:p-8">
               <Info
                 className="mt-0.5 hidden h-6 w-6 shrink-0 text-havezic-primary sm:block"
@@ -534,37 +645,57 @@ export default async function TourDetailPage({ params }: Props) {
         ) : null}
 
         {/* Dates and prices / booking */}
-        <section id="book" className="mt-12 scroll-mt-32 md:mt-16">
+        <section id="book" className="mt-12 scroll-mt-40 md:mt-16">
           <h2 className="text-2xl font-bold text-foreground md:text-3xl">
             {bookable ? "Dates and prices" : "Plan this tour"}
           </h2>
           <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
-            <div className="rounded-2xl border border-border bg-panel p-6 shadow-sm">
-              <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">Duration</p>
-                  <p className="text-lg font-bold text-foreground">{tour.durationDays} days</p>
+            {/* Booking form first on phones; the info column follows it. */}
+            <div className="order-2 space-y-6 lg:order-1">
+              <div className="rounded-2xl border border-border bg-panel p-6 shadow-sm">
+                <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                      Duration
+                    </p>
+                    <p className="text-lg font-bold text-foreground">
+                      {tour.durationDays} days
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+                      Route
+                    </p>
+                    <p className="text-lg font-bold text-foreground">
+                      {routeLabel}
+                    </p>
+                  </div>
+                  <TourLivePrice
+                    slug={tour.slug}
+                    currency={currency}
+                    initial={initialPrices}
+                    variant="inline"
+                  />
                 </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted">Route</p>
-                  <p className="text-lg font-bold text-foreground">
-                    {startCity} → {endCity}
-                  </p>
-                </div>
-                <TourLivePrice
-                  slug={tour.slug}
-                  currency={currency}
-                  initial={initialPrices}
-                  variant="inline"
-                />
+                <p className="mt-5 text-sm leading-relaxed text-muted">
+                  {bookable
+                    ? "Pick your preferred start date and group size in the booking form to request this departure at the listed price. Our team confirms availability and payment details within hours."
+                    : "Tell us your preferred dates and group size in the booking form and we'll tailor a quote and itinerary for you."}
+                </p>
               </div>
-              <p className="mt-5 text-sm leading-relaxed text-muted">
-                {bookable
-                  ? "Pick your preferred start date and group size on the right to request this departure at the listed price. Our team confirms availability and payment details within hours."
-                  : "Tell us your preferred dates and group size on the right and we'll tailor a quote and itinerary for you."}
-              </p>
+              <TourBookingInfo
+                included={included}
+                perHead={getPerHeadOptions(initialPrices, currency).map(
+                  (o) => ({
+                    persons: o.persons,
+                    label: o.label,
+                  }),
+                )}
+                whatsappUrl={whatsappUrl}
+                bookable={bookable}
+              />
             </div>
-            <div>
+            <div className="order-1 lg:order-2">
               <TourStickyBooking
                 tourId={tour._id}
                 tourSlug={tour.slug}
@@ -584,12 +715,15 @@ export default async function TourDetailPage({ params }: Props) {
 
         {/* Related blog posts (picked in the admin tour editor) */}
         {relatedPosts.length > 0 ? (
-          <section id="blog" className="mt-12 scroll-mt-32 md:mt-16">
+          <section id="blog" className="mt-12 scroll-mt-40 md:mt-16">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <h2 className="text-2xl font-bold text-foreground md:text-3xl">
                 Read more on our blog
               </h2>
-              <Link href="/blog" className="text-sm font-semibold text-havezic-primary hover:underline">
+              <Link
+                href="/blog"
+                className="text-sm font-semibold text-havezic-primary hover:underline"
+              >
                 All blog posts
               </Link>
             </div>
@@ -611,14 +745,19 @@ export default async function TourDetailPage({ params }: Props) {
             for crawlers that don't run JavaScript. */}
         <noscript>
           <nav aria-label="Related tours" className="mt-10">
-            <h2 className="text-xl font-bold text-foreground">More Pakistan tours</h2>
+            <h2 className="text-xl font-bold text-foreground">
+              More Pakistan tours
+            </h2>
             <ul className="mt-3 space-y-1">
               {relatedCards
                 .filter((t) => t.slug !== tour.slug)
                 .slice(0, 8)
                 .map((t) => (
                   <li key={t.slug}>
-                    <Link href={`/tours/${t.slug}`} className="text-havezic-primary underline">
+                    <Link
+                      href={`/tours/${t.slug}`}
+                      className="text-havezic-primary underline"
+                    >
                       {t.title}
                     </Link>
                   </li>

@@ -26,6 +26,7 @@ import { PricingSection } from "@/components/admin/tour-form/PricingSection";
 import { DetailsSection } from "@/components/admin/tour-form/DetailsSection";
 import { MediaSection } from "@/components/admin/tour-form/MediaSection";
 import { ItinerarySection } from "@/components/admin/tour-form/ItinerarySection";
+import { TourAdvancedFields } from "@/components/admin/tour-form/TourAdvancedFields";
 import { adminErrorMessage } from "@/components/admin/tour-form/errors";
 import {
   PENDING_IMAGE_PREFIX,
@@ -180,7 +181,7 @@ export function AdminTourForm({
     setMsg(
       initialDraft.enrichedByLlm
         ? "Imported from document — review fields, add price & images, then save."
-        : "Imported from document (rules only) — review slug, description, and destinations.",
+        : "Imported from document (basic reading only) — check the title, description and destinations.",
     );
   }, [mode, initialDraft, destinations, provinces]);
 
@@ -399,7 +400,7 @@ export function AdminTourForm({
         <RequiredFieldsNote />
         {pdfImportWarnings.length > 0 ? (
           <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-950">
-            <p className="font-semibold">PDF import checklist</p>
+            <p className="font-semibold">Please check these after the document import</p>
             <ul className="mt-1 list-inside list-disc text-sky-900">
               {pdfImportWarnings.map((w) => (
                 <li key={w}>{w}</li>
@@ -424,20 +425,11 @@ export function AdminTourForm({
           values={values}
           onChange={onChange}
           destinations={destinations}
-          provinces={provinces}
           blogPosts={blogPostsQuery.data}
           req={req}
         />
         <PricingSection values={values} onChange={onChange} />
-        <DetailsSection
-          values={values}
-          onChange={onChange}
-          approvedReviews={
-            server
-              ? { average: server.approvedReviewAvg, count: server.approvedReviewCount }
-              : undefined
-          }
-        />
+        <DetailsSection values={values} onChange={onChange} />
         <MediaSection
           values={values}
           onChange={onChange}
@@ -446,6 +438,17 @@ export function AdminTourForm({
           onMessage={setMsg}
         />
         <ItinerarySection values={values} onChange={onChange} />
+        <TourAdvancedFields
+          values={values}
+          onChange={onChange}
+          provinces={provinces}
+          approvedReviews={
+            server
+              ? { average: server.approvedReviewAvg, count: server.approvedReviewCount }
+              : undefined
+          }
+          forceOpen={Boolean(msg && /slug|web address/i.test(msg))}
+        />
 
         <div className="flex flex-wrap items-center gap-2 pt-2">
           <Button

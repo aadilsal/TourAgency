@@ -23,6 +23,10 @@ type SettingsForm = {
   mapsEmbedUrl: string;
   governmentLicenseNo: string;
   governmentLicenseNo2: string;
+  easypaisaAccountTitle: string;
+  easypaisaNumber: string;
+  jazzcashAccountTitle: string;
+  jazzcashNumber: string;
   bankName: string;
   accountTitle: string;
   accountNumber: string;
@@ -38,6 +42,10 @@ const TEXT_KEYS = [
   "mapsEmbedUrl",
   "governmentLicenseNo",
   "governmentLicenseNo2",
+  "easypaisaAccountTitle",
+  "easypaisaNumber",
+  "jazzcashAccountTitle",
+  "jazzcashNumber",
 ] as const;
 type TextKey = (typeof TEXT_KEYS)[number];
 
@@ -95,6 +103,10 @@ export function AdminSettingsPanel() {
       mapsEmbedUrl: s.mapsEmbedUrl ?? f.mapsEmbedUrl,
       governmentLicenseNo: s.governmentLicenseNo ?? f.governmentLicenseNo,
       governmentLicenseNo2: s.governmentLicenseNo2 ?? f.governmentLicenseNo2,
+      easypaisaAccountTitle: s.easypaisaAccountTitle ?? "",
+      easypaisaNumber: s.easypaisaNumber ?? "",
+      jazzcashAccountTitle: s.jazzcashAccountTitle ?? "",
+      jazzcashNumber: s.jazzcashNumber ?? "",
       bankName: bank.bankName ?? "",
       accountTitle: bank.accountTitle ?? "",
       accountNumber: bank.accountNumber ?? "",
@@ -134,7 +146,9 @@ export function AdminSettingsPanel() {
   }
 
   const usingDefault = (key: TextKey) =>
-    snap.stored[key] === null && values[key] === (snap.fallbacks[key] ?? "");
+    snap.stored[key] === null &&
+    Boolean(snap.fallbacks[key]) &&
+    values[key] === (snap.fallbacks[key] ?? "");
 
   function field(
     key: TextKey,
@@ -359,6 +373,31 @@ export function AdminSettingsPanel() {
             onChange={(e) => form.setField("bankInstruction", e.target.value)}
           />
         </AdminField>
+      </Section>
+
+      <Section
+        id="mobile-wallets"
+        title="Easypaisa & JazzCash"
+        description="Printed on invoices when the customer pays by Easypaisa or JazzCash. Leave empty if you don't use them."
+      >
+        {field("easypaisaAccountTitle", "Easypaisa account name", {
+          placeholder: "e.g. Junket Tours",
+          tip: "The name the customer sees when sending money to your Easypaisa account.",
+        })}
+        {field("easypaisaNumber", "Easypaisa number", {
+          type: "tel",
+          placeholder: "e.g. 0300 1234567",
+          tip: "Your Easypaisa mobile account number, printed on Easypaisa invoices.",
+        })}
+        {field("jazzcashAccountTitle", "JazzCash account name", {
+          placeholder: "e.g. Junket Tours",
+          tip: "The name the customer sees when sending money to your JazzCash account.",
+        })}
+        {field("jazzcashNumber", "JazzCash number", {
+          type: "tel",
+          placeholder: "e.g. 0300 1234567",
+          tip: "Your JazzCash mobile account number, printed on JazzCash invoices.",
+        })}
       </Section>
 
       <FormSaveBar

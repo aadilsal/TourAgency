@@ -21,6 +21,7 @@ import { formatItineraryDatesLabel } from "@/lib/dates";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { cn } from "@/lib/cn";
 import { PopoverMenu } from "@/components/ui/PopoverMenu";
+import { itineraryStatusLabel } from "@/components/admin/itinerary/documentStatus";
 
 type Row = {
   _id: Id<"itineraries">;
@@ -92,7 +93,7 @@ export function AdminItinerariesTable() {
     loaded,
     serverResults,
     term: searchTerm,
-    haystack: (r) => `${r.title}\n${r.clientName}\n${r.status}`,
+    haystack: (r) => `${r.title}\n${r.clientName}\n${itineraryStatusLabel(r.status)}`,
   });
 
   const emptyLabel = searching
@@ -160,7 +161,7 @@ export function AdminItinerariesTable() {
                       : "bg-amber-100 text-amber-900 ring-amber-200",
                   )}
                 >
-                  {r.status}
+                  {itineraryStatusLabel(r.status)}
                 </span>
               </div>
 
@@ -176,7 +177,7 @@ export function AdminItinerariesTable() {
                   buttonClassName="inline-flex items-center justify-center rounded-xl border border-border bg-panel-elevated px-3 py-2 text-sm font-semibold text-foreground"
                   items={[
                     {
-                      label: r.status === "final" ? "Mark draft" : "Mark final",
+                      label: r.status === "final" ? "Mark not ready yet" : "Mark ready to send",
                       onClick: () => {
                         if (!canQuery) return;
                         setMsg(null);
@@ -284,7 +285,7 @@ export function AdminItinerariesTable() {
                         : "bg-amber-100 text-amber-900 ring-amber-200"
                     }`}
                   >
-                    {r.status}
+                    {itineraryStatusLabel(r.status)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-muted tabular-nums">{fmt(r.updatedAt)}</td>
@@ -348,8 +349,8 @@ export function AdminItinerariesTable() {
                     <button
                       type="button"
                       className="inline-flex items-center justify-center rounded-lg border border-border bg-panel p-2 text-foreground hover:bg-panel-elevated"
-                      aria-label={r.status === "final" ? "Mark draft" : "Mark final"}
-                      title={r.status === "final" ? "Mark draft" : "Mark final"}
+                      aria-label={r.status === "final" ? "Mark not ready yet" : "Mark ready to send"}
+                      title={r.status === "final" ? "Mark not ready yet" : "Mark ready to send"}
                       onClick={() => {
                         if (!canQuery) return;
                         setMsg(null);
@@ -436,7 +437,7 @@ export function AdminItinerariesTable() {
                           },
                         },
                         {
-                          label: r.status === "final" ? "Mark draft" : "Mark final",
+                          label: r.status === "final" ? "Mark not ready yet" : "Mark ready to send",
                           onClick: () => {
                             if (!canQuery) return;
                             void (async () => {

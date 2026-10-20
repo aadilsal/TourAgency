@@ -4,6 +4,74 @@ import type { MutationCtx } from "./_generated/server.js";
 import type { Doc } from "./_generated/dataModel.js";
 import { requireUserFromSession } from "./lib/authHelpers.js";
 import { paginationOptsValidator } from "convex/server";
+import { invoiceTextDefaults } from "./siteSettings.js";
+
+const invoiceStatusValidator = v.union(
+  v.literal("draft"),
+  v.literal("advance_paid"),
+  v.literal("paid"),
+);
+
+/** Auto-generated stay label ("Stop 1") from the itinerary builder. */
+const AUTO_STOP_LABEL = /^stop \d+$/i;
+
+type InvoiceLine = { name: string; description?: string; quantity: number; price: number };
+
+/**
+ * The line item a new invoice starts with, built from the itinerary's
+ * package: the first package with a price (packages are alternatives the
+ * customer chooses between, so they are never summed). Falls back to a
+ * blank "Trip package" line when the itinerary has no package yet.
+ */
+export function invoiceItemsFromItinerary(
+  itin: Pick<
+    Doc<"itineraries">,
+    "title" | "days" | "startDate" | "endDate" | "packageTiers" | "packages"
+  >,
+): InvoiceLine[] {
+  const tiers: Array<{
+    name: string;
+    pricePkr?: number;
+    vehicle?: string;
+    note?: string;
+    stays?: Array<{ location: string; hotel: string; nights: number }>;
+  }> = itin.packageTiers?.length ? itin.packageTiers : (itin.packages ?? []);
+  const pick =
+    tiers.find((t) => typeof t.pricePkr === "number" && t.pricePkr > 0) ??
+    tiers.find((t) => t.name.trim());
+  const dates =
+    itin.startDate && itin.endDate
+      ? `${itin.startDate} to ${itin.endDate}`
+      : (itin.startDate ?? "");
+  const tripLine = [`${itin.days} days`, dates].filter(Boolean).join(" · ");
+  if (!pick) {
+    return [
+      {
+        name: `Trip package (${itin.days} days)`,
+        description: [itin.title, dates].filter(Boolean).join("\n"),
+        quantity: 1,
+        price: 0,
+      },
+    ];
+  }
+  const stays = (pick.stays ?? [])
+    .filter((s) => s.hotel.trim())
+    .map((s) => {
+      const loc = AUTO_STOP_LABEL.test(s.location.trim()) ? "" : s.location.trim();
+      return `${loc ? `${loc}: ` : ""}${s.hotel.trim()} (${s.nights}N)`;
+    });
+  const title = itin.title.trim() || "Trip package";
+  return [
+    {
+      name: pick.name.trim() ? `${title} (${pick.name.trim()})` : title,
+      description: [tripLine, pick.vehicle?.trim() ?? "", ...stays, pick.note?.trim() ?? ""]
+        .filter(Boolean)
+        .join("\n"),
+      quantity: 1,
+      price: typeof pick.pricePkr === "number" && pick.pricePkr > 0 ? pick.pricePkr : 0,
+    },
+  ];
+}
 
 function assertAdminFromSession(
   user: { role: string },
@@ -64,6 +132,11 @@ export const createDraft = mutation({
     currency: v.union(v.literal("PKR"), v.literal("USD")),
     advanceAmount: v.optional(v.number()),
     tripSummary: v.optional(v.string()),
+    clientPhone: v.optional(v.string()),
+    clientEmail: v.optional(v.string()),
+    /** Omit to start from the default text in the itinerary template. */
+    terms: v.optional(v.string()),
+    cancellationPolicy: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const user = await requireUserFromSession(ctx, args.sessionToken);
@@ -71,9 +144,14 @@ export const createDraft = mutation({
 
     const now = Date.now();
     const invoiceNumber = await issueInvoiceNumber(ctx, now);
+    const defaults = await invoiceTextDefaults(ctx);
     const id = await ctx.db.insert("invoices", {
       invoiceNumber,
       clientName: args.clientName.trim(),
+      ...(args.clientPhone?.trim() ? { clientPhone: args.clientPhone.trim() } : {}),
+      ...(args.clientEmail?.trim() ? { clientEmail: args.clientEmail.trim() } : {}),
+      terms: (args.terms ?? defaults.terms).trim(),
+      cancellationPolicy: (args.cancellationPolicy ?? defaults.cancellationPolicy).trim(),
       itineraryId: args.itineraryId,
       invoiceDate: args.invoiceDate.trim(),
       currency: args.currency,
@@ -108,6 +186,9 @@ export const patchDraft = mutation({
     invoiceId: v.id("invoices"),
 
     clientName: v.optional(v.string()),
+    /** Pass `null` to clear. */
+    clientPhone: v.optional(v.union(v.string(), v.null())),
+    clientEmail: v.optional(v.union(v.string(), v.null())),
     /** Pass `null` to unlink the itinerary. */
     itineraryId: v.optional(v.union(v.id("itineraries"), v.null())),
     invoiceDate: v.optional(v.string()),
@@ -149,6 +230,8 @@ export const patchDraft = mutation({
       if (
         (k === "invoiceDate" ||
           k === "clientName" ||
+          k === "clientPhone" ||
+          k === "clientEmail" ||
           k === "paymentDetails" ||
           k === "tripSummary" ||
           k === "terms" ||
@@ -330,45 +413,119 @@ export const createFromItinerary = mutation({
   handler: async (ctx, { sessionToken, itineraryId, currency, advanceAmount, tripSummary }) => {
     const user = await requireUserFromSession(ctx, sessionToken);
     assertAdminFromSession(user);
-
-    const itin = await ctx.db.get(itineraryId);
-    if (!itin) throw new Error("Itinerary not found");
-
-    const now = Date.now();
-    const invoiceNumber = await issueInvoiceNumber(ctx, now);
-    const id = await ctx.db.insert("invoices", {
-      invoiceNumber,
-      clientName: itin.clientName,
-      itineraryId: itin._id,
-      invoiceDate: new Date().toISOString().slice(0, 10),
-      currency: currency ?? "PKR",
-      status: "draft",
-      items: [
-        {
-          name: `Trip package (${itin.days} days)`,
-          description: itin.title,
-          quantity: 1,
-          price: 0,
-        },
-      ],
-      discount: 0,
-      tax: 0,
-      advanceAmount: typeof advanceAmount === "number" ? Math.max(0, advanceAmount) : 0,
-      tripSummary: typeof tripSummary === "string" ? tripSummary.trim() : "",
-      paymentMethod: "bank",
-      paymentDetails: "",
-      createdAt: now,
-      updatedAt: now,
+    return await insertInvoiceFromItinerary(ctx, user._id, itineraryId, {
+      currency,
+      advanceAmount,
+      tripSummary,
     });
+  },
+});
 
+/** Short trip summary printed on the invoice, e.g. "Hunza Escape — 5 days, 2026-11-01 to 2026-11-05. 2 adults, 1 child." */
+function defaultTripSummary(itin: Doc<"itineraries">): string {
+  const dates =
+    itin.startDate && itin.endDate
+      ? `${itin.startDate} to ${itin.endDate}`
+      : (itin.startDate ?? "");
+  const people = [
+    typeof itin.adults === "number" && itin.adults > 0
+      ? `${itin.adults} adult${itin.adults === 1 ? "" : "s"}`
+      : "",
+    typeof itin.children === "number" && itin.children > 0
+      ? `${itin.children} ${itin.children === 1 ? "child" : "children"}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const head = [itin.title.trim(), [`${itin.days} days`, dates].filter(Boolean).join(", ")]
+    .filter(Boolean)
+    .join(" — ");
+  return [head ? `${head}.` : "", people ? `${people}.` : ""].filter(Boolean).join(" ");
+}
+
+async function insertInvoiceFromItinerary(
+  ctx: MutationCtx,
+  performedBy: Doc<"users">["_id"],
+  itineraryId: Doc<"itineraries">["_id"],
+  opts: { currency?: "PKR" | "USD"; advanceAmount?: number; tripSummary?: string },
+) {
+  const itin = await ctx.db.get(itineraryId);
+  if (!itin) throw new Error("Itinerary not found");
+
+  const now = Date.now();
+  const invoiceNumber = await issueInvoiceNumber(ctx, now);
+  const defaults = await invoiceTextDefaults(ctx);
+  const id = await ctx.db.insert("invoices", {
+    invoiceNumber,
+    clientName: itin.clientName,
+    ...(itin.clientPhone?.trim() ? { clientPhone: itin.clientPhone.trim() } : {}),
+    ...(itin.clientEmail?.trim() ? { clientEmail: itin.clientEmail.trim() } : {}),
+    itineraryId: itin._id,
+    invoiceDate: new Date().toISOString().slice(0, 10),
+    currency: opts.currency ?? "PKR",
+    status: "draft",
+    // Package + price from the itinerary, so the admin doesn't retype them.
+    items: invoiceItemsFromItinerary(itin),
+    discount: 0,
+    tax: 0,
+    advanceAmount:
+      typeof opts.advanceAmount === "number" ? Math.max(0, opts.advanceAmount) : 0,
+    tripSummary:
+      typeof opts.tripSummary === "string" ? opts.tripSummary.trim() : defaultTripSummary(itin),
+    paymentMethod: "bank",
+    paymentDetails: "",
+    terms: defaults.terms,
+    cancellationPolicy: defaults.cancellationPolicy,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await ctx.db.insert("adminLogs", {
+    action: "invoice_create_from_itinerary",
+    performedBy,
+    timestamp: now,
+    details: `${id} ← ${itineraryId}`,
+  });
+
+  return id;
+}
+
+/**
+ * "Make invoice" in the itinerary builder: opens the invoice already linked
+ * to this itinerary, or creates one (pre-filled) when there is none.
+ */
+export const getOrCreateForItinerary = mutation({
+  args: { sessionToken: v.string(), itineraryId: v.id("itineraries") },
+  handler: async (ctx, { sessionToken, itineraryId }) => {
+    const user = await requireUserFromSession(ctx, sessionToken);
+    assertAdminFromSession(user);
+    const existing = await ctx.db
+      .query("invoices")
+      .withIndex("by_itinerary", (q) => q.eq("itineraryId", itineraryId))
+      .first();
+    if (existing) return { invoiceId: existing._id, created: false };
+    const invoiceId = await insertInvoiceFromItinerary(ctx, user._id, itineraryId, {});
+    return { invoiceId, created: true };
+  },
+});
+
+/** Unpaid ("draft") / Advance paid / Fully paid ("paid"). */
+export const setStatus = mutation({
+  args: { sessionToken: v.string(), invoiceId: v.id("invoices"), status: invoiceStatusValidator },
+  handler: async (ctx, { sessionToken, invoiceId, status }) => {
+    const user = await requireUserFromSession(ctx, sessionToken);
+    assertAdminFromSession(user);
+    const row = await ctx.db.get(invoiceId);
+    if (!row) throw new Error("Invoice not found");
+    if (row.status === status) return;
+    const now = Date.now();
+    await ctx.db.patch(invoiceId, { status, updatedAt: now });
     await ctx.db.insert("adminLogs", {
-      action: "invoice_create_from_itinerary",
+      action: "invoice_set_status",
       performedBy: user._id,
       timestamp: now,
-      details: `${id} ← ${itineraryId}`,
+      details: `${invoiceId} → ${status}`,
     });
-
-    return id;
   },
 });
 

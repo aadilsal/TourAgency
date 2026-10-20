@@ -27,7 +27,16 @@ export function statusToneClass(status: string): string {
 }
 
 /** Read-only status pill using the same tones as StatusSelect. */
-export function StatusBadge({ status, className }: { status: string; className?: string }) {
+export function StatusBadge({
+  status,
+  className,
+  label,
+}: {
+  status: string;
+  className?: string;
+  /** Display text (defaults to the stored status word). */
+  label?: string;
+}) {
   return (
     <span
       className={cn(
@@ -36,7 +45,7 @@ export function StatusBadge({ status, className }: { status: string; className?:
         className,
       )}
     >
-      {status}
+      {label ?? status}
     </span>
   );
 }

@@ -19,6 +19,7 @@ import { importInBatches } from "@/lib/bulkUpload/importInBatches";
 import { useEditorForm } from "@/hooks/useEditorForm";
 import { confirmDiscard } from "@/hooks/useUnsavedChangesGuard";
 import { AdminField, RequiredFieldsNote, useRequiredFields } from "@/components/admin/shared/AdminField";
+import { AdvancedSection, MoreMenu } from "@/components/admin/tour-form/fields";
 
 type FaqRow = {
   _id: Id<"faqs">;
@@ -41,14 +42,6 @@ type FaqForm = {
 
 const DEFAULT_CATEGORY = "General Travel FAQs";
 const PAGE_SIZE = 100;
-
-function slugifyCategory(cat: string) {
-  return (cat || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-");
-}
 
 /**
  * Inline sort-order editor. Saves on blur / Enter only (not per keystroke),
@@ -95,7 +88,7 @@ function SortOrderInput({
         busy && "opacity-60",
       )}
       type="number"
-      aria-label="Sort order"
+      aria-label="Position in list"
       value={text}
       disabled={busy}
       onFocus={() => setFocused(true)}
@@ -153,7 +146,7 @@ export function AdminFaqsPanel() {
     [
       { name: "question", label: "Question", value: values.question },
       { name: "answer", label: "Answer", value: values.answer },
-      { name: "sortOrder", label: "Sort order", value: values.sortOrder, when: editingId !== null },
+      { name: "sortOrder", label: "Position in list", value: values.sortOrder, when: editingId !== null },
     ],
     { idPrefix: "faq-editor" },
   );
@@ -209,17 +202,17 @@ export function AdminFaqsPanel() {
     if (!req.guardSubmit(e)) return;
     setErr(null);
     if (typeof sessionToken !== "string") {
-      setErr("Session expired — refresh and sign in again.");
+      setErr("You have been signed out. Refresh the page and sign in again.");
       return;
     }
     const sortText = values.sortOrder.trim();
     const sortOrder = sortText === "" ? undefined : Number(sortText);
     if (sortOrder !== undefined && !Number.isFinite(sortOrder)) {
-      setErr("Sort order must be a number.");
+      setErr("Position in list must be a number.");
       return;
     }
     if (editingId && sortOrder === undefined) {
-      setErr("Sort order is required.");
+      setErr("Position in list is required.");
       return;
     }
     setSaving(true);
@@ -277,23 +270,22 @@ export function AdminFaqsPanel() {
           <Plus className="h-4 w-4" aria-hidden />
           New FAQ
         </Button>
-        <Button type="button" variant="secondary" onClick={() => setBulkOpen(true)}>
-          Bulk upload
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() =>
-            void runListAction(async () => {
-              const r = await seed({ sessionToken });
-              if (r.skipped) setListErr("Sample FAQs are only added when there are no FAQs yet.");
-            }).catch(() => undefined)
-          }
-        >
-          Seed sample FAQs
-        </Button>
+        <MoreMenu
+          items={[
+            { label: "Upload many FAQs from a spreadsheet", onSelect: () => setBulkOpen(true) },
+            process.env.NODE_ENV === "development" && {
+              label: "Seed sample FAQs (developer only)",
+              onSelect: () =>
+                void runListAction(async () => {
+                  const r = await seed({ sessionToken });
+                  if (r.skipped) setListErr("Sample FAQs are only added when there are no FAQs yet.");
+                }).catch(() => undefined),
+            },
+          ]}
+        />
         <p className="text-xs text-slate-500">
-          Tip: use sort order to control how items appear in the FAQ section of the About page. Press Enter or click away to save it.
+          Tip: change the “Position” number to reorder questions on the About page (lower numbers
+          come first). Press Enter or click away to save it.
         </p>
       </div>
 
@@ -309,7 +301,7 @@ export function AdminFaqsPanel() {
             <tr>
               <th className="px-4 py-3">Question</th>
               <th className="px-4 py-3">Category</th>
-              <th className="px-4 py-3">Sort</th>
+              <th className="px-4 py-3">Position</th>
               <th className="px-4 py-3">Visible</th>
               <th className="px-4 py-3 text-right">Actions</th>
             </tr>
@@ -324,13 +316,8 @@ export function AdminFaqsPanel() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-slate-600">
-                  <span className="inline-flex items-center gap-2">
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                      {row.category}
-                    </span>
-                    <span className="text-xs text-slate-400">
-                      #{slugifyCategory(row.category)}
-                    </span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                    {row.category}
                   </span>
                 </td>
                 <td className="px-4 py-3">
@@ -401,7 +388,7 @@ export function AdminFaqsPanel() {
         </table>
         {list.length === 0 ? (
           <p className="p-6 text-sm text-slate-500">
-            No FAQs yet. Click “New FAQ” or seed sample items.
+            No FAQs yet. Click “New FAQ” to add your first question.
           </p>
         ) : null}
       </div>
@@ -424,7 +411,7 @@ export function AdminFaqsPanel() {
         onClose={() => setEditorOpen(false)}
         confirmClose={dirty}
         title={editingId ? "Edit FAQ" : "New FAQ"}
-        description="Question/answer show on the public FAQs page when Visible is on."
+        description="Questions and answers appear in the FAQ section of your About page when “Visible” is on."
         panelClassName="max-w-2xl"
       >
         <form noValidate onSubmit={onSave} className="space-y-3">
@@ -473,23 +460,6 @@ export function AdminFaqsPanel() {
                 ))}
               </datalist>
             </AdminField>
-            <AdminField
-              label="Sort order"
-              htmlFor={req.id("sortOrder")}
-              required={editingId !== null}
-              tip="Lower numbers appear first on the site."
-              hint={editingId ? undefined : "Leave blank to add it at the end of the list."}
-              error={req.errorFor("sortOrder")}
-            >
-              <input
-                {...req.fieldProps("sortOrder")}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                type="number"
-                placeholder={editingId ? "e.g. 10" : "auto (end of list)"}
-                value={values.sortOrder}
-                onChange={(e) => setField("sortOrder", e.target.value)}
-              />
-            </AdminField>
           </div>
 
           <AdminField
@@ -508,6 +478,26 @@ export function AdminFaqsPanel() {
               onChange={(e) => setField("answer", e.target.value)}
             />
           </AdminField>
+
+          <AdvancedSection forceOpen={Boolean(req.errorFor("sortOrder")) || Boolean(err && /position/i.test(err))}>
+            <AdminField
+              label="Position in list"
+              htmlFor={req.id("sortOrder")}
+              required={editingId !== null}
+              tip="Lower numbers appear first on the site, e.g. 1 comes before 2."
+              hint={editingId ? undefined : "Leave blank to add it at the end of the list."}
+              error={req.errorFor("sortOrder")}
+            >
+              <input
+                {...req.fieldProps("sortOrder")}
+                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                type="number"
+                placeholder={editingId ? "e.g. 10" : "blank = end of list"}
+                value={values.sortOrder}
+                onChange={(e) => setField("sortOrder", e.target.value)}
+              />
+            </AdminField>
+          </AdvancedSection>
 
           <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3">
             <span>
@@ -557,16 +547,17 @@ export function AdminFaqsPanel() {
       <BulkUploadModal
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
-        title="Bulk upload FAQs"
-        description="Upload a .json or .xlsx file. Rows are upserted by (category + question). Blank cells keep existing values."
+        title="Upload many FAQs from a spreadsheet"
+        description="Upload an Excel (.xlsx) or .json file with one question per row. Rows with the same question (in the same category) update the existing FAQ; new questions are added. Empty cells keep the current value."
         templateHint={
           <div className="space-y-1">
-            <p className="font-semibold">Columns / keys</p>
+            <p className="font-semibold">Spreadsheet columns</p>
             <p className="font-mono text-xs">
               question, answer, category, sortOrder, isActive
             </p>
             <p className="text-xs text-slate-600">
-              Tip: for XLSX, use TRUE/FALSE for isActive.
+              “sortOrder” is the position in the list. “isActive” is TRUE to show the question or
+              FALSE to hide it.
             </p>
           </div>
         }

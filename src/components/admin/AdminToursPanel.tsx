@@ -14,6 +14,7 @@ import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { BulkUploadModal } from "@/components/admin/BulkUploadModal";
 import { TourPdfImportButton } from "@/components/admin/TourPdfImportButton";
 import { adminErrorMessage } from "@/components/admin/tour-form/errors";
+import { MoreMenu } from "@/components/admin/tour-form/fields";
 import { asBoolean, asJson, asNumber, asString, asStringArray } from "@/lib/bulkUpload/coerce";
 import { importInBatches } from "@/lib/bulkUpload/importInBatches";
 import { TOUR_PDF_DRAFT_STORAGE_KEY } from "@/lib/tours/tour-draft";
@@ -59,7 +60,7 @@ export function AdminToursPanel() {
   async function toggleActive(tourId: Id<"tours">, isActive: boolean) {
     setMsg(null);
     if (!hasConvexSessionToken) {
-      setMsg("Session expired — refresh and sign in again.");
+      setMsg("You have been signed out. Refresh the page and sign in again.");
       return;
     }
     try {
@@ -72,7 +73,7 @@ export function AdminToursPanel() {
   async function removeTour(tourId: Id<"tours">) {
     setMsg(null);
     if (!hasConvexSessionToken) {
-      setMsg("Session expired — refresh and sign in again.");
+      setMsg("You have been signed out. Refresh the page and sign in again.");
       return;
     }
     try {
@@ -87,7 +88,7 @@ export function AdminToursPanel() {
     setMsg(null);
     try {
       const r = await seed({ sessionToken: sessionToken as string });
-      setMsg(r.skipped ? "Tours already exist." : `Inserted ${r.inserted} tours.`);
+      setMsg(r.skipped ? "Tours already exist." : `Added ${r.inserted} sample tours.`);
     } catch (e) {
       setMsg(toUserFacingErrorMessage(e));
     }
@@ -105,42 +106,53 @@ export function AdminToursPanel() {
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="primary"
-          onClick={() => {
-            // "Add tour" is a blank form: drop any leftover document import.
-            try {
-              sessionStorage.removeItem(TOUR_PDF_DRAFT_STORAGE_KEY);
-            } catch {
-              /* ignore */
-            }
-            router.push("/admin/tours/new");
-          }}
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-          Add tour
-        </Button>
-        <TourPdfImportButton
-          sessionToken={sessionToken}
-          disabled={!hasConvexSessionToken}
-          onDraft={(draft) => {
-            try {
-              sessionStorage.setItem(TOUR_PDF_DRAFT_STORAGE_KEY, JSON.stringify(draft));
-            } catch {
-              /* ignore quota errors */
-            }
-            router.push("/admin/tours/new");
-          }}
-          onError={setMsg}
-        />
-        <Button type="button" variant="secondary" onClick={() => setBulkOpen(true)}>
-          Bulk upload
-        </Button>
-        <Button type="button" variant="secondary" onClick={() => void onSeed()}>
-          Seed sample tours
-        </Button>
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <TourPdfImportButton
+            variant="primary"
+            label="Upload tour document (AI fills the form)"
+            sessionToken={sessionToken}
+            disabled={!hasConvexSessionToken}
+            onDraft={(draft) => {
+              try {
+                sessionStorage.setItem(TOUR_PDF_DRAFT_STORAGE_KEY, JSON.stringify(draft));
+              } catch {
+                /* ignore quota errors */
+              }
+              router.push("/admin/tours/new");
+            }}
+            onError={setMsg}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              // "Add tour" is a blank form: drop any leftover document import.
+              try {
+                sessionStorage.removeItem(TOUR_PDF_DRAFT_STORAGE_KEY);
+              } catch {
+                /* ignore */
+              }
+              router.push("/admin/tours/new");
+            }}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Add tour manually
+          </Button>
+          <MoreMenu
+            items={[
+              { label: "Upload many tours from a spreadsheet", onSelect: () => setBulkOpen(true) },
+              process.env.NODE_ENV === "development" && {
+                label: "Seed sample tours (developer only)",
+                onSelect: () => void onSeed(),
+              },
+            ]}
+          />
+        </div>
+        <p className="text-xs text-slate-500">
+          Have a tour plan as a PDF, Word or text file? Upload it and the form is filled in for
+          you to check and save.
+        </p>
       </div>
 
       {msg ? (
@@ -169,7 +181,6 @@ export function AdminToursPanel() {
           <thead className="whitespace-nowrap border-b border-slate-200 bg-slate-50/90 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
               <th className="px-4 py-3">Tour</th>
-              <th className="px-4 py-3">Slug</th>
               <th className="px-4 py-3">Location</th>
               <th className="px-4 py-3">Destination</th>
               <th className="px-4 py-3">Types</th>
@@ -181,8 +192,12 @@ export function AdminToursPanel() {
           <tbody>
             {tours.map((t) => (
               <tr key={t._id} className="border-b border-slate-100 last:border-0">
-                <td className="px-4 py-3 font-medium text-brand-ink">{t.title}</td>
-                <td className="px-4 py-3 text-slate-600">/{t.slug}</td>
+                <td className="px-4 py-3">
+                  <span className="block font-medium text-brand-ink">{t.title}</span>
+                  <span className="block text-xs text-slate-400">
+                    <span className="sr-only">Web address: </span>/tours/{t.slug}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-slate-600">{t.location}</td>
                 <td className="px-4 py-3 text-slate-600">
                   {(() => {
@@ -259,7 +274,7 @@ export function AdminToursPanel() {
         </table>
         {tours.length === 0 && hasConvexSessionToken ? (
           <p className="p-6 text-sm text-slate-500">
-            {search ? `No tours match “${search}”.` : "No tours yet. Add one or seed samples."}
+            {search ? `No tours match “${search}”.` : "No tours yet. Upload a tour document or add one manually."}
           </p>
         ) : null}
       </div>
@@ -280,21 +295,23 @@ export function AdminToursPanel() {
       <BulkUploadModal
         open={bulkOpen}
         onClose={() => setBulkOpen(false)}
-        title="Bulk upload tours"
-        description="Upload a .json or .xlsx file. Rows are upserted by slug. When a tour already exists, only the columns you fill in are updated — blank cells keep the current value. For nested fields, use JSON-in-cell (recommended) or newline-separated lists where applicable."
+        title="Upload many tours from a spreadsheet"
+        description="Upload an Excel (.xlsx) or .json file with one tour per row. Rows with the same web address as an existing tour update that tour; new ones are added. Empty cells leave the current value as it is."
         templateHint={
           <div className="space-y-1">
-            <p className="font-semibold">Required keys</p>
+            <p className="font-semibold">Columns you must fill in</p>
             <p className="font-mono text-xs">
               title, slug, description, durationDays, location, isActive (+ itinerary for new tours)
             </p>
             <p className="text-xs text-slate-600">
-              Optional: images, pricePkr (or price), priceUsd, types, highlights, included, excluded,
-              timeSlots, ticketGroups, maxPeople, minAge, tourTypeLabel, office, email.
+              “slug” is the tour’s web address (e.g. hunza-7-days). Optional columns: images,
+              pricePkr, priceUsd, types, highlights, included, excluded, timeSlots, ticketGroups,
+              maxPeople, minAge, tourTypeLabel, office, email.
             </p>
             <p className="text-xs text-slate-600">
-              For XLSX: put <span className="font-mono">images</span> as newline/comma text, and{" "}
-              <span className="font-mono">itinerary</span> as a JSON array string.
+              Lists (images, highlights…) can be one item per line. New tours also need the
+              day-by-day itinerary column, written like
+              [{"{"}&quot;day&quot;: 1, &quot;title&quot;: &quot;Arrive in Hunza&quot;{"}"}].
             </p>
           </div>
         }
