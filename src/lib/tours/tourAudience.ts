@@ -1,8 +1,10 @@
 /**
- * Who a tour is marketed to. A tour without one is for everyone (no badge).
- * The stored value stays "foreigners"; visitors see it as "International".
+ * Optional tour badge + /tours filter. A tour without one shows no badge.
+ * "foreigners" is shown as "International". The old "pakistanis" value is no
+ * longer offered (it made Pakistani visitors feel excluded); rows that still
+ * have it are treated as "no badge".
  */
-export type TourAudience = "foreigners" | "pakistanis";
+export type TourAudience = "popular" | "foreigners";
 
 export const TOUR_AUDIENCE_OPTIONS: ReadonlyArray<{
   value: TourAudience;
@@ -11,12 +13,12 @@ export const TOUR_AUDIENCE_OPTIONS: ReadonlyArray<{
   /** Short badge on cards and the tour page. */
   badge: string;
 }> = [
+  { value: "popular", label: "Most popular", badge: "Most popular" },
   { value: "foreigners", label: "International tours", badge: "International tour" },
-  { value: "pakistanis", label: "Pakistani tours", badge: "Pakistani tour" },
 ];
 
 export function parseTourAudience(raw: string | null | undefined): TourAudience | null {
-  return raw === "foreigners" || raw === "pakistanis" ? raw : null;
+  return raw === "popular" || raw === "foreigners" ? raw : null;
 }
 
 export function tourAudienceBadge(audience: string | null | undefined): string | null {

@@ -353,7 +353,7 @@ const FIELD_LABELS: Record<keyof TourFormValues, string> = {
   title: "Title",
   slug: "Slug",
   knowBeforeYouGo: "Know before you go",
-  audience: "Tour for",
+  audience: "Tour badge",
   relatedBlogPostIds: "Related blog posts",
   description: "Description",
   types: "Tour types",

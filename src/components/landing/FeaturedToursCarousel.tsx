@@ -35,21 +35,20 @@ export function FeaturedToursCarousel({ tours, initialCurrency }: Props) {
           description="Handpicked routes through heritage cities, ancient sites, and northern valleys — tell us your dates and we'll tailor a quote."
         />
         <div className="mt-8 md:mt-16">
-          <EmblaRow itemLabel="tour" slideClassName="min-w-0 flex-[0_0_90%] sm:flex-[0_0_55%] lg:flex-[0_0_36%] xl:flex-[0_0_32%]">
-            {tours.map((t, i) => (
-              <TourCard
-                key={t._id}
-                tour={t}
-                currency={currency}
-                badge={
-                  i % 3 === 0
-                    ? "Most popular"
-                    : i % 3 === 1
-                      ? "Limited slots"
-                      : "Best value"
-                }
-              />
-            ))}
+          <EmblaRow
+            itemLabel="tour"
+            slideClassName="min-w-0 flex-[0_0_90%] sm:flex-[0_0_55%] lg:flex-[0_0_36%] xl:flex-[0_0_32%]"
+          >
+            {/* "Most popular" (set in the admin) first; otherwise keep the server order. */}
+            {[...tours]
+              .sort(
+                (a, b) =>
+                  Number(b.audience === "popular") -
+                  Number(a.audience === "popular"),
+              )
+              .map((t) => (
+                <TourCard key={t._id} tour={t} currency={currency} />
+              ))}
           </EmblaRow>
         </div>
       </PageContainer>

@@ -101,7 +101,7 @@ function TourFiltersForm({
       </p>
 
       <label className="block text-sm">
-        <span className="font-medium text-havezic-text">Tour for</span>
+        <span className="font-medium text-havezic-text">Show</span>
         <select
           className={fieldClass}
           value={audience}

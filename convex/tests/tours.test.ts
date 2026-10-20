@@ -397,3 +397,13 @@ test("setAudienceIfUnset with expectedCurrent only changes an unchanged value", 
   expect((await t.run((ctx) => ctx.db.get(a)))!.audience).toBe("foreigners");
   expect((await t.run((ctx) => ctx.db.get(b)))!.audience).toBe("foreigners");
 });
+
+test("tour badge accepts popular; legacy pakistanis rows stay valid", async () => {
+  const t = newTest();
+  const sessionToken = await signIn(t);
+  const legacy = await createTour(t, sessionToken, { slug: "legacy-pk", audience: "pakistanis" });
+  await t.mutation(api.tours.updateTour, { sessionToken, tourId: legacy, title: "Edited" });
+  expect((await t.run((ctx) => ctx.db.get(legacy)))!.audience).toBe("pakistanis");
+  await t.mutation(api.tours.updateTour, { sessionToken, tourId: legacy, audience: "popular" });
+  expect((await t.run((ctx) => ctx.db.get(legacy)))!.audience).toBe("popular");
+});

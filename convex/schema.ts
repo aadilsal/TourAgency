@@ -106,7 +106,10 @@ export default defineSchema({
      */
     knowBeforeYouGo: v.optional(v.string()),
     /** Who the tour is marketed to (badge + /tours filter). Absent = everyone. */
-    audience: v.optional(v.union(v.literal("foreigners"), v.literal("pakistanis"))),
+    /** "pakistanis" is legacy (no longer offered or shown) but kept valid for old rows. */
+    audience: v.optional(
+      v.union(v.literal("foreigners"), v.literal("popular"), v.literal("pakistanis")),
+    ),
     /** Blog posts shown under "Read more on our blog" on the tour page. */
     relatedBlogPostIds: v.optional(v.array(v.id("blogPosts"))),
     /** Business-defined tour categories used by homepage/type filtering. */

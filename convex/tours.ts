@@ -344,10 +344,15 @@ export const getTourForAdmin = query({
   },
 });
 
-const tourAudienceValidator = v.union(v.literal("foreigners"), v.literal("pakistanis"));
+/** Tour badge. "pakistanis" is legacy: still accepted, no longer offered or shown. */
+const tourAudienceValidator = v.union(
+  v.literal("foreigners"),
+  v.literal("popular"),
+  v.literal("pakistanis"),
+);
 
 /**
- * Bulk "Tour for" labelling from the CLI (e.g. an AI classification pass):
+ * Bulk tour-badge labelling from the CLI (e.g. an AI classification pass):
  * `npx convex run tours:setAudienceIfUnset '{"assignments":[...]}'`.
  * Only fills tours that have no audience yet — an admin-chosen value is never
  * overwritten. To correct an earlier pass, send `expectedCurrent`: the tour

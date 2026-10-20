@@ -12,7 +12,7 @@ import {
 } from "@/lib/tours/tourPricing";
 import { tourAudienceBadge } from "@/lib/tours/tourAudience";
 
-/** "International tour" / "Pakistani tour" pill on the card photo (top-right). */
+/** "Most popular" / "International tour" pill on the card photo (top-right). */
 function AudienceBadge({ audience, className }: { audience?: string; className?: string }) {
   const label = tourAudienceBadge(audience);
   if (!label) return null;
@@ -41,7 +41,7 @@ export type TourCardData = {
   durationDays: number;
   location: string;
   images: string[];
-  /** "foreigners" | "pakistanis"; absent = for everyone (no badge). */
+  /** "popular" | "foreigners" shows a badge; anything else shows none. */
   audience?: string;
 };
 

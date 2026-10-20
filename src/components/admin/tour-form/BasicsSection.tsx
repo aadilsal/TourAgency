@@ -31,9 +31,9 @@ export function BasicsSection({
   return (
     <>
       <AdminField
-        label="Tour for"
+        label="Tour badge"
         htmlFor="tour-editor-audience"
-        tip="Who this tour is marketed to. International tours get an “International tour” badge and appear under that filter on /tours; Pakistani tours get a “Pakistani tour” badge. Choose Everyone for tours that suit both."
+        tip="Optional badge on the tour's photo. “Most popular” tours are listed first on the home page; “International tour” ones also appear in the home page's International tours section. Both can be filtered on /tours. Choose No badge to show none."
       >
         <select
           id="tour-editor-audience"
@@ -41,7 +41,7 @@ export function BasicsSection({
           value={values.audience}
           onChange={(e) => onChange({ audience: parseTourAudience(e.target.value) ?? "" })}
         >
-          <option value="">Everyone (no badge)</option>
+          <option value="">No badge</option>
           {TOUR_AUDIENCE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label} — badge “{o.badge}”

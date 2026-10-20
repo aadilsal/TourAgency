@@ -22,7 +22,7 @@ export const metadata: Metadata = buildMetadata({
 
 type Search = {
   type?: string;
-  /** "foreigners" | "pakistanis" — the "Tour for" filter. */
+  /** "popular" | "foreigners" — the "Show" filter. */
   audience?: string;
   max?: string;
   min?: string;

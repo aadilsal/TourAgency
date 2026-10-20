@@ -21,9 +21,9 @@ test("tours list, audience filter, detail page", async ({ page }) => {
   const cards = page.locator('a[href^="/tours/"]');
   await expect(cards.first()).toBeVisible();
 
-  await expect(page.getByText(/tour for/i).first(), "'Tour for' filter label").toBeVisible();
+  await expect(page.getByText(/most popular/i).first(), "'Show' filter options").toBeAttached();
   await expect(page.getByText(/international tours/i).first()).toBeAttached();
-  await expect(page.getByText(/pakistani tours/i).first()).toBeAttached();
+  await expect(page.getByText(/pakistani tours?/i)).toHaveCount(0);
 
   await page.goto("/tours?audience=foreigners");
   await expect(page.locator('a[href^="/tours/"]').first()).toBeVisible();
