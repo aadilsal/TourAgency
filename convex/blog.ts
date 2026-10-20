@@ -6,6 +6,14 @@ import type { Doc, Id } from "./_generated/dataModel.js";
 
 const MAX_PUBLIC_POSTS = 200;
 
+const postKindValidator = v.union(v.literal("guide"), v.literal("blog"));
+
+/** Posts without a kind are guides (every post written before the split). */
+function isKind(p: Doc<"blogPosts">, kind: "guide" | "blog" | undefined) {
+  if (!kind) return true;
+  return (p.kind ?? "guide") === kind;
+}
+
 function normalizeBlogSlug(raw: string): string {
   return raw.trim().toLowerCase().replace(/\s+/g, "-");
 }
@@ -133,14 +141,16 @@ export const listAdminPage = query({
   },
 });
 
+/** Published posts; pass `kind` for just guides or just blog posts (omit = all). */
 export const listPublicPosts = query({
-  args: {},
-  handler: async (ctx) => {
-    return await ctx.db
+  args: { kind: v.optional(postKindValidator) },
+  handler: async (ctx, { kind }) => {
+    const posts = await ctx.db
       .query("blogPosts")
       .withIndex("by_published_and_createdAt", (q) => q.eq("published", true))
       .order("desc")
       .take(MAX_PUBLIC_POSTS);
+    return posts.filter((p) => isKind(p, kind));
   },
 });
 
@@ -164,7 +174,14 @@ export const listRelatedPublic = query({
       .withIndex("by_published_and_createdAt", (q) => q.eq("published", true))
       .order("desc")
       .take(MAX_PUBLIC_POSTS);
-    return posts.filter((p) => p.slug !== slug).slice(0, Math.max(1, limit ?? 3));
+    // Same type (guide/blog) first, then the rest, so short lists still fill up.
+    const kind = posts.find((p) => p.slug === slug)?.kind ?? "guide";
+    const others = posts.filter((p) => p.slug !== slug);
+    const ordered = [
+      ...others.filter((p) => isKind(p, kind)),
+      ...others.filter((p) => !isKind(p, kind)),
+    ];
+    return ordered.slice(0, Math.max(1, limit ?? 3));
   },
 });
 
@@ -225,6 +242,7 @@ export const createPost = mutation({
     metaTitle: v.optional(v.string()),
     metaDescription: v.optional(v.string()),
     published: v.boolean(),
+    kind: v.optional(postKindValidator),
   },
   handler: async (ctx, { sessionToken, ...args }) => {
     const admin = await requireAdminFromSession(ctx, sessionToken);
@@ -238,6 +256,7 @@ export const createPost = mutation({
       title: args.title,
       content: args.content,
       published: args.published,
+      kind: args.kind ?? "guide",
       ...(metaTitle ? { metaTitle } : {}),
       ...(metaDescription ? { metaDescription } : {}),
       slug,
@@ -264,6 +283,7 @@ export const updatePost = mutation({
     metaTitle: v.optional(v.union(v.string(), v.null())),
     metaDescription: v.optional(v.union(v.string(), v.null())),
     published: v.optional(v.boolean()),
+    kind: v.optional(postKindValidator),
   },
   handler: async (ctx, { sessionToken, postId, ...patch }) => {
     const admin = await requireAdminFromSession(ctx, sessionToken);
@@ -276,6 +296,7 @@ export const updatePost = mutation({
     }
     if (patch.content !== undefined) next.content = patch.content;
     if (patch.published !== undefined) next.published = patch.published;
+    if (patch.kind !== undefined) next.kind = patch.kind;
     for (const key of ["metaTitle", "metaDescription"] as const) {
       const val = patch[key];
       if (val === undefined) continue;

@@ -42,6 +42,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   add("/about", "monthly", 0.6);
   add("/contact", "yearly", 0.6);
   add("/blog", "weekly", 0.7);
+  add("/travel-blog", "weekly", 0.6);
 
   // Evergreen guides for international travellers
   add("/pakistan-tourist-visa-guide", "monthly", 0.8);

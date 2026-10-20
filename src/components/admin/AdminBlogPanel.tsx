@@ -30,6 +30,8 @@ type Post = {
   published: boolean;
   metaTitle?: string;
   metaDescription?: string;
+  /** Absent = guide (every post written before the Guides/Blog split). */
+  kind?: "guide" | "blog";
   createdAt: number;
 };
 
@@ -40,6 +42,7 @@ type PostForm = {
   metaTitle: string;
   metaDescription: string;
   published: boolean;
+  kind: "guide" | "blog";
 };
 
 const EMPTY_POST: PostForm = {
@@ -49,6 +52,7 @@ const EMPTY_POST: PostForm = {
   metaTitle: "",
   metaDescription: "",
   published: false,
+  kind: "guide",
 };
 
 const PAGE_SIZE = 50;
@@ -113,6 +117,7 @@ export function AdminBlogPanel() {
       metaTitle: p.metaTitle ?? "",
       metaDescription: p.metaDescription ?? "",
       published: p.published,
+      kind: p.kind ?? "guide",
     });
     req.reset();
     setErr(null);
@@ -204,6 +209,7 @@ export function AdminBlogPanel() {
           metaTitle: values.metaTitle.trim() || null,
           metaDescription: values.metaDescription.trim() || null,
           published: values.published,
+          kind: values.kind,
         });
       } else {
         await createPost({
@@ -214,6 +220,7 @@ export function AdminBlogPanel() {
           metaTitle: values.metaTitle.trim() || undefined,
           metaDescription: values.metaDescription.trim() || undefined,
           published: values.published,
+          kind: values.kind,
         });
       }
       draft.clear();
@@ -286,6 +293,16 @@ export function AdminBlogPanel() {
                   <span className="inline-flex items-center gap-1.5">
                     <FileText className="h-4 w-4 text-slate-400" aria-hidden />
                     {p.title}
+                    <span
+                      className={cn(
+                        "ml-1 rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                        p.kind === "blog"
+                          ? "bg-sky-50 text-sky-700"
+                          : "bg-amber-50 text-amber-700",
+                      )}
+                    >
+                      {p.kind === "blog" ? "Blog" : "Guide"}
+                    </span>
                   </span>
                 </td>
                 <td className="px-4 py-3 text-slate-600">/{p.slug}</td>
@@ -392,6 +409,21 @@ export function AdminBlogPanel() {
               {err}
             </p>
           ) : null}
+          <AdminField
+            label="Type"
+            htmlFor="blog-post-kind"
+            tip="Guides are evergreen travel guides, listed under Guides (/blog). Blog posts are news and stories, listed under Blog (/travel-blog). The post's own web address is the same either way."
+          >
+            <select
+              id="blog-post-kind"
+              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              value={values.kind}
+              onChange={(e) => setField("kind", e.target.value === "blog" ? "blog" : "guide")}
+            >
+              <option value="guide">Guide — shown under “Guides”</option>
+              <option value="blog">Blog post — shown under “Blog”</option>
+            </select>
+          </AdminField>
           <div className="grid gap-3 sm:grid-cols-2">
             <AdminField
               label="Title"
@@ -478,7 +510,7 @@ export function AdminBlogPanel() {
                 Published
               </span>
               <span className="text-xs text-slate-500">
-                When on, the post is visible on /blog.
+                When on, the post is visible on the website (Guides or Blog, by its type).
               </span>
             </span>
             <button

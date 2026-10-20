@@ -27,7 +27,7 @@ export default async function BlogIndexPage() {
   let loadError: string | null = null;
   try {
     const client = getConvexServer();
-    posts = (await client.query(api.blog.listPublicPosts, {})) as typeof posts;
+    posts = (await client.query(api.blog.listPublicPosts, { kind: "guide" })) as typeof posts;
   } catch (error) {
     loadError =
       error instanceof Error

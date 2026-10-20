@@ -10,6 +10,7 @@ import {
   Sparkles,
   MapPin,
   BookOpen,
+  Newspaper,
   Compass,
   PhoneCall,
   LayoutDashboard,
@@ -837,7 +838,8 @@ export function SiteHeaderNav({
     () => [
       { href: "/about", label: "About Us", icon: Compass },
       { href: "/contact", label: "Contact", icon: PhoneCall },
-      { href: "/blog", label: "Blog", icon: BookOpen },
+      { href: "/blog", label: "Guides", icon: BookOpen },
+      { href: "/travel-blog", label: "Blog", icon: Newspaper },
     ],
     [],
   );

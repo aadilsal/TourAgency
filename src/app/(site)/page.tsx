@@ -70,7 +70,7 @@ async function HomePageDeferred() {
 
   try {
     const client = getConvexServer();
-    const rawPosts = (await client.query(api.blog.listPublicPosts, {})) as Array<{
+    const rawPosts = (await client.query(api.blog.listPublicPosts, { kind: "guide" })) as Array<{
       slug: string;
       title: string;
       metaDescription?: string;

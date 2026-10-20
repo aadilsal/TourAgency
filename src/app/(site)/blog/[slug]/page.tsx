@@ -80,6 +80,11 @@ export default async function BlogPostPage({ params }: Props) {
   const publishedIso = new Date(post.createdAt).toISOString();
   const readMin = readingMinutes(post.content);
   const hero = blogCoverImage(post.slug);
+  // Guides live under /blog, blog posts under /travel-blog (post URLs are the same).
+  const section =
+    (post as { kind?: string }).kind === "blog"
+      ? { name: "Blog", path: "/travel-blog" }
+      : { name: "Travel Guides", path: "/blog" };
 
   return (
     <main className="min-h-screen pb-20 md:pb-24">
@@ -92,7 +97,7 @@ export default async function BlogPostPage({ params }: Props) {
       <BreadcrumbJsonLd
         items={[
           { name: "Home", path: "/" },
-          { name: "Travel Guides", path: "/blog" },
+          { name: section.name, path: section.path },
           { name: post.title, path: `/blog/${post.slug}` },
         ]}
       />
@@ -109,8 +114,8 @@ export default async function BlogPostPage({ params }: Props) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/30" />
         <PageContainer className="relative flex h-full flex-col justify-end pb-10 pt-28 md:pb-14 md:pt-36">
           <p className="text-sm font-medium text-white/85">
-            <Link href="/blog" className="hover:underline">
-              Travel Guides
+            <Link href={section.path} className="hover:underline">
+              {section.name}
             </Link>{" "}
             / Article
           </p>

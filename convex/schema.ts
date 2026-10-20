@@ -450,6 +450,8 @@ export default defineSchema({
     metaTitle: v.optional(v.string()),
     metaDescription: v.optional(v.string()),
     published: v.boolean(),
+    /** "guide" → /blog ("Guides"), "blog" → /travel-blog ("Blog"). Absent = guide. */
+    kind: v.optional(v.union(v.literal("guide"), v.literal("blog"))),
     createdAt: v.number(),
   })
     .index("by_slug", ["slug"])

@@ -405,3 +405,28 @@ test("team: move works with tied sortOrders and bulk blanks keep values", async 
   const a = await t.run(async (ctx) => ctx.db.get(ids[0]!));
   expect(a!.isActive).toBe(false);
 });
+
+test("blog: guides vs blog posts — legacy posts are guides, saves without kind keep it", async () => {
+  const t = newTest();
+  const sessionToken = await signIn(t);
+  // Legacy row (no kind) counts as a guide.
+  await t.run((ctx) =>
+    ctx.db.insert("blogPosts", { title: "Old", slug: "old", content: "x", published: true, createdAt: 1 }),
+  );
+  const blogId = await t.mutation(api.blog.createPost, {
+    sessionToken,
+    title: "News",
+    slug: "news",
+    content: "x",
+    published: true,
+    kind: "blog",
+  });
+  const guides = await t.query(api.blog.listPublicPosts, { kind: "guide" });
+  const blogs = await t.query(api.blog.listPublicPosts, { kind: "blog" });
+  expect(guides.map((p) => p.slug)).toEqual(["old"]);
+  expect(blogs.map((p) => p.slug)).toEqual(["news"]);
+  expect(await t.query(api.blog.listPublicPosts, {})).toHaveLength(2);
+
+  await t.mutation(api.blog.updatePost, { sessionToken, postId: blogId, title: "News 2" });
+  expect((await t.run((ctx) => ctx.db.get(blogId)))!.kind).toBe("blog");
+});
