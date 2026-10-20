@@ -30,6 +30,7 @@ import { KnowBeforeYouGoContent } from "@/components/tours/KnowBeforeYouGo";
 import { parseKnowBeforeYouGo } from "@/lib/tours/knowBeforeYouGo";
 import { tourAudienceBadge } from "@/lib/tours/tourAudience";
 import { TourBookingInfo } from "@/components/tours/TourBookingInfo";
+import { TourRouteGlance, type RouteStop } from "@/components/tours/TourRouteGlance";
 import {
   BlogPostCard,
   type BlogPostCardData,
@@ -263,6 +264,20 @@ export default async function TourDetailPage({ params }: Props) {
     startCity.toLowerCase() === endCity.toLowerCase()
       ? `Starts & ends in ${startCity}`
       : `${startCity} → ${endCity}`;
+
+  // Overnight stops: where each day ends (all days but the last), merging
+  // consecutive nights in the same place. Days without a clear place keep the
+  // previous stop.
+  const routeStops: RouteStop[] = [];
+  let lastPlace = "";
+  for (const day of tour.itinerary.slice(0, -1)) {
+    const place = cleanPlace(day.title, true) || lastPlace;
+    if (!place) continue;
+    lastPlace = place;
+    const prev = routeStops[routeStops.length - 1];
+    if (prev && prev.place.toLowerCase() === place.toLowerCase()) prev.nights += 1;
+    else routeStops.push({ place, nights: 1 });
+  }
 
   const highlights =
     tour.highlights && tour.highlights.length > 0 ? tour.highlights : [];
@@ -509,11 +524,17 @@ export default async function TourDetailPage({ params }: Props) {
           {/* grid-cols-1 = minmax(0,1fr): an implicit `auto` track grows to the
               map's min-content width and pushed the itinerary off-screen on phones. */}
           <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
-            <div className="min-w-0 lg:self-start">
+            {/* Sticky on desktop so the map + route card stay beside the days. */}
+            <div className="min-w-0 space-y-4 lg:sticky lg:top-40 lg:self-start">
               <TourRouteMap
                 location={tour.location}
                 title={tour.title}
                 itinerary={tour.itinerary}
+              />
+              <TourRouteGlance
+                stops={routeStops}
+                durationDays={tour.durationDays}
+                whatsappUrl={whatsappUrl}
               />
             </div>
             <div>
