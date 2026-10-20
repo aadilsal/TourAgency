@@ -97,6 +97,31 @@ test.describe("authenticated admin (needs E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD)"
     await expect.poll(() => sc.evaluate((e) => e.scrollTop)).toBeGreaterThan(0);
   });
 
+  test("new itinerary: no unsaved-changes warning until the admin types", async ({ page }) => {
+    await login(page);
+    const seen: string[] = [];
+    page.on("dialog", (d) => {
+      seen.push(d.message());
+      void d.dismiss().catch(() => {});
+    });
+
+    // Opened and left untouched (after the form auto-fills its defaults) → no warning.
+    await page.goto("/admin/itineraries/new");
+    await expect(page.getByPlaceholder(/7 Days Hunza/i)).toBeVisible({ timeout: 120_000 });
+    await page.waitForTimeout(4000);
+    await page.locator('a[href="/admin/tours"]').first().click();
+    await page.waitForURL((u) => u.pathname === "/admin/tours", { timeout: 120_000 });
+    expect(seen, "no warning for an untouched form").toEqual([]);
+
+    // Real typing → leaving warns (and staying keeps the admin on the page).
+    await page.goto("/admin/itineraries/new");
+    await expect(page.getByPlaceholder(/7 Days Hunza/i)).toBeVisible({ timeout: 120_000 });
+    await page.getByPlaceholder(/7 Days Hunza/i).fill("E2E unsaved check");
+    await page.locator('a[href="/admin/tours"]').first().click();
+    await expect.poll(() => seen.length).toBeGreaterThan(0);
+    expect(new URL(page.url()).pathname).toBe("/admin/itineraries/new");
+  });
+
   test("tour editor fields", async ({ page }) => {
     const w = watch(page);
     await login(page);

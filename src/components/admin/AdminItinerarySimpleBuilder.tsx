@@ -534,8 +534,20 @@ export function AdminItinerarySimpleBuilder({
   }, [adminSettings, itineraryIdProp]);
 
   // ── Local crash backup ───────────────────────────────────────────────────
+  // A new form fills itself in after mount (site defaults, booking prefill,
+  // hotel nights…). Keep the "untouched" baseline in step with that until the
+  // admin actually interacts, so opening and leaving never warns about
+  // unsaved changes nobody made.
   const pristineNewJson = useRef<string | null>(null);
-  if (pristineNewJson.current === null) pristineNewJson.current = JSON.stringify(snapshot);
+  const userInteractedRef = useRef(false);
+  if (pristineNewJson.current === null || !userInteractedRef.current) {
+    pristineNewJson.current = JSON.stringify(snapshot);
+  }
+  const markUserInteraction = (e: { target: EventTarget; type: string }) => {
+    if (e.target instanceof Element && (e.type !== "click" || e.target.closest("button"))) {
+      userInteractedRef.current = true;
+    }
+  };
   const newFormDirty =
     !itineraryId && JSON.stringify({ ...snapshot, includedInput: "", notIncludedInput: "" }) !==
       JSON.stringify({ ...JSON.parse(pristineNewJson.current), includedInput: "", notIncludedInput: "" });
@@ -962,7 +974,12 @@ export function AdminItinerarySimpleBuilder({
   const legacySource = existing ?? null;
 
   return (
-    <div className="space-y-6">
+    <div
+      className="space-y-6"
+      onInputCapture={markUserInteraction}
+      onChangeCapture={markUserInteraction}
+      onClickCapture={markUserInteraction}
+    >
       <QueryErrorBanner error={sessionLost ? new Error("Not authenticated") : existingQuery.error} />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
