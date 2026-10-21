@@ -129,6 +129,9 @@ const TEXT_FIELDS = [
   "jazzcashNumber",
   "invoiceTerms",
   "invoiceCancellationPolicy",
+  "googleRating",
+  "googleReviewCount",
+  "reviewsWidgetCode",
 ] as const;
 type TextField = (typeof TEXT_FIELDS)[number];
 
@@ -199,6 +202,9 @@ function mergeAdminSiteSettings(rawDoc: StoredDoc | null | undefined) {
       jazzcashNumber: "",
       invoiceTerms: "",
       invoiceCancellationPolicy: "",
+      googleRating: "",
+      googleReviewCount: "",
+      reviewsWidgetCode: "",
       paymentTerms: [...tmpl.paymentTerms],
       bankDetails: { ...tmpl.bankDetails },
       termsBlocks: [...tmpl.termsBlocks],
@@ -329,6 +335,9 @@ export const upsertAdminSiteSettings = mutation({
     jazzcashNumber: v.optional(v.string()),
     invoiceTerms: v.optional(v.string()),
     invoiceCancellationPolicy: v.optional(v.string()),
+    googleRating: v.optional(v.string()),
+    googleReviewCount: v.optional(v.string()),
+    reviewsWidgetCode: v.optional(v.string()),
     paymentTerms: v.optional(v.array(paymentTermValidator)),
     bankDetails: v.optional(bankDetailsValidator),
     termsBlocks: v.optional(v.array(termsBlockValidator)),

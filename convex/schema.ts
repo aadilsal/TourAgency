@@ -396,6 +396,14 @@ export default defineSchema({
     easypaisaNumber: v.optional(v.string()),
     jazzcashAccountTitle: v.optional(v.string()),
     jazzcashNumber: v.optional(v.string()),
+    /**
+     * Google reviews fallback (used when the Places API isn't configured):
+     * rating/count shown in the reviews badge, and a free reviews widget code
+     * (Trustindex / Elfsight) — only the widget id is ever used, never raw HTML.
+     */
+    googleRating: v.optional(v.string()),
+    googleReviewCount: v.optional(v.string()),
+    reviewsWidgetCode: v.optional(v.string()),
     /** Default invoice text, copied into new invoices only (never into existing ones). */
     invoiceTerms: v.optional(v.string()),
     invoiceCancellationPolicy: v.optional(v.string()),

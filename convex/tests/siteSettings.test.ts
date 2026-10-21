@@ -139,3 +139,20 @@ test("Easypaisa / JazzCash and invoice text are patch-only like every other fiel
   expect(s.stored.invoiceCancellationPolicy).toBeNull();
   expect(s.fallbacks.easypaisaNumber).toBe("");
 });
+
+test("google reviews fallback settings are patch-only and public", async () => {
+  const t = newTest();
+  const sessionToken = await signIn(t);
+  await t.mutation(api.siteSettings.upsertAdminSiteSettings, {
+    sessionToken,
+    googleRating: "4.9",
+    googleReviewCount: "101",
+    reviewsWidgetCode: "<script src='https://cdn.trustindex.io/loader.js?abc123def456ghi789'></script>",
+  });
+  // Saving an unrelated field must not wipe them.
+  await t.mutation(api.siteSettings.upsertAdminSiteSettings, { sessionToken, website: "https://junkettours.co" });
+  const pub = await t.query(api.siteSettings.getPublicSiteSettings, {});
+  expect(pub.googleRating).toBe("4.9");
+  expect(pub.googleReviewCount).toBe("101");
+  expect(pub.reviewsWidgetCode).toContain("trustindex");
+});

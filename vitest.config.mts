@@ -10,6 +10,9 @@ export default defineConfig({
   },
   test: {
     environment: "edge-runtime",
+    // convex-test runs whole mutations in-process; catalog/inbox tests take
+    // 5–8s on a busy machine, which made the 5s default fail spuriously.
+    testTimeout: 20_000,
     include: ["convex/**/*.test.ts", "src/**/*.test.ts"],
     server: { deps: { inline: ["convex-test"] } },
   },

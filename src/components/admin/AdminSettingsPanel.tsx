@@ -5,6 +5,7 @@ import { useMutation } from "convex/react";
 import { api } from "@convex/_generated/api";
 import { Card } from "@/components/ui/Card";
 import { TextAreaField, TextInput } from "@/components/ui/FormField";
+import { parseReviewsWidget } from "@/lib/reviewsWidget";
 import { AdminField } from "@/components/admin/shared/AdminField";
 import { toUserFacingErrorMessage } from "@/lib/userFriendlyError";
 import { useConvexSessionToken } from "@/hooks/useConvexSessionToken";
@@ -27,6 +28,9 @@ type SettingsForm = {
   easypaisaNumber: string;
   jazzcashAccountTitle: string;
   jazzcashNumber: string;
+  googleRating: string;
+  googleReviewCount: string;
+  reviewsWidgetCode: string;
   bankName: string;
   accountTitle: string;
   accountNumber: string;
@@ -46,6 +50,9 @@ const TEXT_KEYS = [
   "easypaisaNumber",
   "jazzcashAccountTitle",
   "jazzcashNumber",
+  "googleRating",
+  "googleReviewCount",
+  "reviewsWidgetCode",
 ] as const;
 type TextKey = (typeof TEXT_KEYS)[number];
 
@@ -107,6 +114,9 @@ export function AdminSettingsPanel() {
       easypaisaNumber: s.easypaisaNumber ?? "",
       jazzcashAccountTitle: s.jazzcashAccountTitle ?? "",
       jazzcashNumber: s.jazzcashNumber ?? "",
+      googleRating: s.googleRating ?? "",
+      googleReviewCount: s.googleReviewCount ?? "",
+      reviewsWidgetCode: s.reviewsWidgetCode ?? "",
       bankName: bank.bankName ?? "",
       accountTitle: bank.accountTitle ?? "",
       accountNumber: bank.accountNumber ?? "",
@@ -373,6 +383,32 @@ export function AdminSettingsPanel() {
             onChange={(e) => form.setField("bankInstruction", e.target.value)}
           />
         </AdminField>
+      </Section>
+
+      <Section
+        id="google-reviews"
+        title="Google reviews"
+        description="Shown on the home and About pages. If the automatic Google connection isn't set up, the site uses a free reviews widget (if you paste one below) or a Google rating badge."
+      >
+        {field("googleRating", "Google star rating", {
+          placeholder: "e.g. 4.9",
+          tip: "Your average rating on Google (between 1 and 5). Leave empty to show 4.9.",
+        })}
+        {field("googleReviewCount", "Number of Google reviews", {
+          placeholder: "e.g. 100+",
+          tip: "Shown as “… reviews on Google”. Leave empty to show 100+.",
+        })}
+        {field("reviewsWidgetCode", "Free reviews widget code (optional)", {
+          multiline: true,
+          wide: true,
+          placeholder: "Paste the code from Trustindex or Elfsight here",
+          tip: "Free widgets that show your real Google reviews. Create one at trustindex.io or elfsight.com (search your business, pick a design), then copy the install code and paste it here. Only the widget's ID is used — nothing else from the code runs on your site.",
+          hint: values?.reviewsWidgetCode?.trim()
+            ? parseReviewsWidget(values.reviewsWidgetCode)
+              ? `Widget detected (${parseReviewsWidget(values.reviewsWidgetCode)!.provider === "trustindex" ? "Trustindex" : "Elfsight"}) — it will show after you save.`
+              : "This doesn't look like a Trustindex or Elfsight code — please paste the code exactly as they give it."
+            : undefined,
+        })}
       </Section>
 
       <Section
