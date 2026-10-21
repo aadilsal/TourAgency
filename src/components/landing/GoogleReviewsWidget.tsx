@@ -104,7 +104,7 @@ export function GoogleReviewsWidget({
   );
 }
 
-function ReviewsSkeleton() {
+export function ReviewsSkeleton() {
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" role="status" aria-label="Loading reviews">
       {[0, 1, 2].map((i) => (

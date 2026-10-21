@@ -16,3 +16,20 @@ test("home reviews: skeleton first, then the widget renders", async ({ page }) =
   expect(await mount.evaluate((el) => el.scrollHeight)).toBeGreaterThan(40);
   console.log(`reviews widget rendered ${ms}ms after scrolling to it`);
 });
+
+// Live Convex connection blocked (VPN / ad-blocker / bad network): the
+// server-sent widget code must still show the widget — never placeholder
+// testimonials.
+test("home reviews: widget still shows when the live connection is blocked", async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.routeWebSocket(/convex\.cloud/, (ws) => ws.close());
+  await page.goto("/");
+  await page
+    .getByRole("heading", { name: /travelers love the experience/i })
+    .scrollIntoViewIfNeeded({ timeout: 120_000 });
+  await expect(page.getByText(/Ayesha K\.|Bilal R\.|Sara & Omar/)).toHaveCount(0);
+  const mount = page.locator("[data-widget-mount]");
+  test.skip((await mount.count()) === 0, "No reviews widget configured on this deployment");
+  await expect(page.getByRole("status", { name: /loading reviews/i })).toBeHidden({ timeout: 30_000 });
+  expect(await mount.evaluate((el) => el.scrollHeight)).toBeGreaterThan(40);
+});

@@ -46,6 +46,8 @@ type Props = {
   blogPosts: BlogPostInput[];
   whatsappUrl: string | null;
   initialCurrency?: CurrencyCode;
+  /** Server-loaded reviews widget code (Settings → Google reviews). */
+  reviewsWidgetCode?: string | null;
 };
 
 const DESTINATIONS: { name: string; slug: string; blurb: string; image: string }[] =
@@ -88,6 +90,7 @@ export function HomeLandingBelowFold({
   blogPosts,
   whatsappUrl,
   initialCurrency,
+  reviewsWidgetCode,
 }: Props) {
   const fromCms: GuideItem[] = blogPosts.map((p) => ({
     href: `/blog/${p.slug}`,
@@ -273,7 +276,7 @@ export function HomeLandingBelowFold({
       </MotionSection>
 
       <SceneCut />
-      <TestimonialsCarousel />
+      <TestimonialsCarousel initialWidgetCode={reviewsWidgetCode} />
 
       <SceneCut />
       <NewsletterSection />

@@ -21,10 +21,17 @@ export default async function AboutPage() {
   const team = await client.query(api.team.listPublic, {});
   const content = await client.query(api.about.getPublic, {});
   const faqs = await client.query(api.faqs.listPublic, {});
+  const settings = await client
+    .query(api.siteSettings.getPublicSiteSettings, {})
+    .catch(() => null);
 
   return (
     <main className="min-h-screen">
-      <AboutPageClient team={team} content={content} />
+      <AboutPageClient
+        team={team}
+        content={content}
+        reviewsWidgetCode={settings?.reviewsWidgetCode ?? null}
+      />
       <FaqSection faqs={faqs} />
       {/* The FAQs above are server-rendered and visible, as the markup requires. */}
       <FaqJsonLd faqs={faqs} />

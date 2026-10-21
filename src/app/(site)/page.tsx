@@ -30,6 +30,15 @@ async function HomePageDeferred() {
     coverImage: string;
   }> = [];
   const whatsappUrl = await getWhatsAppClickUrl();
+  // Sent with the page so the reviews section never waits on the live
+  // connection to know which reviews widget to show.
+  let reviewsWidgetCode: string | null = null;
+  try {
+    const settings = await getConvexServer().query(api.siteSettings.getPublicSiteSettings, {});
+    reviewsWidgetCode = settings?.reviewsWidgetCode ?? null;
+  } catch {
+    reviewsWidgetCode = null;
+  }
 
   try {
     const client = getConvexServer();
@@ -89,6 +98,7 @@ async function HomePageDeferred() {
       blogPosts={blogPosts}
       whatsappUrl={whatsappUrl}
       initialCurrency={getServerCurrency()}
+      reviewsWidgetCode={reviewsWidgetCode}
     />
   );
 }

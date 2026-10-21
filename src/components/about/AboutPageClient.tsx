@@ -38,9 +38,12 @@ const TABS = [
 export function AboutPageClient({
   team,
   content,
+  reviewsWidgetCode,
 }: {
   team: TeamMember[];
   content: AboutContent;
+  /** Server-loaded reviews widget code (Settings → Google reviews). */
+  reviewsWidgetCode?: string | null;
 }) {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("explore");
 
@@ -284,7 +287,7 @@ export function AboutPageClient({
       </section>
 
       <section className="bg-havezic-background-light py-2">
-        <TestimonialsCarousel />
+        <TestimonialsCarousel initialWidgetCode={reviewsWidgetCode} />
       </section>
     </>
   );
