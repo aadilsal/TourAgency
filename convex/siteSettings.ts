@@ -1,10 +1,32 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server.js";
+import { internalMutation, mutation, query } from "./_generated/server.js";
 import type { QueryCtx } from "./_generated/server.js";
 import { requireUserFromSession } from "./lib/authHelpers.js";
 import { normalizeGoogleMapsEmbedUrl } from "./lib/googleMapsEmbed.js";
 
 const GLOBAL_SETTINGS_KEY = "global";
+
+/**
+ * CLI-only: set the free Google-reviews widget code without an admin login
+ * (`npx convex run siteSettings:setReviewsWidgetCode '{"code":"..."}'`).
+ * Touches only this one field; accepts only Trustindex / Elfsight codes.
+ */
+export const setReviewsWidgetCode = internalMutation({
+  args: { code: v.string() },
+  handler: async (ctx, { code }) => {
+    const trimmed = code.trim();
+    if (!/trustindex\.io\/loader\.js\?|elfsight-app-[0-9a-f-]{36}/i.test(trimmed)) {
+      throw new Error("Not a Trustindex or Elfsight widget code");
+    }
+    const doc = await ctx.db
+      .query("siteSettings")
+      .withIndex("by_key", (q) => q.eq("key", GLOBAL_SETTINGS_KEY))
+      .unique();
+    if (!doc) throw new Error("Site settings not created yet — save Settings in the admin once first");
+    await ctx.db.patch(doc._id, { reviewsWidgetCode: trimmed, updatedAt: Date.now() });
+    return { ok: true };
+  },
+});
 
 function assertAdminFromSession(
   user: { role: string },

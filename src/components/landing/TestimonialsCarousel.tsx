@@ -85,7 +85,14 @@ export function TestimonialsCarousel() {
             description="Real reviews from guests on our Google listing."
           />
           <div className="mt-8 md:mt-12">
-            <GoogleReviewsWidget widget={widget} />
+            <GoogleReviewsWidget
+              widget={widget}
+              fallback={
+                <p className="text-center text-sm text-muted">
+                  Our reviews are taking a while to load — read them on Google below.
+                </p>
+              }
+            />
           </div>
           <div className="mt-8 flex justify-center">
             <a

@@ -1,5 +1,6 @@
+import Image from "next/image";
 import Link from "next/link";
-import { Sparkles, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 export function AuthSplitShell({
   children,
@@ -23,9 +24,17 @@ export function AuthSplitShell({
             <ArrowLeft className="h-4 w-4" />
             Back to home
           </Link>
-          <p className="mt-12 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-brand-accent">
-            <Sparkles className="h-4 w-4" />
-            JunketTours
+          <p className="mt-12 flex items-center gap-3 text-sm font-bold uppercase tracking-[0.2em] text-brand-accent">
+            <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/20">
+              <Image
+                src="/images-removebg-preview.png"
+                alt=""
+                fill
+                sizes="40px"
+                className="object-contain p-1.5"
+              />
+            </span>
+            Junket Tours
           </p>
           <h1 className="mt-4 max-w-md font-display text-3xl font-semibold leading-tight xl:text-4xl">
             Pakistan&apos;s culture and history — planned with clarity.
