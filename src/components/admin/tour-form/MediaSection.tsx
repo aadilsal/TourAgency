@@ -179,6 +179,16 @@ export function MediaSection({
         Choose photos from your device. The first photo is the main one. Photos are added to the
         tour when you save.
       </p>
+      {imageRefs.length === 0 ? (
+        <p
+          role="status"
+          className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+        >
+          <span className="font-semibold">This tour has no photos yet.</span> Until you add some, the
+          website shows the photo of its destination (or province) instead. Tours with their own
+          photos get many more enquiries.
+        </p>
+      ) : null}
       <div className="mt-3 flex flex-wrap gap-2">
         <label className="inline-flex cursor-pointer items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-brand-primary hover:bg-slate-50">
           <input

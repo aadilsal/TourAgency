@@ -5,7 +5,7 @@ import { paginationOptsValidator } from "convex/server";
 import { internal } from "./_generated/api.js";
 import { resolveUserFromSessionToken, requireAdminFromSession } from "./lib/authHelpers.js";
 import type { Doc, Id } from "./_generated/dataModel.js";
-import { resolveTourImageUrls } from "./lib/resolveTourImages.js";
+import { publicTourImages } from "./lib/tourPublicImages.js";
 import {
   deleteTourImageAssetsForTour,
   syncTourImageAssetIndex,
@@ -146,7 +146,7 @@ export const getTours = query({
     return Promise.all(
       list.map(async (t) => ({
         ...t,
-        images: await resolveTourImageUrls(ctx, t.images),
+        images: await publicTourImages(ctx, t),
       })),
     );
   },
@@ -186,6 +186,8 @@ export const listToursForAdmin = query({
         isActive: t.isActive,
         createdAt: t.createdAt,
         updatedAt: tourRevision(t),
+        /** Own photos only (the public fallback isn't counted) — flags tours to fix. */
+        photoCount: t.images.filter((ref) => ref.trim() && !ref.startsWith("__pending")).length,
       })),
     };
   },
@@ -215,7 +217,7 @@ export const listActiveToursForExplore = query({
         location: t.location,
         audience: t.audience,
         isActive: t.isActive,
-        images: await resolveTourImageUrls(ctx, t.images),
+        images: await publicTourImages(ctx, t),
       })),
     );
   },
@@ -248,7 +250,7 @@ export const listRelatedTours = query({
     return Promise.all(
       filtered.map(async (t) => ({
         ...t,
-        images: await resolveTourImageUrls(ctx, t.images),
+        images: await publicTourImages(ctx, t),
       })),
     );
   },
@@ -298,7 +300,7 @@ export const getTourBySlug = query({
     if (!tour) return null;
     return {
       ...tour,
-      images: await resolveTourImageUrls(ctx, tour.images),
+      images: await publicTourImages(ctx, tour),
     };
   },
 });

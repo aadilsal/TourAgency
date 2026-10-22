@@ -193,7 +193,17 @@ export function AdminToursPanel() {
             {tours.map((t) => (
               <tr key={t._id} className="border-b border-slate-100 last:border-0">
                 <td className="px-4 py-3">
-                  <span className="block font-medium text-brand-ink">{t.title}</span>
+                  <span className="block font-medium text-brand-ink">
+                    {t.title}
+                    {t.photoCount === 0 ? (
+                      <span
+                        className="ml-2 inline-block rounded-full bg-rose-50 px-2 py-0.5 align-middle text-[11px] font-semibold text-rose-700"
+                        title="This tour has no photos. The website shows a destination photo instead — open the tour and add your own under Tour images."
+                      >
+                        No photos
+                      </span>
+                    ) : null}
+                  </span>
                   <span className="block text-xs text-slate-400">
                     <span className="sr-only">Web address: </span>/tours/{t.slug}
                   </span>

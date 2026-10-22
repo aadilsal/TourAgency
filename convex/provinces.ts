@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { mutation, query, type MutationCtx } from "./_generated/server.js";
 import type { Doc, Id } from "./_generated/dataModel.js";
 import { requireAdminFromSession } from "./lib/authHelpers.js";
-import { resolveTourImageUrls } from "./lib/resolveTourImages.js";
+import { publicTourImages } from "./lib/tourPublicImages.js";
 
 const FALLBACK_HERO =
   "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?auto=format&fit=crop&w=2000&q=80";
@@ -384,7 +384,7 @@ export const listRelatedTours = query({
         durationDays: t.durationDays,
         location: t.location,
         audience: t.audience,
-        images: await resolveTourImageUrls(ctx, t.images),
+        images: await publicTourImages(ctx, t),
       })),
     );
   },
