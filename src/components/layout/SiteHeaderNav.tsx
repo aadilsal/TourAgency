@@ -747,8 +747,11 @@ function MobileNavSheet({
 
 export function SiteHeaderNav({
   initialSession,
+  licenceLine,
 }: {
   initialSession: SessionInfo;
+  /** e.g. "Licence #11918" — shown under the brand name. */
+  licenceLine?: string;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -872,6 +875,11 @@ export function SiteHeaderNav({
               <span className="hidden text-xs font-semibold uppercase tracking-[0.16em] text-white/65 sm:block">
                 Pakistan, province by province
               </span>
+              {licenceLine ? (
+                <span className="block truncate text-[11px] font-medium text-white/55 sm:text-xs">
+                  Govt. {licenceLine}
+                </span>
+              ) : null}
             </span>
           </Link>
 

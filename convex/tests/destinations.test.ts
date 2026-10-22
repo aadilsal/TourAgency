@@ -229,6 +229,18 @@ test("addMissingDefaultDestinations adds the heritage circuit without touching e
     "sehwan",
     "hyderabad",
     "karachi",
+    "fairy-meadows",
+    "nagar",
+    "nankana-sahib",
+    "gurdwara-panja-sahib",
+    "hassan-abdal",
+    "shandur-top",
+    "yasin-valley",
+    "phandar-valley",
+    "ghizer-valley",
+    "haramosh-valley",
+    "chilas",
+    "besham",
   ]) {
     expect(slugs).toContain(slug);
   }

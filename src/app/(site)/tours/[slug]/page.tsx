@@ -30,6 +30,7 @@ import { KnowBeforeYouGoContent } from "@/components/tours/KnowBeforeYouGo";
 import { parseKnowBeforeYouGo } from "@/lib/tours/knowBeforeYouGo";
 import { tourAudienceBadge } from "@/lib/tours/tourAudience";
 import { TourBookingInfo } from "@/components/tours/TourBookingInfo";
+import { TourRefundPolicy } from "@/components/tours/TourRefundPolicy";
 import { TourRouteGlance, type RouteStop } from "@/components/tours/TourRouteGlance";
 import {
   BlogPostCard,
@@ -298,6 +299,7 @@ export default async function TourDetailPage({ params }: Props) {
     ...(knowBeforeYouGo.length > 0
       ? [{ id: "know-before-you-go", label: "Know before you go" }]
       : []),
+    { id: "refund-policy", label: "Refund policy" },
     { id: "book", label: bookable ? "Dates & prices" : "Plan this tour" },
     { id: "reviews", label: "Reviews" },
   ];
@@ -664,6 +666,8 @@ export default async function TourDetailPage({ params }: Props) {
             </div>
           </section>
         ) : null}
+
+        <TourRefundPolicy />
 
         {/* Dates and prices / booking */}
         <section id="book" className="mt-12 scroll-mt-40 md:mt-16">
