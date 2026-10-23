@@ -11,7 +11,7 @@ export async function getServerSession() {
   const token = cookieStore.get("junket_session")?.value;
   if (!token) return null;
   try {
-    const client = getConvexServer();
+    const client = getConvexServer({ live: true });
     return await client.query(api.auth.validateSession, { token });
   } catch {
     return null;
